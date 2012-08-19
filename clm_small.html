@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<title>Constrained Local Models</title>
+		<meta charset="utf-8">
+		<style>
+			body {
+				font-family: Monospace;
+				background-color: #f0f0f0;
+				margin: 0px;
+				overflow: hidden;
+			}
+			
+			#overlay {
+			  position: absolute;
+			  top: 0px;
+			  left: 0px;
+			}
+			
+			#sketch {
+			  display: none;
+			}
+		</style>
+	</head>
+	<body>
+		<script src="./js/goog/base.js"></script>
+		<script src="./js/goog/error.js"></script>
+		<script src="./js/goog/string.js"></script>
+		<script src="./js/goog/asserts.js"></script>
+		<script src="./js/goog/array.js"></script>
+		<script src="./js/goog/size.js"></script>
+		<script src="./js/goog/math.js"></script>
+		<script src="./js/goog/matrix.js"></script>
+		<script src="./js/normProbs_small.js"></script>
+		<script src="./js/smallmodel.js"></script>
+		<script src="./js/webgl-utils.js"></script>
+		<script src="./js/clm.js"></script>
+		<script src="./js/ccv.js"></script>
+		<script src="./js/cascade.js"></script>
+		<script src="./js/filter.js"></script>
+		<script src="./js/Stats.js"></script>
+		<div id="container"></div>
+		<canvas id="compare" width="720" height="576"></canvas>
+		<canvas id="overlay" width="720" height="576"></canvas>
+		<canvas id="sketch" width="138" height="138"></canvas>
+		<!--<canvas id="sketch" width="400" height="400"></canvas>-->
+		<canvas id="filter"></canvas>
+		<input type="button" value="start" onclick="animate()"></input>
+		
+		<script>
+		   var cc = document.getElementById('compare').getContext('2d');
+		   var skcc = document.getElementById('sketch');
+		   var img = new Image();
+		   img.onload = function() {
+		     cc.drawImage(img,0,0,720, 576);
+		     //cc.drawImage(img,0,0, 250, 313);
+		   };
+		   img.src = './media/franck_02221.jpg';
+		   
+		   var ctrack = new clm.tracker();
+		   ctrack.init(skcc);
+		   
+		   stats = new Stats();
+			 stats.domElement.style.position = 'absolute';
+			 stats.domElement.style.top = '0px';
+			 document.getElementById('container').appendChild( stats.domElement );
+		   
+		   function animate() {
+         ctrack.track(document.getElementById('compare'));
+         stats.update();
+         requestAnimFrame(animate);
+		   }
+		</script>
+	</body>
+</html>
