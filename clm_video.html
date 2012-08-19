@@ -20,6 +20,10 @@
 			#sketch {
 			  display: none;
 			}
+			
+			#filter {
+			  display: none;
+			}
 		</style>
 	</head>
 	<body>
@@ -40,13 +44,13 @@
 		<script src="./js/filter.js"></script>
 		<script src="./js/Stats.js"></script>
 		<div id="container"></div>
-		<video id="videoel" width="370" height="288">
+		<video id="videoel" width="370" height="288" preload="auto">
       <source src="./media/franck.ogv" type="video/ogg"/>
 		</video>
 		<canvas id="overlay" width="370" height="288"></canvas>
 		<canvas id="filter"></canvas>
 		<canvas id="sketch" width="138" height="138"></canvas>
-		<input type="button" value="start" onclick="start()"></input>
+		<input type="button" value="wait, loading video" disabled="disabled" onclick="start()" id="startbutton"></input>
 		
 		<script>
 		   var skcc = document.getElementById('sketch');
@@ -54,7 +58,7 @@
 		   var overlay = document.getElementById('overlay');
 		   overlay.style = "position:absolute";
 		   
-		   var ctrack = new clm.tracker({'constantVelocity' : false});
+		   var ctrack = new clm.tracker({'constantVelocity' : true});
 		   ctrack.init(skcc);
 		   
 		   stats = new Stats();
@@ -62,9 +66,18 @@
 			 stats.domElement.style.top = '0px';
 			 document.getElementById('container').appendChild( stats.domElement );
 		   
+       var vid = document.getElementById('videoel');
+       
+       function enablestart() {
+         var startbutton = document.getElementById('startbutton');
+         startbutton.value = "start";
+         startbutton.disabled = null;
+       }
+       
+       vid.addEventListener('canplay', enablestart, false);
+		   
 		   function start() {
          //start video
-         var vid = document.getElementById('videoel');
          vid.play();
          
          //start tracking
