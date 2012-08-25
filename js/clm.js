@@ -23,10 +23,7 @@ var clm = {
 		var meanShape = [];
 		
 		//var varianceSeq = [20,10,5,1,1,1,1,1,1,1];
-		//var varianceSeq = [20,20,20,20,20,20,20,20,20,20];
-		//var varianceSeq = [10,10,10,10,10,10,10,10,10,10];
-		//var varianceSeq = [1,1,1,1,1,1,1,1,1,1];
-		var varianceSeq = [20,10,5,1];
+		var varianceSeq = [10,10,5,1];
 		//var varianceSeq = [50,25,12.5,2.5,2.5,2.5,2.5,2.5,2.5,2.5];
 		var maxSearches = 4;
 		var first = true;
@@ -302,7 +299,7 @@ var clm = {
 				
 				if (params.constantVelocity) {
           // calculate where to get patches via constant velocity prediction
-          if (previousParameters.length >= 3) {
+          if (previousParameters.length >= 2) {
             for (var i = 0;i < currentParameters.length;i++) {
               currentParameters[i] = (2*previousParameters[1][i]) - previousParameters[0][i];
               //currentParameters[i] = (3*previousParameters[2][i]) - (3*previousParameters[1][i]) + previousParameters[0][i];
