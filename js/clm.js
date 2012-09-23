@@ -22,10 +22,20 @@ var clm = {
 		var responses = [];
 		var meanShape = [];
 		
-		//var varianceSeq = [20,10,5,1,1,1,1,1,1,1];
-		var varianceSeq = [10,10,5,1];
-		//var varianceSeq = [50,25,12.5,2.5,2.5,2.5,2.5,2.5,2.5,2.5];
-		var maxSearches = 4;
+		/*
+		It's possible to experiment with the sequence of variances used for the finding the maximum in the KDE.
+		This sequence was found to be okay using some manual testing.
+		In Saragih's paper he used the sequence [20,10,5,1], this was however found to be slower and equally precise.
+		*/
+		var varianceSeq = [10,10,5];
+		
+		/*
+		The PDM variance determines how the PDM models parameters can vary when fitting.
+		A low variance puts very little constraint on the parameters, a high variance puts a lot of constraint.
+		According to the formula in Saragih's paper, this parameter should be around 0.00005, however a higher variance was found to work better for this model.
+		*/
+		var PDMVariance = 0.5;
+		
 		var first = true;
 		
 		var convergenceLimit = 0.01;
@@ -514,7 +524,7 @@ var clm = {
 			var gaussianLookup;
 			//var maxDiff = 0;
 			
-			for (var i = 0; i < maxSearches; i++) {
+			for (var i = 0; i < varianceSeq.length; i++) {
 				
 				var partastart = (new Date).getTime();
 				
@@ -648,8 +658,10 @@ var clm = {
 				//this.drawPos(canvas, testMV, 1);
 				//
 				
+				
+				
 				// compute pdm parameter update
-				var prior = gaussianPD.multiply(varianceSeq[i]);
+				var prior = gaussianPD.multiply(PDMVariance);
         var jtj = jac.getTranspose().multiply(jac);
         var cpMatrix = new goog.math.Matrix(11,1);
         for (var l = 0;l < 11;l++) {
@@ -661,28 +673,31 @@ var clm = {
 				var paramUpdateRight = priorP.subtract(jtv);
 				var paramUpdate = paramUpdateLeft.multiply(paramUpdateRight);
 				
-				// check if converged
-        // calculate norm of parameterdifference
-				var parameterNorm = 0;
-				var pnsq;
-				for (var k = 0;k < 4+7;k++) {
-				  pnsq = paramUpdate.getValueAt(k,0);
-				  parameterNorm += (pnsq * pnsq);
-				}
-				parameterNorm = Math.sqrt(parameterNorm);
-				console.log("parameternorm:"+parameterNorm);
+				var oldPositions = currentPositions;
 				
 				// update estimated parameters
 				for (var k = 0;k < 7+4;k++) {
 				  currentParameters[k] -= paramUpdate.getValueAt(k,0);
 				}
 				
-				// if norm < limit, then break
-				if (parameterNorm < convergenceLimit) {
-				  break;
-				}
 				// update current coordinates
 				currentPositions = calculatePositions(currentParameters, true);
+				
+				// check if converged
+        // calculate norm of parameterdifference
+				var positionNorm = 0;
+				var pnsq_x, pnsq_y;
+				for (var k = 0;k < currentPositions.length;k++) {
+				  pnsq_x = (currentPositions[k][0]-oldPositions[k][0]);
+				  pnsq_y = (currentPositions[k][1]-oldPositions[k][1]);
+				  positionNorm += ((pnsq_x*pnsq_x) + (pnsq_y*pnsq_y));
+				}
+				console.log("positionnorm:"+positionNorm);
+				
+				// if norm < limit, then break
+				if (positionNorm < convergenceLimit) {
+				  break;
+				}
 				
 				var partbend = (new Date).getTime();
 				partbholder += (partbend-partbstart);
