@@ -3,7 +3,7 @@ clmtrackr
 
 clmtrackr is a work-in-progress javascript library for precise tracking of facial features in videos or images. It currently is an implementation of *constrained local models* fitted by *regularized landmark mean-shift*, as described in [Jason M. Saragih's paper](http://dl.acm.org/citation.cfm?id=1938021). Due to the heavy calculations involved, the current version of the library requires WebGL with support for floating-point textures.
 
-[Xiaoguang Yan](http://ccxgyan.wordpress.com/) kindly allowed us to use the trained model from [his implementation of Constrained Local Models](https://sites.google.com/site/xgyanhome/home/projects/clm-implementation). The aim is to provide a more generic model at some point.
+[Xiaoguang Yan](http://ccxgyan.wordpress.com/) kindly allowed us to use the trained model from [his implementation of Constrained Local Models](https://sites.google.com/site/xgyanhome/home/projects/clm-implementation). The aim is to provide a more generic model that will fit general faces.
 
 The library requires [ccv](https://github.com/liuliu/ccv) (for initial face detection) and parts of [google closure library](https://developers.google.com/closure/library/) (for matrix math).
 
