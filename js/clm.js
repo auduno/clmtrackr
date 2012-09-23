@@ -24,7 +24,7 @@ var clm = {
 		
 		/*
 		It's possible to experiment with the sequence of variances used for the finding the maximum in the KDE.
-		This sequence was found to be okay using some manual testing.
+		This sequence is pretty arbitrary, but was found to be okay using some manual testing.
 		In Saragih's paper he used the sequence [20,10,5,1], this was however found to be slower and equally precise.
 		*/
 		var varianceSeq = [10,10,5];
@@ -34,7 +34,7 @@ var clm = {
 		A low variance puts very little constraint on the parameters, a high variance puts a lot of constraint.
 		According to the formula in Saragih's paper, this parameter should be around 0.00005, however a higher variance was found to work better for this model.
 		*/
-		var PDMVariance = 0.5;
+		var PDMVariance = 0.05;
 		
 		var first = true;
 		
@@ -106,7 +106,7 @@ var clm = {
 			
 			// precalculate gaussianPriorDiagonal
 			gaussianPD = new goog.math.Matrix(numParameters+4, numParameters+4);
-			// manual inverse
+			// set values and append manual inverse
 			gaussianPD.setValueAt(4,4,1/eigenValues[0]);
 			gaussianPD.setValueAt(5,5,1/eigenValues[1]);
 			gaussianPD.setValueAt(6,6,1/eigenValues[2]);
@@ -114,7 +114,6 @@ var clm = {
 			gaussianPD.setValueAt(8,8,1/eigenValues[4]);
 			gaussianPD.setValueAt(9,9,1/eigenValues[5]);
 			gaussianPD.setValueAt(10,10,1/eigenValues[6]);
-			//gaussianPD = gaussianPD.getInverse();
 			
 			// load precalculated gaussian bivariate table
 			gaussianTable = [];
@@ -167,8 +166,6 @@ var clm = {
 			var j0,j1;
 			for (var i = 0;i < numPatches;i ++) {
 				// 1
-				//j0 = eigenVectors.getValueAt(i,0);
-				//j1 = eigenVectors.getValueAt(i+1,0);
 				j0 = meanShape[i][0];
 				j1 = meanShape[i][1];
 				for (var p = 0;p < numParameters;p++) {
@@ -178,8 +175,6 @@ var clm = {
 				jacobian.setValueAt((i*2), 0, j0);
 				jacobian.setValueAt((i*2)+1, 0, j1);
 				// 2
-				//j0 = eigenVectors.getValueAt(i+1,0);
-				//j1 = eigenVectors.getValueAt(i,0);
 				j0 = meanShape[i][1];
 				j1 = meanShape[i][0];
 				for (var p = 0;p < numParameters;p++) {
@@ -234,16 +229,11 @@ var clm = {
 		}
 		
 		this.detectPosition = function(el) {
-		  if (el.tagName == 'VIDEO') {
-		    var canvas = document.createElement('canvas');
-		    canvas.width = el.width;
-		    canvas.height = el.height;
-		    var cc = canvas.getContext('2d');
-		    cc.drawImage(el, 0, 0, el.width, el.height);
-		  } else if (el.tagName == 'CANVAS') {
-		    var canvas = el;
-		    var cc = canvas.getContext('2d');
-		  }
+		  var canvas = document.createElement('canvas');
+		  canvas.width = el.width;
+		  canvas.height = el.height;
+		  var cc = canvas.getContext('2d');
+		  cc.drawImage(el, 0, 0, el.width, el.height);
 		  
 		  // do viola-jones on canvas to get initial guess, if we don't have any points
       var comp = ccv.detect_objects(
@@ -275,7 +265,6 @@ var clm = {
 		
 		/*
      *  element : canvas or video element
-     *
      *  TODO: should be able to take img element as well
      */
 		this.track = function(element) {
@@ -305,7 +294,7 @@ var clm = {
 				
 				first = false;
 			} else {
-				// TODO : do cross-correlation or similar to find translation of face (feature detection?)
+				// TODO : do cross-correlation/correlation-filter or similar to find translation of face
 				
 				if (params.constantVelocity) {
           // calculate where to get patches via constant velocity prediction
@@ -655,9 +644,6 @@ var clm = {
 				  testMV[k][0] = currentPositions[k][0] + meanShiftVector.getValueAt(k*2, 0);
 				  testMV[k][1] = currentPositions[k][1] + meanShiftVector.getValueAt((k*2)+1, 0);
 				}*/
-				//this.drawPos(canvas, testMV, 1);
-				//
-				
 				
 				
 				// compute pdm parameter update
@@ -728,33 +714,9 @@ var clm = {
 			return currentPositions;
 		}
 		
-		this.constrain = function(updatePosition) {
-		  var jac = createJacobian(currentParameters, eigenVectors);
-		  
-		  // compute pdm parameter update
-      var prior = gaussianPD.multiply(varianceSeq[0]);
-      var jtj = jac.getTranspose().multiply(jac);
-      var cpMatrix = new goog.math.Matrix(11,1);
-      for (var l = 0;l < 11;l++) {
-        cpMatrix.setValueAt(l,0,currentParameters[l]);
-      }
-			var priorP = prior.multiply(cpMatrix);
-			
-			var up = new goog.math.Matrix(68*2,1);
-			for (var l = 0;l < 68;l++) {
-			  up.setValueAt(l*2,0,updatePosition[l][0]);
-			  up.setValueAt((l*2)+1,0,updatePosition[l][1]);
-			}
-			
-			var jtv = jac.getTranspose().multiply(up);
-			var paramUpdateLeft = (prior.add(jtj)).getInverse();
-			var paramUpdateRight = priorP.subtract(jtv);
-			var paramUpdate = paramUpdateLeft.multiply(paramUpdateRight);
-		  
-		  return paramUpdate
-		}
-		
 		var normalizeMatrix = function(matrix) {
+      // normalize matrix 
+      // only used in non-webGL code
 		  
 		  var entry, mean, sd, entries;
 		  
@@ -785,6 +747,8 @@ var clm = {
 		}
 		
 		var normalizeFilterMatrix = function(matrix) {
+		  // normalize filter matrix 
+      // only used in non-webGL code
 		  
 		  var entry;
 		  
@@ -839,6 +803,8 @@ var clm = {
 			
 			var cc = canvas.getContext('2d');
 			cc.fillStyle = "rgb(200,200,200)";
+			cc.strokeStyle = "rgb(130,255,50)";
+			//cc.lineWidth = 1;
 			var x, y, i, path;
 			
 			cc.save();
@@ -1051,155 +1017,6 @@ var clm = {
 			b = params[0]*y + params[1]*x + params[3];
 			x += a;
 			y += b;
-			cc.fillRect(x,y,3,3);
-			
-			cc.restore()
-		}
-	
-    this.drawPos = function(canvas, positions) {
-			// if no previous points, just draw in the middle of canvas
-			
-			var cc = canvas.getContext('2d');
-			cc.fillStyle = "rgb(200,200,200)";
-			var x, y, i, path;
-			
-			cc.save();
-			
-			path = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14]
-			cc.beginPath();
-			for (var p = 0;p < path.length;p++) {
-				i = path[p];
-				x = positions[i][0];
-				y = positions[i][1];
-				//cc.fillRect(x,y,3,3);
-				if (i == 0) {
-					cc.moveTo(x,y);
-				} else {
-					cc.lineTo(x,y);
-				}
-			}
-			cc.moveTo(0,0);
-			cc.closePath();
-			cc.stroke();
-			
-			//right eyebrow
-			path = [15,16,17,18,19,20,15]
-			cc.beginPath();
-			for (var p = 0;p < path.length;p++) {
-				i = path[p];
-				x = positions[i][0];
-				y = positions[i][1];
-				//cc.fillRect(x,y,3,3);
-				if (i == 0) {
-					cc.moveTo(x,y);
-				} else {
-					cc.lineTo(x,y);
-				}
-			}
-			cc.moveTo(0,0);
-			cc.closePath();
-			cc.stroke();
-			
-			// left eyebrow
-			path = [21,22,23,24,25,26,21]
-			cc.beginPath();
-			for (var p = 0;p < path.length;p++) {
-				i = path[p];
-				x = positions[i][0];
-				y = positions[i][1];
-				//cc.fillRect(x,y,3,3);
-				if (i == 0) {
-					cc.moveTo(x,y);
-				} else {
-					cc.lineTo(x,y);
-				}
-			}
-			cc.moveTo(0,0);
-			cc.closePath();
-			cc.stroke();
-			
-			// left eye
-			path = [27,28,29,30,27,30,31]
-			cc.beginPath();
-			for (var p = 0;p < path.length;p++) {
-				i = path[p];
-				x = positions[i][0];
-				y = positions[i][1];
-				//cc.fillRect(x,y,3,3);
-				if (i == 0) {
-					cc.moveTo(x,y);
-				} else {
-					cc.lineTo(x,y);
-				}
-			}
-			cc.moveTo(0,0);
-			cc.closePath();
-			cc.stroke();
-			
-			// right eye
-			path = [32,33,34,35,32,35,36]
-			cc.beginPath();
-			for (var p = 0;p < path.length;p++) {
-				i = path[p];
-				x = positions[i][0];
-				y = positions[i][1];
-				//cc.fillRect(x,y,3,3);
-				if (i == 0) {
-					cc.moveTo(x,y);
-				} else {
-					cc.lineTo(x,y);
-				}
-			}
-			cc.moveTo(0,0);
-			cc.closePath();
-			cc.stroke();
-			
-			// nose
-			path = [37,38,39,40,46,41,47,42,43,44,45]
-			cc.beginPath();
-			for (var p = 0;p < path.length;p++) {
-				i = path[p];
-				x = positions[i][0];
-				y = positions[i][1];
-				//cc.fillRect(x,y,3,3);
-				if (i == 0) {
-					cc.moveTo(x,y);
-				} else {
-					cc.lineTo(x,y);
-				}
-			}
-			cc.moveTo(0,0);
-			cc.closePath();
-			cc.stroke();
-			
-			// mouth
-			path = [48,49,50,51,52,53,54,55,56,57,58,59,48,60,61,62,54,63,64,65,48]
-			cc.beginPath();
-			for (var p = 0;p < path.length;p++) {
-				i = path[p];
-				x = positions[i][0];
-				y = positions[i][1];
-				//cc.fillRect(x,y,3,3);
-				if (i == 0) {
-					cc.moveTo(x,y);
-				} else {
-					cc.lineTo(x,y);
-				}
-			}
-			cc.moveTo(0,0);
-			cc.closePath();
-			cc.stroke();
-			
-			// mid mouth
-			i = 66;
-			x = positions[i][0];
-			y = positions[i][1];
-			cc.fillRect(x,y,3,3);
-			
-			// mid nose
-			i = 67;
-			x = positions[i][0];
-			y = positions[i][1];
 			cc.fillRect(x,y,3,3);
 			
 			cc.restore()
