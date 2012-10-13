@@ -185,8 +185,8 @@ var clm = {
 				x = pModel.shapeModel.meanShape[(2*i)];
 				y = pModel.shapeModel.meanShape[(2*i)+1];
 				for (var j = 0;j < numParameters-4;j++) {
-					x += pModel.shapeModel.eVectors[(j*68*2)+(2*i)]*parameters[j+4];
-					y += pModel.shapeModel.eVectors[(j*68*2)+((2*i)+1)]*parameters[j+4];
+					x += pModel.shapeModel.eVectors[(j*numPatches*2)+(2*i)]*parameters[j+4];
+					y += pModel.shapeModel.eVectors[(j*numPatches*2)+((2*i)+1)]*parameters[j+4];
 				}
 				if (useTransforms) {
 				  a = parameters[0]*x - parameters[1]*y + parameters[2];
@@ -338,12 +338,12 @@ var clm = {
 			/*testing of printing weights*/
 			/*sketchCC.clearRect(0, 0, sketchW, sketchH);
 			for (var i = 0; i < numPatches; i++) {
-			  px = patchPositions[i][0]-(32/2);
-			  py = patchPositions[i][1]-(32/2);
-			  var psci = sketchCC.createImageData(32 ,32 );
+			  px = patchPositions[i][0]-(patchSize/2);
+			  py = patchPositions[i][1]-(patchSize/2);
+			  var psci = sketchCC.createImageData(patchSize, patchSize);
 			  var pscidata = psci.data;
-			  for (var j = 0;j < (32)*(32);j++) {
-			    var val = weightMatricesOld[i].getValueAt(j % (32), (j / (32)) >> 0);
+			  for (var j = 0;j < (patchSize)*(patchSize);j++) {
+			    var val = weightMatricesOld[i].getValueAt(j % (patchSize), (j / (patchSize)) >> 0);
 			    val = (val*2000)+127;
 			    val = val > 255 ? 255 : val;
 			    val = val < 0 ? 0 : val;
@@ -364,7 +364,7 @@ var clm = {
 			  var pscidata = psci.data;
 			  for (var j = 0;j < (patchSize+searchWindow )*(patchSize+searchWindow );j++) {
 			    var val = patches[i][(((j / (patchSize+searchWindow)) >> 0)*(patchSize+searchWindow))+(j % (patchSize+searchWindow))];
-			    //var val = patches[i].getValueAt(j % (32+searchWindow ), (j / (32+searchWindow )) >> 0);
+			    //var val = patches[i].getValueAt(j % (patchSize+searchWindow ), (j / (patchSize+searchWindow )) >> 0);
 			    pscidata[j*4] = val;
 			    pscidata[(j*4)+1] = val;
 			    pscidata[(j*4)+2] = val;
@@ -387,7 +387,7 @@ var clm = {
 			  for (var k = 0;k < searchWindow;k++) {
 			    for (var l = 0;l < searchWindow;l++) {
 			      // get submatrix for this patch
-			      submatrix = new goog.math.Matrix(32,32);
+			      submatrix = new goog.math.Matrix(patchSize, patchSize);
 			      goog.math.Matrix.forEach(submatrix, function(value, a, b) {
 			        submatrix.setValueAt(a,b, this.getValueAt(a+k,b+l));
 			      }, patches[i]);
@@ -603,8 +603,8 @@ var clm = {
         }*/
 				
 				/* end webgl work here */
-				var meanShiftVector = new goog.math.Matrix(68*2, 1);
-				for (var k = 0;k < 68;k++) {
+				var meanShiftVector = new goog.math.Matrix(numPatches*2, 1);
+				for (var k = 0;k < numPatches;k++) {
 				  meanShiftVector.setValueAt(k*2, 0, meanshiftVectors[k][0]);
 				  meanShiftVector.setValueAt((k*2)+1, 0, meanshiftVectors[k][1]);
 				}
@@ -612,7 +612,7 @@ var clm = {
 				
 				//test : draw meanshiftvector diagram
 				/*var testMV = [];
-				for (var k = 0;k < 68;k++) {
+				for (var k = 0;k < numPatches;k++) {
 				  testMV[k] = []
 				  testMV[k][0] = currentPositions[k][0] + meanShiftVector.getValueAt(k*2, 0);
 				  testMV[k][1] = currentPositions[k][1] + meanShiftVector.getValueAt((k*2)+1, 0);
@@ -622,8 +622,8 @@ var clm = {
 				// compute pdm parameter update
 				var prior = gaussianPD.multiply(PDMVariance);
         var jtj = jac.getTranspose().multiply(jac);
-        var cpMatrix = new goog.math.Matrix(11,1);
-        for (var l = 0;l < 11;l++) {
+        var cpMatrix = new goog.math.Matrix((numParameters+4),1);
+        for (var l = 0;l < (numParameters+4);l++) {
           cpMatrix.setValueAt(l,0,currentParameters[l]);
         }
 				var priorP = prior.multiply(cpMatrix);
@@ -635,7 +635,7 @@ var clm = {
 				var oldPositions = currentPositions;
 				
 				// update estimated parameters
-				for (var k = 0;k < 7+4;k++) {
+				for (var k = 0;k < numParameters+4;k++) {
 				  currentParameters[k] -= paramUpdate.getValueAt(k,0);
 				}
 				
@@ -788,9 +788,9 @@ var clm = {
 				i = path[p]*2;
 				x = pModel.shapeModel.meanShape[i];
 				y = pModel.shapeModel.meanShape[i+1];
-				for (var j = 0;j < 7;j++) {
-					x += pModel.shapeModel.eVectors[((j)*68*2)+i]*params[j+4];
-					y += pModel.shapeModel.eVectors[((j)*68*2)+(i+1)]*params[j+4];
+				for (var j = 0;j < numParameters;j++) {
+					x += pModel.shapeModel.eVectors[((j)*numPatches*2)+i]*params[j+4];
+					y += pModel.shapeModel.eVectors[((j)*numPatches*2)+(i+1)]*params[j+4];
 				}
 				a = params[0]*x - params[1]*y + params[2];
 				b = params[0]*y + params[1]*x + params[3];
@@ -815,9 +815,9 @@ var clm = {
 				i = path[p]*2;
 				x = pModel.shapeModel.meanShape[i];
 				y = pModel.shapeModel.meanShape[i+1];
-				for (var j = 0;j < 7;j++) {
-					x += pModel.shapeModel.eVectors[((j)*68*2)+i]*params[j+4];
-					y += pModel.shapeModel.eVectors[((j)*68*2)+(i+1)]*params[j+4];
+				for (var j = 0;j < numParameters;j++) {
+					x += pModel.shapeModel.eVectors[((j)*numPatches*2)+i]*params[j+4];
+					y += pModel.shapeModel.eVectors[((j)*numPatches*2)+(i+1)]*params[j+4];
 				}
 				a = params[0]*x - params[1]*y + params[2];
 				b = params[0]*y + params[1]*x + params[3];
@@ -841,9 +841,9 @@ var clm = {
 				i = path[p]*2;
 				x = pModel.shapeModel.meanShape[i];
 				y = pModel.shapeModel.meanShape[i+1];
-				for (var j = 0;j < 7;j++) {
-					x += pModel.shapeModel.eVectors[((j)*68*2)+i]*params[j+4];
-					y += pModel.shapeModel.eVectors[((j)*68*2)+(i+1)]*params[j+4];
+				for (var j = 0;j < numParameters;j++) {
+					x += pModel.shapeModel.eVectors[((j)*numPatches*2)+i]*params[j+4];
+					y += pModel.shapeModel.eVectors[((j)*numPatches*2)+(i+1)]*params[j+4];
 				}
 				a = params[0]*x - params[1]*y + params[2];
 				b = params[0]*y + params[1]*x + params[3];
@@ -867,9 +867,9 @@ var clm = {
 				i = path[p]*2;
 				x = pModel.shapeModel.meanShape[i];
 				y = pModel.shapeModel.meanShape[i+1];
-				for (var j = 0;j < 7;j++) {
-					x += pModel.shapeModel.eVectors[((j)*68*2)+i]*params[j+4];
-					y += pModel.shapeModel.eVectors[((j)*68*2)+(i+1)]*params[j+4];
+				for (var j = 0;j < numParameters;j++) {
+					x += pModel.shapeModel.eVectors[((j)*numPatches*2)+i]*params[j+4];
+					y += pModel.shapeModel.eVectors[((j)*numPatches*2)+(i+1)]*params[j+4];
 				}
 				a = params[0]*x - params[1]*y + params[2];
 				b = params[0]*y + params[1]*x + params[3];
@@ -893,9 +893,9 @@ var clm = {
 				i = path[p]*2;
 				x = pModel.shapeModel.meanShape[i];
 				y = pModel.shapeModel.meanShape[i+1];
-				for (var j = 0;j < 7;j++) {
-					x += pModel.shapeModel.eVectors[((j)*68*2)+i]*params[j+4];
-					y += pModel.shapeModel.eVectors[((j)*68*2)+(i+1)]*params[j+4];
+				for (var j = 0;j < numParameters;j++) {
+					x += pModel.shapeModel.eVectors[(j*numPatches*2)+i]*params[j+4];
+					y += pModel.shapeModel.eVectors[(j*numPatches*2)+(i+1)]*params[j+4];
 				}
 				a = params[0]*x - params[1]*y + params[2];
 				b = params[0]*y + params[1]*x + params[3];
@@ -919,9 +919,9 @@ var clm = {
 				i = path[p]*2;
 				x = pModel.shapeModel.meanShape[i];
 				y = pModel.shapeModel.meanShape[i+1];
-				for (var j = 0;j < 7;j++) {
-					x += pModel.shapeModel.eVectors[((j)*68*2)+i]*params[j+4];
-					y += pModel.shapeModel.eVectors[((j)*68*2)+(i+1)]*params[j+4];
+				for (var j = 0;j < numParameters;j++) {
+					x += pModel.shapeModel.eVectors[(j*numPatches*2)+i]*params[j+4];
+					y += pModel.shapeModel.eVectors[(j*numPatches*2)+(i+1)]*params[j+4];
 				}
 				a = params[0]*x - params[1]*y + params[2];
 				b = params[0]*y + params[1]*x + params[3];
@@ -945,9 +945,9 @@ var clm = {
 				i = path[p]*2;
 				x = pModel.shapeModel.meanShape[i];
 				y = pModel.shapeModel.meanShape[i+1];
-				for (var j = 0;j < 7;j++) {
-					x += pModel.shapeModel.eVectors[((j)*68*2)+i]*params[j+4];
-					y += pModel.shapeModel.eVectors[((j)*68*2)+(i+1)]*params[j+4];
+				for (var j = 0;j < numParameters;j++) {
+					x += pModel.shapeModel.eVectors[(j*numPatches*2)+i]*params[j+4];
+					y += pModel.shapeModel.eVectors[(j*numPatches*2)+(i+1)]*params[j+4];
 				}
 				a = params[0]*x - params[1]*y + params[2];
 				b = params[0]*y + params[1]*x + params[3];
@@ -968,9 +968,9 @@ var clm = {
 			i = 66*2;
 			x = pModel.shapeModel.meanShape[i];
 			y = pModel.shapeModel.meanShape[i+1];
-			for (var j = 0;j < 7;j++) {
-				x += pModel.shapeModel.eVectors[((j)*68*2)+i]*params[j+4];
-				y += pModel.shapeModel.eVectors[((j)*68*2)+(i+1)]*params[j+4];
+			for (var j = 0;j < numParameters;j++) {
+				x += pModel.shapeModel.eVectors[(j*numPatches*2)+i]*params[j+4];
+				y += pModel.shapeModel.eVectors[(j*numPatches*2)+(i+1)]*params[j+4];
 			}
 			a = params[0]*x - params[1]*y + params[2];
 			b = params[0]*y + params[1]*x + params[3];
@@ -982,9 +982,9 @@ var clm = {
 			i = 67*2;
 			x = pModel.shapeModel.meanShape[i];
 			y = pModel.shapeModel.meanShape[i+1];
-			for (var j = 0;j < 7;j++) {
-				x += pModel.shapeModel.eVectors[((j)*68*2)+i]*params[j+4];
-				y += pModel.shapeModel.eVectors[((j)*68*2)+(i+1)]*params[j+4];
+			for (var j = 0;j < numParameters;j++) {
+				x += pModel.shapeModel.eVectors[(j*numPatches*2)+i]*params[j+4];
+				y += pModel.shapeModel.eVectors[(j*numPatches*2)+(i+1)]*params[j+4];
 			}
 			a = params[0]*x - params[1]*y + params[2];
 			b = params[0]*y + params[1]*x + params[3];
