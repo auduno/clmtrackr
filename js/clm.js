@@ -7,7 +7,7 @@ var clm = {
 		if (params.constantVelocity === undefined) params.constantVelocity = false;
 	
 		var numPatches, patchSize, numParameters;
-		var gaussianPD, gaussianTable;
+		var gaussianPD;
 		var eigenVectors, eigenValues;
 		var sketchCC, sketchW, sketchH;
 		
@@ -114,28 +114,6 @@ var clm = {
 			gaussianPD.setValueAt(8,8,1/eigenValues[4]);
 			gaussianPD.setValueAt(9,9,1/eigenValues[5]);
 			gaussianPD.setValueAt(10,10,1/eigenValues[6]);
-			
-			// load precalculated gaussian bivariate table
-			gaussianTable = [];
-			var gx, gy;
-			var gtdim = Math.sqrt(normProbs[0].length);
-			for (var i = 0;i < normProbs.length;i++) {
-				/*gaussianTable[i] = new goog.math.Matrix(161,161);
-				for (var j = 0; j < 25921;j++) {
-					gx = j % 161;
-					gy = j / 161 >> 0;
-					gaussianTable[i].setValueAt(gx, gy, normProbs[i][j]);
-				}*/
-				gaussianTable[i] = [];
-				for (var j = 0;j < gtdim;j++) {
-				  gaussianTable[i][j] = [];
-				}
-				for (var j = 0;j< normProbs[0].length;j++) {
-				  gx = j % gtdim;
-					gy = j / gtdim >> 0;
-					gaussianTable[i][gx][gy] = normProbs[i][j];
-				}
-			}
 				
 			for (var i = 0;i < numParameters+4;i++) {
 				currentParameters[i] = 0;
@@ -148,13 +126,11 @@ var clm = {
 			console.log('ended initialization');
 		}
 		
-		var gaussianProb = function(mean, coordinate, table) {
-			// looks up the relevant gaussian probability in table
-			var correctedCoord = [Math.abs(coordinate[0] - mean[0]), Math.abs(coordinate[1] - mean[1])];
-			var cx = (correctedCoord[0]+0.1) / 0.1 >> 0;
-			var cy = (correctedCoord[1]+0.1) / 0.1 >> 0;
-			//var prob = gaussianTable[varianceSeq.indexOf(variance)].getValueAt(cx,cy);
-			var prob = table[cx][cy];
+		var gaussianProb = function(mean, coordinate, variance) {
+		  // calculate pdf gaussian probability
+		  var dx = coordinate[0] - mean[0];
+			var dy = coordinate[1] - mean[1];
+			var prob = Math.exp(-0.5*((dx*dx)+(dy*dy))/variance);
 			
 			return prob;
 		}
@@ -510,7 +486,6 @@ var clm = {
 			var partbholder = 0;
 			var partaholder = 0;
 			
-			var gaussianLookup;
 			//var maxDiff = 0;
 			
 			for (var i = 0; i < varianceSeq.length; i++) {
@@ -529,8 +504,6 @@ var clm = {
 				var partaend = (new Date).getTime();
 				partaholder += (partaend-partastart);
 				
-				gaussianLookUp = gaussianTable[gaussianTableOrder.indexOf(varianceSeq[i])];
-				
 				for (var j = 0;j < numPatches;j++) {
 				  // for every point in each response:
 					// calculate PI x gaussian
@@ -546,7 +519,7 @@ var clm = {
 				  /*goog.math.Matrix.forEach(responses[j], function(value, a, b) {
 				    var pos = (searchWindow*b)+a;
 				    var updatePosition = [opj0+b, opj1+a];
-				    vecProbs[pos] = value * gaussianProb(updatePosition, varianceSeq[i], currentPositions[j], gaussianLookUp);
+				    vecProbs[pos] = value * gaussianProb(updatePosition, currentPositions[j], varianceSeq[i]);
 				  });*/
 				  var resplength = searchWindow*searchWindow;
 				  var a, b;
@@ -564,8 +537,8 @@ var clm = {
 				      maxDiff = Math.abs(updatePosition[1]-currentPositions[j][1]);
 				    }*/
 				    
-				    //vecProbs[pos] = responses[j][k] * gaussianLookUp[Math.abs(currentPositions[j][0] - (opj0+b)) / 0.1 >> 0][Math.abs(currentPositions[j][1] - (opj1+a)) / 0.1 >> 0];
-				    vecProbs[k] = responses[j][k] * gaussianProb(updatePosition, currentPositions[j], gaussianLookUp);
+				    //vecProbs[pos] = responses[j][k] * gaussianProb(updatePosition, currentPositions[j], varianceSeq[i]);
+				    vecProbs[k] = responses[j][k] * gaussianProb(updatePosition, currentPositions[j], varianceSeq[i]);
 				  }
 				  
 				  var doot = (new Date).getTime();
