@@ -27,7 +27,7 @@ var clm = {
 		This sequence is pretty arbitrary, but was found to be okay using some manual testing.
 		In Saragih's paper he used the sequence [20,10,5,1], this was however found to be slower and equally precise.
 		*/
-		var varianceSeq = [10,10,5];
+		var varianceSeq = [10,7,5];
 		
 		/*
 		The PDM variance determines how the PDM models parameters can vary when fitting.
@@ -748,6 +748,52 @@ var clm = {
 		  }
 		}
 		
+		var drawPath = function(canvasContext, path, dp) {
+			canvasContext.beginPath();
+			var i, x, y;
+			for (var p = 0;p < path.length;p++) {
+				i = path[p]*2;
+				x = pModel.shapeModel.meanShape[i];
+				y = pModel.shapeModel.meanShape[i+1];
+				for (var j = 0;j < numParameters;j++) {
+					x += pModel.shapeModel.eVectors[(j*numPatches*2)+i]*dp[j+4];
+					y += pModel.shapeModel.eVectors[(j*numPatches*2)+(i+1)]*dp[j+4];
+				}
+				a = dp[0]*x - dp[1]*y + dp[2];
+				b = dp[0]*y + dp[1]*x + dp[3];
+				x += a;
+				y += b;
+				
+				if (i == 0) {
+					canvasContext.moveTo(x,y);
+				} else {
+					canvasContext.lineTo(x,y);
+				}
+			}
+			canvasContext.moveTo(0,0);
+			canvasContext.closePath();
+			canvasContext.stroke();
+		}
+		
+		function drawPoint(canvasContext, point, dp) {
+		  var i, x, y;
+		  i = point*2;
+			x = pModel.shapeModel.meanShape[i];
+			y = pModel.shapeModel.meanShape[i+1];
+			for (var j = 0;j < numParameters;j++) {
+				x += pModel.shapeModel.eVectors[(j*numPatches*2)+i]*dp[j+4];
+				y += pModel.shapeModel.eVectors[(j*numPatches*2)+(i+1)]*dp[j+4];
+			}
+			a = dp[0]*x - dp[1]*y + dp[2];
+			b = dp[0]*y + dp[1]*x + dp[3];
+			x += a;
+			y += b;
+			canvasContext.beginPath();
+		  canvasContext.arc(x, y, 1, 0, Math.PI*2, true);
+			canvasContext.closePath();
+			canvasContext.fill();
+		}
+		
 		this.draw = function(canvas, pv, scale) {
 			// if no previous points, just draw in the middle of canvas
 			
@@ -778,219 +824,27 @@ var clm = {
 			cc.fillStyle = "rgb(200,200,200)";
 			cc.strokeStyle = "rgb(130,255,50)";
 			//cc.lineWidth = 1;
-			var x, y, i, path;
 			
 			cc.save();
 			
-			path = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14]
-			cc.beginPath();
-			for (var p = 0;p < path.length;p++) {
-				i = path[p]*2;
-				x = pModel.shapeModel.meanShape[i];
-				y = pModel.shapeModel.meanShape[i+1];
-				for (var j = 0;j < numParameters;j++) {
-					x += pModel.shapeModel.eVectors[((j)*numPatches*2)+i]*params[j+4];
-					y += pModel.shapeModel.eVectors[((j)*numPatches*2)+(i+1)]*params[j+4];
-				}
-				a = params[0]*x - params[1]*y + params[2];
-				b = params[0]*y + params[1]*x + params[3];
-				x += a;
-				y += b;
-				
-				//cc.fillRect(x,y,3,3);
-				if (i == 0) {
-					cc.moveTo(x,y);
-				} else {
-					cc.lineTo(x,y);
-				}
-			}
-			cc.moveTo(0,0);
-			cc.closePath();
-			cc.stroke();
-			
+			//face edges
+			drawPath(cc, [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14], params);
 			//right eyebrow
-			path = [15,16,17,18,19,20,15]
-			cc.beginPath();
-			for (var p = 0;p < path.length;p++) {
-				i = path[p]*2;
-				x = pModel.shapeModel.meanShape[i];
-				y = pModel.shapeModel.meanShape[i+1];
-				for (var j = 0;j < numParameters;j++) {
-					x += pModel.shapeModel.eVectors[((j)*numPatches*2)+i]*params[j+4];
-					y += pModel.shapeModel.eVectors[((j)*numPatches*2)+(i+1)]*params[j+4];
-				}
-				a = params[0]*x - params[1]*y + params[2];
-				b = params[0]*y + params[1]*x + params[3];
-				x += a;
-				y += b;
-				//cc.fillRect(x,y,3,3);
-				if (i == 0) {
-					cc.moveTo(x,y);
-				} else {
-					cc.lineTo(x,y);
-				}
-			}
-			cc.moveTo(0,0);
-			cc.closePath();
-			cc.stroke();
-			
+			drawPath(cc, [15,16,17,18,19,20,15], params);
 			// left eyebrow
-			path = [21,22,23,24,25,26,21]
-			cc.beginPath();
-			for (var p = 0;p < path.length;p++) {
-				i = path[p]*2;
-				x = pModel.shapeModel.meanShape[i];
-				y = pModel.shapeModel.meanShape[i+1];
-				for (var j = 0;j < numParameters;j++) {
-					x += pModel.shapeModel.eVectors[((j)*numPatches*2)+i]*params[j+4];
-					y += pModel.shapeModel.eVectors[((j)*numPatches*2)+(i+1)]*params[j+4];
-				}
-				a = params[0]*x - params[1]*y + params[2];
-				b = params[0]*y + params[1]*x + params[3];
-				x += a;
-				y += b;
-				//cc.fillRect(x,y,3,3);
-				if (i == 0) {
-					cc.moveTo(x,y);
-				} else {
-					cc.lineTo(x,y);
-				}
-			}
-			cc.moveTo(0,0);
-			cc.closePath();
-			cc.stroke();
-			
+			drawPath(cc, [21,22,23,24,25,26,21], params);
 			// left eye
-			path = [27,28,29,30,27,30,31]
-			cc.beginPath();
-			for (var p = 0;p < path.length;p++) {
-				i = path[p]*2;
-				x = pModel.shapeModel.meanShape[i];
-				y = pModel.shapeModel.meanShape[i+1];
-				for (var j = 0;j < numParameters;j++) {
-					x += pModel.shapeModel.eVectors[((j)*numPatches*2)+i]*params[j+4];
-					y += pModel.shapeModel.eVectors[((j)*numPatches*2)+(i+1)]*params[j+4];
-				}
-				a = params[0]*x - params[1]*y + params[2];
-				b = params[0]*y + params[1]*x + params[3];
-				x += a;
-				y += b;
-				//cc.fillRect(x,y,3,3);
-				if (i == 0) {
-					cc.moveTo(x,y);
-				} else {
-					cc.lineTo(x,y);
-				}
-			}
-			cc.moveTo(0,0);
-			cc.closePath();
-			cc.stroke();
-			
+			drawPath(cc, [27,28,29,30,27,30,31], params);
 			// right eye
-			path = [32,33,34,35,32,35,36]
-			cc.beginPath();
-			for (var p = 0;p < path.length;p++) {
-				i = path[p]*2;
-				x = pModel.shapeModel.meanShape[i];
-				y = pModel.shapeModel.meanShape[i+1];
-				for (var j = 0;j < numParameters;j++) {
-					x += pModel.shapeModel.eVectors[(j*numPatches*2)+i]*params[j+4];
-					y += pModel.shapeModel.eVectors[(j*numPatches*2)+(i+1)]*params[j+4];
-				}
-				a = params[0]*x - params[1]*y + params[2];
-				b = params[0]*y + params[1]*x + params[3];
-				x += a;
-				y += b;
-				//cc.fillRect(x,y,3,3);
-				if (i == 0) {
-					cc.moveTo(x,y);
-				} else {
-					cc.lineTo(x,y);
-				}
-			}
-			cc.moveTo(0,0);
-			cc.closePath();
-			cc.stroke();
-			
+			drawPath(cc, [32,33,34,35,32,35,36], params);
 			// nose
-			path = [37,38,39,40,46,41,47,42,43,44,45]
-			cc.beginPath();
-			for (var p = 0;p < path.length;p++) {
-				i = path[p]*2;
-				x = pModel.shapeModel.meanShape[i];
-				y = pModel.shapeModel.meanShape[i+1];
-				for (var j = 0;j < numParameters;j++) {
-					x += pModel.shapeModel.eVectors[(j*numPatches*2)+i]*params[j+4];
-					y += pModel.shapeModel.eVectors[(j*numPatches*2)+(i+1)]*params[j+4];
-				}
-				a = params[0]*x - params[1]*y + params[2];
-				b = params[0]*y + params[1]*x + params[3];
-				x += a;
-				y += b;
-				//cc.fillRect(x,y,3,3);
-				if (i == 0) {
-					cc.moveTo(x,y);
-				} else {
-					cc.lineTo(x,y);
-				}
-			}
-			cc.moveTo(0,0);
-			cc.closePath();
-			cc.stroke();
-			
+			drawPath(cc, [37,38,39,40,46,41,47,42,43,44,45], params);
 			// mouth
-			path = [48,49,50,51,52,53,54,55,56,57,58,59,48,60,61,62,54,63,64,65,48]
-			cc.beginPath();
-			for (var p = 0;p < path.length;p++) {
-				i = path[p]*2;
-				x = pModel.shapeModel.meanShape[i];
-				y = pModel.shapeModel.meanShape[i+1];
-				for (var j = 0;j < numParameters;j++) {
-					x += pModel.shapeModel.eVectors[(j*numPatches*2)+i]*params[j+4];
-					y += pModel.shapeModel.eVectors[(j*numPatches*2)+(i+1)]*params[j+4];
-				}
-				a = params[0]*x - params[1]*y + params[2];
-				b = params[0]*y + params[1]*x + params[3];
-				x += a;
-				y += b;
-				//cc.fillRect(x,y,3,3);
-				if (i == 0) {
-					cc.moveTo(x,y);
-				} else {
-					cc.lineTo(x,y);
-				}
-			}
-			cc.moveTo(0,0);
-			cc.closePath();
-			cc.stroke();
-			
+			drawPath(cc, [48,49,50,51,52,53,54,55,56,57,58,59,48,60,61,62,54,63,64,65,48], params);
 			// mid mouth
-			i = 66*2;
-			x = pModel.shapeModel.meanShape[i];
-			y = pModel.shapeModel.meanShape[i+1];
-			for (var j = 0;j < numParameters;j++) {
-				x += pModel.shapeModel.eVectors[(j*numPatches*2)+i]*params[j+4];
-				y += pModel.shapeModel.eVectors[(j*numPatches*2)+(i+1)]*params[j+4];
-			}
-			a = params[0]*x - params[1]*y + params[2];
-			b = params[0]*y + params[1]*x + params[3];
-			x += a;
-			y += b;
-			cc.fillRect(x,y,3,3);
-			
+			drawPoint(cc, 66, params);
 			// mid nose
-			i = 67*2;
-			x = pModel.shapeModel.meanShape[i];
-			y = pModel.shapeModel.meanShape[i+1];
-			for (var j = 0;j < numParameters;j++) {
-				x += pModel.shapeModel.eVectors[(j*numPatches*2)+i]*params[j+4];
-				y += pModel.shapeModel.eVectors[(j*numPatches*2)+(i+1)]*params[j+4];
-			}
-			a = params[0]*x - params[1]*y + params[2];
-			b = params[0]*y + params[1]*x + params[3];
-			x += a;
-			y += b;
-			cc.fillRect(x,y,3,3);
+			drawPoint(cc, 67, params);
 			
 			cc.restore()
 		}
