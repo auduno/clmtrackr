@@ -794,7 +794,7 @@ var clm = {
 			canvasContext.fill();
 		}
 		
-		this.draw = function(canvas, pv, scale) {
+		this.draw = function(canvas, pv) {
 			// if no previous points, just draw in the middle of canvas
 			
 			var params;
@@ -803,22 +803,6 @@ var clm = {
 			} else {
         params = pv.slice(0);
 			}
-			if (scale === undefined) {
-			  scale = 1;
-			}
-			
-			/*
-			if (params[1] == 0) {
-			  rotation = 0;
-			  var paramscale = (params[0]+1)/Math.cos(0);
-			} else {
-			  var rotation = 0.5*Math.asin(2*(params[0]+1)*params[1]);
-        var paramscale = params[1]/Math.sin(rotation);
-			}
-			
-			params[0] = (paramscale*scale*Math.cos(rotation))-1;
-			params[1] = paramscale*scale*Math.sin(rotation);
-			*/
 			
 			var cc = canvas.getContext('2d');
 			cc.fillStyle = "rgb(200,200,200)";
