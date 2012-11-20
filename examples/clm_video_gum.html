@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<title>Constrained Local Models</title>
+		<meta charset="utf-8">
+		<style>
+			body {
+				font-family: Monospace;
+				background-color: #f0f0f0;
+				margin: 0px;
+				overflow: hidden;
+			}
+			
+			#overlay {
+				position: absolute;
+				top: 0px;
+				left: 0px;
+			}
+			
+			#sketch {
+				display: none;
+			}
+			
+			#filter {
+				display: none;
+			}
+		</style>
+		<script type="text/javascript">
+
+			var _gaq = _gaq || [];
+			_gaq.push(['_setAccount', 'UA-32642923-1']);
+			_gaq.push(['_trackPageview']);
+
+			(function() {
+				var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+				ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+				var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+			})();
+
+		</script>
+	</head>
+	<body>
+		<script src="./ext_js/goog/base.js"></script>
+		<script src="./ext_js/goog/error.js"></script>
+		<script src="./ext_js/goog/string.js"></script>
+		<script src="./ext_js/goog/asserts.js"></script>
+		<script src="./ext_js/goog/array.js"></script>
+		<script src="./ext_js/goog/size.js"></script>
+		<script src="./ext_js/goog/math.js"></script>
+		<script src="./ext_js/goog/matrix.js"></script>
+		<script src="../models/smallmodel.js"></script>
+		<script src="./ext_js/webgl-utils.js"></script>
+		<script src="../js/clm.js"></script>
+		<script src="./ext_js/ccv.js"></script>
+		<script src="./ext_js/cascade.js"></script>
+		<script src="../js/filter.js"></script>
+		<script src="./ext_js/Stats.js"></script>
+		<div id="container"></div>
+		<video id="videoel" width="370" height="288" preload="auto"></video>
+		<canvas id="overlay" width="370" height="288"></canvas>
+		<canvas id="filter"></canvas>
+		<canvas id="sketch" width="138" height="138"></canvas>
+		<input type="button" value="wait, loading video" disabled="disabled" onclick="start()" id="startbutton"></input>
+		<p id='gUMMessage'></p>
+		
+		<script>
+			 var skcc = document.getElementById('sketch');
+			 
+			 var overlay = document.getElementById('overlay');
+			 overlay.style = "position:absolute";
+			 
+			 var ctrack = new clm.tracker({'constantVelocity' : true});
+			 ctrack.init(skcc);
+			 
+			 stats = new Stats();
+			 stats.domElement.style.position = 'absolute';
+			 stats.domElement.style.top = '0px';
+			 document.getElementById('container').appendChild( stats.domElement );
+			 
+			 var videoInput = document.getElementById('videoel');
+			 
+			 function enablestart() {
+				 var startbutton = document.getElementById('startbutton');
+				 startbutton.value = "start";
+				 startbutton.disabled = null;
+			 }
+			 
+			 // requestAnimationFrame shim
+			(function() {
+					var lastTime = 0;
+					var vendors = ['ms', 'moz', 'webkit', 'o'];
+					for(var x = 0; x < vendors.length && !window.requestAnimationFrame; ++x) {
+							window.requestAnimationFrame = window[vendors[x]+'RequestAnimationFrame'];
+							window.cancelRequestAnimationFrame = window[vendors[x]+
+								'CancelRequestAnimationFrame'];
+					}
+
+					if (!window.requestAnimationFrame)
+							window.requestAnimationFrame = function(callback, element) {
+									var currTime = new Date().getTime();
+									var timeToCall = Math.max(0, 16 - (currTime - lastTime));
+									var id = window.setTimeout(function() { callback(currTime + timeToCall); }, 
+										timeToCall);
+									lastTime = currTime + timeToCall;
+									return id;
+							};
+
+					if (!window.cancelAnimationFrame)
+							window.cancelAnimationFrame = function(id) {
+									clearTimeout(id);
+							};
+			 }());
+			 
+			 // video support utility functions
+			
+			 function supports_video() {
+				 return !!document.createElement('video').canPlayType;
+			 }
+
+			 function supports_h264_baseline_video() {
+					if (!supports_video()) { return false; }
+					var v = document.createElement("video");
+					return v.canPlayType('video/mp4; codecs="avc1.42E01E, mp4a.40.2"');
+			 }
+ 
+			 function supports_ogg_theora_video() {
+				 if (!supports_video()) { return false; }
+				 var v = document.createElement("video");
+				 return v.canPlayType('video/ogg; codecs="theora, vorbis"');
+			 }
+			 
+			 // set up fallback video
+			
+			var insertAltVideo = function(video) {
+				if (supports_video()) {
+					if (supports_ogg_theora_video()) {
+						video.src = "./media/franck.ogv";
+					} else if (supports_h264_baseline_video()) {
+            alert("no mp4 video :(");
+						//video.src = "./media/capture4.mp4";
+					} else {
+						return false;
+					}
+					//video.play();
+					return true;
+				} else return false;
+			}
+			 
+			navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
+			window.URL = window.URL || window.webkitURL || window.msURL || window.mozURL;
+			// check for camerasupport
+			if (navigator.getUserMedia) {
+				// set up stream
+				
+				var videoSelector = {video : true};
+				if (window.navigator.appVersion.match(/Chrome\/(.*?) /)) {
+					var chromeVersion = parseInt(window.navigator.appVersion.match(/Chrome\/(\d+)\./)[1], 10);
+					if (chromeVersion < 20) {
+						videoSelector = "video";
+					}
+				};
+				
+				navigator.getUserMedia({video: true}, function( stream ) {
+					videoInput.src = window.URL.createObjectURL(stream);
+					videoInput.play();
+				}, function() {
+					insertAltVideo(videoInput);
+					var messagep = document.getElementById('gUMMessage');
+					messagep.innerHTML = "No camera found. Using fallback video.";
+				});
+			} else {
+			  insertAltVideo(videoInput);
+			  var messagep = document.getElementById('gUMMessage');
+			  messagep.innerHTML = "Unfortunately, <a href='http://dev.w3.org/2011/webrtc/editor/getusermedia.html'>getUserMedia</a> is not supported in your browser. Try <a href='http://www.opera.com/browser/'>downloading Opera 12</a> or <a href='http://caniuse.com/stream'>another browser that supports getUserMedia</a>. Now using fallback video.";
+			}
+			 
+			 videoInput.addEventListener('canplay', enablestart, false);
+			 
+			 function start() {
+				 //start video
+				 videoInput.play();
+				 
+				 //start tracking
+				 animate();
+			 }
+			 
+			 function animate() {
+				 ctrack.track(document.getElementById('videoel'));
+				 stats.update();
+				 requestAnimFrame(animate);
+			 }
+		</script>
+	</body>
+</html>

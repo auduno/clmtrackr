@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<title>Constrained Local Models</title>
+		<meta charset="utf-8">
+		<style>
+			body {
+				font-family: Monospace;
+				background-color: #f0f0f0;
+				margin: 0px;
+				overflow: hidden;
+			}
+			
+			#overlay {
+			  position: absolute;
+			  top: 0px;
+			  left: 0px;
+			}
+			
+			#sketch {
+			  display: none;
+			}
+			
+			#filter {
+			  display: none;
+			}
+		</style>
+		<script type="text/javascript">
+
+      var _gaq = _gaq || [];
+      _gaq.push(['_setAccount', 'UA-32642923-1']);
+      _gaq.push(['_trackPageview']);
+
+      (function() {
+        var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+        ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+        var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+      })();
+
+    </script>
+	</head>
+	<body>
+		<script src="./ext_js/goog/base.js"></script>
+		<script src="./ext_js/goog/error.js"></script>
+		<script src="./ext_js/goog/string.js"></script>
+		<script src="./ext_js/goog/asserts.js"></script>
+		<script src="./ext_js/goog/array.js"></script>
+		<script src="./ext_js/goog/size.js"></script>
+		<script src="./ext_js/goog/math.js"></script>
+		<script src="./ext_js/goog/matrix.js"></script>
+		<script src="../models/smallmodel.js"></script>
+		<script src="./ext_js/webgl-utils.js"></script>
+		<script src="../js/clm.js"></script>
+		<script src="./ext_js/ccv.js"></script>
+		<script src="./ext_js/cascade.js"></script>
+		<script src="../js/filter.js"></script>
+		<script src="./ext_js/Stats.js"></script>
+		<div id="container"></div>
+		<video id="videoel" width="370" height="288" preload="auto">
+      <source src="./media/franck.ogv" type="video/ogg"/>
+		</video>
+		<canvas id="overlay" width="370" height="288"></canvas>
+		<canvas id="filter"></canvas>
+		<canvas id="sketch" width="138" height="138"></canvas>
+		<input type="button" value="wait, loading video" disabled="disabled" onclick="start()" id="startbutton"></input>
+		
+		<script>
+		   var skcc = document.getElementById('sketch');
+		   
+		   var overlay = document.getElementById('overlay');
+		   overlay.style = "position:absolute";
+		   
+		   var ctrack = new clm.tracker({'constantVelocity' : true});
+		   ctrack.init(skcc);
+		   
+		   stats = new Stats();
+			 stats.domElement.style.position = 'absolute';
+			 stats.domElement.style.top = '0px';
+			 document.getElementById('container').appendChild( stats.domElement );
+		   
+       var vid = document.getElementById('videoel');
+       
+       function enablestart() {
+         var startbutton = document.getElementById('startbutton');
+         startbutton.value = "start";
+         startbutton.disabled = null;
+       }
+       
+       vid.addEventListener('canplay', enablestart, false);
+		   
+		   function start() {
+         //start video
+         vid.play();
+         
+         //start tracking
+         animate();
+		   }
+		   
+		   function animate() {
+         ctrack.track(document.getElementById('videoel'));
+         stats.update();
+         requestAnimFrame(animate);
+		   }
+		</script>
+	</body>
+</html>
