@@ -804,27 +804,16 @@ var clm = {
 			cc.fillStyle = "rgb(200,200,200)";
 			cc.strokeStyle = "rgb(130,255,50)";
 			//cc.lineWidth = 1;
-			
 			cc.save();
 			
-			//face edges
-			drawPath(cc, [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14], params);
-			//right eyebrow
-			drawPath(cc, [15,16,17,18,19,20,15], params);
-			// left eyebrow
-			drawPath(cc, [21,22,23,24,25,26,21], params);
-			// left eye
-			drawPath(cc, [27,28,29,30,27,30,31], params);
-			// right eye
-			drawPath(cc, [32,33,34,35,32,35,36], params);
-			// nose
-			drawPath(cc, [37,38,39,40,46,41,47,42,43,44,45], params);
-			// mouth
-			drawPath(cc, [48,49,50,51,52,53,54,55,56,57,58,59,48,60,61,62,54,63,64,65,48], params);
-			// mid mouth
-			drawPoint(cc, 66, params);
-			// mid nose
-			drawPoint(cc, 67, params);
+			var paths = pModel.path.normal;
+			for (var i = 0;i < paths.length;i++) {
+			  if (typeof(paths.i) == 'number') {
+			    drawPoint(cc, paths[i], params);
+			  } else {
+			    drawPath(cc, paths[i], params);
+			  }
+			}
 			
 			cc.restore()
 		}
