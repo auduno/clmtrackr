@@ -62,7 +62,7 @@ var clm = {
 			
 			// load mean shape
 			for (var i = 0; i < numPatches;i++) {
-			  meanShape[i] = [pModel.shapeModel.meanShape[(i*2)], pModel.shapeModel.meanShape[(i*2)+1]];
+			  meanShape[i] = [pModel.shapeModel.meanShape[i][0], pModel.shapeModel.meanShape[i][1]];
 			}
 			
 			// load eigenvalues
@@ -177,8 +177,8 @@ var clm = {
 			var numParameters = parameters.length;
 			positions = [];
 			for (var i = 0;i < numPatches;i++) {
-				x = pModel.shapeModel.meanShape[(2*i)];
-				y = pModel.shapeModel.meanShape[(2*i)+1];
+				x = pModel.shapeModel.meanShape[i][0];
+				y = pModel.shapeModel.meanShape[i][1];
 				for (var j = 0;j < numParameters-4;j++) {
 					x += pModel.shapeModel.eVectors[(j*numPatches*2)+(2*i)]*parameters[j+4];
 					y += pModel.shapeModel.eVectors[(j*numPatches*2)+((2*i)+1)]*parameters[j+4];

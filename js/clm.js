@@ -66,17 +66,17 @@ var clm = {
 			eigenVectors = new goog.math.Matrix(numPatches*2, numParameters);
 			for (var i = 0;i < numPatches*2;i++) {
 				for (var j = 0;j < numParameters;j++) {
-					eigenVectors.setValueAt(i, j, pModel.shapeModel.eVectors[(j*numPatches*2)+i]);
+					eigenVectors.setValueAt(i, j, pModel.shapeModel.eigenVectors[i][j]);
 				}
 			}
 			
 			// load mean shape
 			for (var i = 0; i < numPatches;i++) {
-			  meanShape[i] = [pModel.shapeModel.meanShape[(i*2)], pModel.shapeModel.meanShape[(i*2)+1]];
+			  meanShape[i] = [pModel.shapeModel.meanShape[i][0], pModel.shapeModel.meanShape[i][1]];
 			}
 			
 			// load eigenvalues
-			eigenValues = pModel.shapeModel.eValues;
+			eigenValues = pModel.shapeModel.eigenValues;
 			
 			// load patchweight matrices for comparing
 			var weight;
@@ -85,7 +85,8 @@ var clm = {
 				// insert
 				for (var i = 0;i < patchSize;i++) {
 					for (var j = 0;j < patchSize;j++) {
-						weight = pModel.patchModel.weights[w+(((i*patchSize)+j)*numPatches)];
+						//weight = pModel.patchModel.weights[w+(((i*patchSize)+j)*numPatches)];
+						weight = pModel.patchModel.weights[w][(i*patchSize)+j];
 						// cut off all values above 1 and below -1
 						weight = weight > 1 ? 1 : weight;
 						weight = weight < -1 ? -1 : weight;
@@ -97,7 +98,7 @@ var clm = {
 			var weights = [];
 			for (var w = 0;w < numPatches;w++) {
 			  for (var i = 0;i < (patchSize*patchSize);i++) {
-			    weight = pModel.patchModel.weights[w+(i*numPatches)];
+			    weight = pModel.patchModel.weights[w][i];
 			    weight = weight > 1 ? 1 : weight;
           weight = weight < -1 ? -1 : weight;
           weights[Math.floor(i / patchSize)*patchSize + (i % patchSize) +(w*patchSize*patchSize)] = weight;
@@ -107,13 +108,9 @@ var clm = {
 			// precalculate gaussianPriorDiagonal
 			gaussianPD = new goog.math.Matrix(numParameters+4, numParameters+4);
 			// set values and append manual inverse
-			gaussianPD.setValueAt(4,4,1/eigenValues[0]);
-			gaussianPD.setValueAt(5,5,1/eigenValues[1]);
-			gaussianPD.setValueAt(6,6,1/eigenValues[2]);
-			gaussianPD.setValueAt(7,7,1/eigenValues[3]);
-			gaussianPD.setValueAt(8,8,1/eigenValues[4]);
-			gaussianPD.setValueAt(9,9,1/eigenValues[5]);
-			gaussianPD.setValueAt(10,10,1/eigenValues[6]);
+			for (var i = 0;i < numParameters;i++) {
+			  gaussianPD.setValueAt(i+4,i+4,1/eigenValues[i]);
+			}
 				
 			for (var i = 0;i < numParameters+4;i++) {
 				currentParameters[i] = 0;
@@ -182,11 +179,11 @@ var clm = {
 			var numParameters = parameters.length;
 			positions = [];
 			for (var i = 0;i < numPatches;i++) {
-				x = pModel.shapeModel.meanShape[(2*i)];
-				y = pModel.shapeModel.meanShape[(2*i)+1];
+				x = pModel.shapeModel.meanShape[i][0];
+				y = pModel.shapeModel.meanShape[i][1];
 				for (var j = 0;j < numParameters-4;j++) {
-					x += pModel.shapeModel.eVectors[(j*numPatches*2)+(2*i)]*parameters[j+4];
-					y += pModel.shapeModel.eVectors[(j*numPatches*2)+((2*i)+1)]*parameters[j+4];
+					x += pModel.shapeModel.eigenVectors[(i*2)][j]*parameters[j+4];
+					y += pModel.shapeModel.eigenVectors[(i*2)+1][j]*parameters[j+4];
 				}
 				if (useTransforms) {
 				  a = parameters[0]*x - parameters[1]*y + parameters[2];
@@ -508,7 +505,6 @@ var clm = {
 				  // for every point in each response:
 					// calculate PI x gaussian
 				  vecProbs = [];
-          
 				  
           var boot = (new Date).getTime();
           
@@ -753,11 +749,11 @@ var clm = {
 			var i, x, y;
 			for (var p = 0;p < path.length;p++) {
 				i = path[p]*2;
-				x = pModel.shapeModel.meanShape[i];
-				y = pModel.shapeModel.meanShape[i+1];
+				x = pModel.shapeModel.meanShape[i/2][0];
+				y = pModel.shapeModel.meanShape[i/2][1];
 				for (var j = 0;j < numParameters;j++) {
-					x += pModel.shapeModel.eVectors[(j*numPatches*2)+i]*dp[j+4];
-					y += pModel.shapeModel.eVectors[(j*numPatches*2)+(i+1)]*dp[j+4];
+					x += pModel.shapeModel.eigenVectors[i][j]*dp[j+4];
+					y += pModel.shapeModel.eigenVectors[i+1][j]*dp[j+4];
 				}
 				a = dp[0]*x - dp[1]*y + dp[2];
 				b = dp[0]*y + dp[1]*x + dp[3];
@@ -778,11 +774,11 @@ var clm = {
 		function drawPoint(canvasContext, point, dp) {
 		  var i, x, y;
 		  i = point*2;
-			x = pModel.shapeModel.meanShape[i];
-			y = pModel.shapeModel.meanShape[i+1];
+			x = pModel.shapeModel.meanShape[i/2][0];
+      y = pModel.shapeModel.meanShape[i/2][1];
 			for (var j = 0;j < numParameters;j++) {
-				x += pModel.shapeModel.eVectors[(j*numPatches*2)+i]*dp[j+4];
-				y += pModel.shapeModel.eVectors[(j*numPatches*2)+(i+1)]*dp[j+4];
+				x += pModel.shapeModel.eigenVectors[i][j]*dp[j+4];
+				y += pModel.shapeModel.eigenVectors[i+1][j]*dp[j+4];
 			}
 			a = dp[0]*x - dp[1]*y + dp[2];
 			b = dp[0]*y + dp[1]*x + dp[3];
