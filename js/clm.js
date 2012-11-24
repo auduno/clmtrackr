@@ -1,10 +1,10 @@
-  //requires: ccv, closure matrix library
+//requires: ccv, closure matrix library
 
 var clm = {
 	tracker : function(params) {
     
     if (!params) params = {};
-		if (params.constantVelocity === undefined) params.constantVelocity = false;
+		if (params.constantVelocity === undefined) params.constantVelocity = true;
 		if (params.searchWindow === undefined) params.searchWindow = 10;
 	
 		var numPatches, patchSize, numParameters;
@@ -46,6 +46,21 @@ var clm = {
 		var convergenceLimit = 0.01;
 		var searchWindow;
 		var modelWidth;
+		
+		if (pModel.hints && mosseFilter && left_eye_filter && right_eye_filter && nose_filter) {
+      console.log("MOSSE filters not found, using rough approximation for initialization.");
+		  var mossef_lefteye = new mosseFilter();
+      mossef_lefteye.load(left_eye_filter);
+      var mossef_righteye = new mosseFilter();
+      mossef_righteye.load(right_eye_filter);
+      var mossef_nose = new mosseFilter();
+      mossef_nose.load(nose_filter);
+      
+      var right_eye_position = [0.0,0.0];
+      var left_eye_position = [0.0,0.0];
+      var nose_position = [0.0,0.0];
+      var lep, rep, mep;
+		}
 		
 		var webglFi;
 		
@@ -259,8 +274,6 @@ var clm = {
 				
 				this.detectPosition(element);
 				
-				// set translation parameters
-				
 				// calculate modelWidth/height from meanshape
         var xmin = ymin = 1000000;
         var xmax = ymax = 0;
@@ -273,14 +286,104 @@ var clm = {
         var modelwidth = xmax-xmin;
         var modelheight = ymax-ymin;
         
-        scaling = candidate.width/modelheight;
-        var ccc = document.getElementById('overlay').getContext('2d');
-        ccc.strokeRect(candidate.x,candidate.y,candidate.width,candidate.height);
-        translateX = candidate.x-(xmin*scaling)+0.1*candidate.width;
-			  translateY = candidate.y-(ymin*scaling)+0.25*candidate.height;
-        currentParameters[0] = scaling-1;
-        currentParameters[2] = translateX;
-        currentParameters[3] = translateY;
+        if (pModel.hints && mosseFilter && left_eye_filter && right_eye_filter && nose_filter) {
+				  var eyeFilterWidth = candidate.width * 4.5/10;
+          var noseFilterWidth = candidate.width * 6/10;
+          
+          // detect position of eyes and nose via mosse filter
+          var right_result = mossef_righteye.track(element, Math.round(candidate.x+(candidate.width*3/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth, false);
+          var left_result = mossef_lefteye.track(element, Math.round(candidate.x+(candidate.width/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth, false);
+          var nose_result = mossef_nose.track(element, Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2)), Math.round(candidate.y+candidate.height*(3/4)-(noseFilterWidth/2)), noseFilterWidth, noseFilterWidth, false);
+          right_eye_position[0] = Math.round(candidate.x+(candidate.width*3/4)-(eyeFilterWidth/2))+right_result[0];
+          right_eye_position[1] = Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2))+right_result[1];
+          left_eye_position[0] = Math.round(candidate.x+(candidate.width/4)-(eyeFilterWidth/2))+left_result[0];
+          left_eye_position[1] = Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2))+left_result[1];
+          nose_position[0] = Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2))+nose_result[0];
+          nose_position[1] = Math.round(candidate.y+candidate.height*(3/4)-(noseFilterWidth/2))+nose_result[1];
+          
+          /*var canvasContext = document.getElementById('overlay').getContext('2d')
+          
+          canvasContext.strokeRect(candidate.x, candidate.y, candidate.width, candidate.height);
+          canvasContext.strokeRect(Math.round(candidate.x+(candidate.width*3/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth);
+          canvasContext.strokeRect(Math.round(candidate.x+(candidate.width/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth);
+          canvasContext.strokeRect(Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2)), Math.round(candidate.y+candidate.height*(3/4)-(noseFilterWidth/2)), noseFilterWidth, noseFilterWidth);
+          
+          //element.pause()
+          canvasContext.fillStyle = "rgb(200,200,200)";
+          canvasContext.beginPath();
+          canvasContext.arc(left_eye_position[0], left_eye_position[1], 3, 0, Math.PI*2, true);
+          canvasContext.closePath();
+          canvasContext.fill();
+          
+          canvasContext.beginPath();
+          canvasContext.arc(right_eye_position[0], right_eye_position[1], 3, 0, Math.PI*2, true);
+          canvasContext.closePath();
+          canvasContext.fill();
+          
+          canvasContext.beginPath();
+          canvasContext.arc(nose_position[0], nose_position[1], 3, 0, Math.PI*2, true);
+          canvasContext.closePath();
+          canvasContext.fill();*/
+          
+          // get eye and nose positions of model
+          var lep = pModel.hints.leftEye;
+          var rep = pModel.hints.rightEye;
+          var mep = pModel.hints.nose;
+          
+          // get scaling, rotation, etc. via procrustes analysis
+          var procrustes_params = procrustes([left_eye_position, right_eye_position, nose_position], [lep, rep, mep]);
+          translateX = procrustes_params[0];
+          translateY = procrustes_params[1];
+          scaling = procrustes_params[2];
+          rotation = procrustes_params[3];
+          
+          /*var smean = [0,0];
+          smean[0] += lep[0];
+          smean[1] += lep[1];
+          smean[0] += rep[0];
+          smean[1] += rep[1];
+          smean[0] += mep[0];
+          smean[1] += mep[1];
+          smean[0] /= 3;
+          smean[1] /= 3;
+          
+          var nulep = [(lep[0]*scaling*Math.cos(-rotation)+lep[1]*scaling*Math.sin(-rotation))+translateX, (lep[0]*scaling*(-Math.sin(-rotation)) + lep[1]*scaling*Math.cos(-rotation))+translateY];
+          var nurep = [(rep[0]*scaling*Math.cos(-rotation)+rep[1]*scaling*Math.sin(-rotation))+translateX, (rep[0]*scaling*(-Math.sin(-rotation)) + rep[1]*scaling*Math.cos(-rotation))+translateY];
+          var numep = [(mep[0]*scaling*Math.cos(-rotation)+mep[1]*scaling*Math.sin(-rotation))+translateX, (mep[0]*scaling*(-Math.sin(-rotation)) + mep[1]*scaling*Math.cos(-rotation))+translateY];
+          
+          canvasContext.fillStyle = "rgb(200,10,100)";
+          canvasContext.beginPath();
+          canvasContext.arc(nulep[0], nulep[1], 3, 0, Math.PI*2, true);
+          canvasContext.closePath();
+          canvasContext.fill();
+          
+          canvasContext.beginPath();
+          canvasContext.arc(nurep[0], nurep[1], 3, 0, Math.PI*2, true);
+          canvasContext.closePath();
+          canvasContext.fill();
+          
+          canvasContext.beginPath();
+          canvasContext.arc(numep[0], numep[1], 3, 0, Math.PI*2, true);
+          canvasContext.closePath();
+          canvasContext.fill();*/
+          
+          currentParameters[0] = (scaling*Math.cos(rotation))-1;
+          currentParameters[1] = (scaling*Math.sin(rotation));
+          currentParameters[2] = translateX;
+          currentParameters[3] = translateY;
+          
+          //this.draw(document.getElementById('overlay'), currentParameters);
+          
+				} else {
+          scaling = candidate.width/modelheight;
+          var ccc = document.getElementById('overlay').getContext('2d');
+          ccc.strokeRect(candidate.x,candidate.y,candidate.width,candidate.height);
+          translateX = candidate.x-(xmin*scaling)+0.1*candidate.width;
+          translateY = candidate.y-(ymin*scaling)+0.25*candidate.height;
+          currentParameters[0] = scaling-1;
+          currentParameters[2] = translateX;
+          currentParameters[3] = translateY;
+        }
         
         currentPositions = calculatePositions(currentParameters, true);
 				
@@ -838,6 +941,90 @@ var clm = {
 			
 			cc.restore()
 		}
+		
+		function procrustes(template, shape) {
+      // assume template and shape is a vector of x,y-coordinates
+      //i.e. template = [[x1,y1], [x2,y2], [x3,y3]];
+      templateClone = [];
+      shapeClone = [];
+      for (var i = 0;i < template.length;i++) {
+        templateClone[i] = [template[i][0], template[i][1]];
+      }
+      for (var i = 0;i < shape.length;i++) {
+        shapeClone[i] = [shape[i][0], shape[i][1]];
+      }
+      shape = shapeClone;
+      template = templateClone;
+      
+      // calculate translation
+      var templateMean = [0.0, 0.0];
+      for (var i = 0;i < template.length;i++) {
+          templateMean[0] += template[i][0];
+          templateMean[1] += template[i][1];
+      }
+      templateMean[0] /= template.length;
+      templateMean[1] /= template.length;
+      
+      var shapeMean = [0.0, 0.0];
+      for (var i = 0;i < shape.length;i++) {
+          shapeMean[0] += shape[i][0];
+          shapeMean[1] += shape[i][1];
+      }
+      shapeMean[0] /= shape.length;
+      shapeMean[1] /= shape.length;
+      
+      var translationX = templateMean[0] - shapeMean[0];
+      var translationY = templateMean[1] - shapeMean[1];
+      
+      // centralize
+      for (var i = 0;i < shape.length;i++) {
+          shape[i][0] -= shapeMean[0];
+          shape[i][1] -= shapeMean[1];
+      }
+      for (var i = 0;i < template.length;i++) {
+          template[i][0] -= templateMean[0];
+          template[i][1] -= templateMean[1];
+      }
+      
+      // scaling
+      
+      var scaleS = 0.0;
+      for (var i = 0;i < shape.length;i++) {
+          scaleS += ((shape[i][0])*(shape[i][0]));
+          scaleS += ((shape[i][1])*(shape[i][1]));
+      }
+      scaleS = Math.sqrt(scaleS/shape.length);
+      
+      var scaleT = 0.0;
+      for (var i = 0;i < template.length;i++) {
+          scaleT += ((template[i][0])*(template[i][0]));
+          scaleT += ((template[i][1])*(template[i][1]));
+      }
+      scaleT = Math.sqrt(scaleT/template.length);
+      
+      var scaling = scaleT/scaleS;
+      
+      for (var i = 0;i < shape.length;i++) {
+          shape[i][0] *= scaling;
+          shape[i][1] *= scaling;
+      }
+      
+      // rotation
+      
+      var top = 0.0;
+      var bottom = 0.0;
+      for (var i = 0;i < shape.length;i++) {
+          top += (shape[i][0]*template[i][1] - shape[i][1]*template[i][0]);
+          bottom += (shape[i][0]*template[i][0] + shape[i][1]*template[i][1]);
+      }
+      var rotation = Math.atan(top/bottom);
+      
+      translationX += (shapeMean[0]-(scaling*Math.cos(-rotation)*shapeMean[0])-(scaling*shapeMean[1]*Math.sin(-rotation)));
+      translationY += (shapeMean[1]+(scaling*Math.sin(-rotation)*shapeMean[0])-(scaling*shapeMean[1]*Math.cos(-rotation)));
+      
+      //returns rotation, scaling, transformx and transformx
+      return [translationX, translationY, scaling, rotation];
+    }
 		
 		return true
 	}
