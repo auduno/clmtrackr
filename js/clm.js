@@ -1,10 +1,11 @@
-//requires: ccv, closure matrix library
+  //requires: ccv, closure matrix library
 
 var clm = {
 	tracker : function(params) {
     
     if (!params) params = {};
 		if (params.constantVelocity === undefined) params.constantVelocity = false;
+		if (params.searchWindow === undefined) params.searchWindow = 10;
 	
 		var numPatches, patchSize, numParameters;
 		var gaussianPD;
@@ -17,6 +18,7 @@ var clm = {
 		
 		var weightMatrices = [];
 		var weightMatricesOld = [];
+		var weights = [];
 		
 		var patches = [];
 		var responses = [];
@@ -27,7 +29,8 @@ var clm = {
 		This sequence is pretty arbitrary, but was found to be okay using some manual testing.
 		In Saragih's paper he used the sequence [20,10,5,1], this was however found to be slower and equally precise.
 		*/
-		var varianceSeq = [10,7,5];
+		//var varianceSeq = [10,7,5];
+		var varianceSeq = [3,1.5,0.75];
 		
 		/*
 		The PDM variance determines how the PDM models parameters can vary when fitting.
@@ -35,6 +38,8 @@ var clm = {
 		According to the formula in Saragih's paper, this parameter should be around 0.00005, however a higher variance was found to work better for this model.
 		*/
 		var PDMVariance = 0.05;
+		
+		var relaxation = 0.1;
 		
 		var first = true;
 		
@@ -53,14 +58,14 @@ var clm = {
 			sketchW = canvas.width;
 			sketchH = canvas.height;
 			
-			console.log('starting initialization');
+			//console.log('starting initialization');
 			
 			// load from model
 			numPatches = pModel.patchModel.numPatches;
 			patchSize = pModel.patchModel.patchSize[0];
-			searchWindow = Math.ceil(patchSize*1.25);
+			searchWindow = params.searchWindow;
 			numParameters = pModel.shapeModel.numEvalues;
-			modelWidth = 0.75*pModel.patchModel.canvasSize[0];
+			modelWidth = pModel.patchModel.canvasSize[0];
 			
 			// load eigenvectors
 			eigenVectors = new goog.math.Matrix(numPatches*2, numParameters);
@@ -95,13 +100,13 @@ var clm = {
 				}
 			}
 			
-			var weights = [];
+			//var weights = [];
 			for (var w = 0;w < numPatches;w++) {
 			  for (var i = 0;i < (patchSize*patchSize);i++) {
 			    weight = pModel.patchModel.weights[w][i];
 			    weight = weight > 1 ? 1 : weight;
           weight = weight < -1 ? -1 : weight;
-          weights[Math.floor(i / patchSize)*patchSize + (i % patchSize) +(w*patchSize*patchSize)] = weight;
+          weights[i +(w*patchSize*patchSize)] = weight;
 			  }
 			}
 			
@@ -120,7 +125,7 @@ var clm = {
 			webglFi = new webglFilter();
       webglFi.init(weights, numPatches, searchWindow+patchSize, searchWindow+patchSize, patchSize, patchSize, true);
 			
-			console.log('ended initialization');
+			//console.log('ended initialization');
 		}
 		
 		var gaussianProb = function(mean, coordinate, variance) {
@@ -252,13 +257,27 @@ var clm = {
 			if (first) {
 				// do viola-jones on canvas to get initial guess, if we don't have any points
 				
-				// TODO: can't use this here, need way to pass back scaling etc.
 				this.detectPosition(element);
 				
 				// set translation parameters
-        scaling = candidate.width/modelWidth;
-        translateX = candidate.x-Math.round(candidate.width*0.08);
-			  translateY = candidate.y+Math.round(candidate.height*0.08);
+				
+				// calculate modelWidth/height from meanshape
+        var xmin = ymin = 1000000;
+        var xmax = ymax = 0;
+        for (var i = 0;i < meanShape.length;i++) {
+          xmin = meanShape[i][0] < xmin ? meanShape[i][0] : xmin;
+          xmax = meanShape[i][0] > xmax ? meanShape[i][0] : xmax;
+          ymin = meanShape[i][1] < ymin ? meanShape[i][1] : ymin;
+          ymax = meanShape[i][1] > ymax ? meanShape[i][1] : ymax;
+        }
+        var modelwidth = xmax-xmin;
+        var modelheight = ymax-ymin;
+        
+        scaling = candidate.width/modelheight;
+        var ccc = document.getElementById('overlay').getContext('2d');
+        ccc.strokeRect(candidate.x,candidate.y,candidate.width,candidate.height);
+        translateX = candidate.x-(xmin*scaling)+0.1*candidate.width;
+			  translateY = candidate.y-(ymin*scaling)+0.25*candidate.height;
         currentParameters[0] = scaling-1;
         currentParameters[2] = translateX;
         currentParameters[3] = translateY;
@@ -273,7 +292,7 @@ var clm = {
           // calculate where to get patches via constant velocity prediction
           if (previousParameters.length >= 2) {
             for (var i = 0;i < currentParameters.length;i++) {
-              currentParameters[i] = (2*previousParameters[1][i]) - previousParameters[0][i];
+              currentParameters[i] = (relaxation)*previousParameters[1][i] + (1-relaxation)*((2*previousParameters[1][i]) - previousParameters[0][i]);
               //currentParameters[i] = (3*previousParameters[2][i]) - (3*previousParameters[1][i]) + previousParameters[0][i];
             }
           }
@@ -286,7 +305,7 @@ var clm = {
 			}
 			
 			var secondTime = (new Date).getTime();
-			console.log("detectiontiming: "+(secondTime-startTime)+" ms")
+			//console.log("detectiontiming: "+(secondTime-startTime)+" ms")
 			
 			// copy canvas to a new dirty canvas
 			sketchCC.save();
@@ -306,7 +325,7 @@ var clm = {
 			//	get cropped images around new points based on model parameters (not scaled and translated)
 			var patchPositions = calculatePositions(currentParameters, false);
 			
-			console.log("gidtime:"+(gidTime2-gidTime1));
+			//console.log("gidtime:"+(gidTime2-gidTime1));
 			
 			pw = pl = patchSize+searchWindow;
 			
@@ -340,7 +359,8 @@ var clm = {
 			  var psci = sketchCC.createImageData(patchSize, patchSize);
 			  var pscidata = psci.data;
 			  for (var j = 0;j < (patchSize)*(patchSize);j++) {
-			    var val = weightMatricesOld[i].getValueAt(j % (patchSize), (j / (patchSize)) >> 0);
+			    //var val = weightMatricesOld[i].getValueAt(j % (patchSize), (j / (patchSize)) >> 0);
+			    var val = weights[(i*patchSize*patchSize)+j];
 			    val = (val*2000)+127;
 			    val = val > 255 ? 255 : val;
 			    val = val < 0 ? 0 : val;
@@ -369,11 +389,11 @@ var clm = {
 			  }
 			  sketchCC.putImageData(psci, px >> 0, py >> 0);
 			}*/
-			console.log("starting response calculations");
+			//console.log("starting response calculations");
 			//sketchCC.clearRect(0, 0, sketchW, sketchH);
 			
 			var thirdTime = (new Date).getTime();
-			console.log("getting patches: "+(thirdTime-secondTime)+" ms")
+			//console.log("getting patches: "+(thirdTime-secondTime)+" ms")
 			
 			/* start webgl work here */
 			/*var patchResponse, submatrix, submsum;
@@ -430,7 +450,7 @@ var clm = {
       }*/
       
 			var secondTime = (new Date).getTime();
-			console.log("calculating responses: "+(secondTime - thirdTime)+" ms")
+			//console.log("calculating responses: "+(secondTime - thirdTime)+" ms")
 			
 			//testing of printing patches
       /*var canvasppt = document.createElement('canvas')
@@ -616,7 +636,8 @@ var clm = {
 				
 				
 				// compute pdm parameter update
-				var prior = gaussianPD.multiply(PDMVariance);
+				//var prior = gaussianPD.multiply(PDMVariance);
+				var prior = gaussianPD.multiply(varianceSeq[i]);
         var jtj = jac.getTranspose().multiply(jac);
         var cpMatrix = new goog.math.Matrix((numParameters+4),1);
         for (var l = 0;l < (numParameters+4);l++) {
@@ -647,7 +668,7 @@ var clm = {
 				  pnsq_y = (currentPositions[k][1]-oldPositions[k][1]);
 				  positionNorm += ((pnsq_x*pnsq_x) + (pnsq_y*pnsq_y));
 				}
-				console.log("positionnorm:"+positionNorm);
+				//console.log("positionnorm:"+positionNorm);
 				
 				// if norm < limit, then break
 				if (positionNorm < convergenceLimit) {
@@ -666,9 +687,9 @@ var clm = {
         previousParameters.splice(0, previousParameters.length == 3 ? 1 : 0);
 			}
 			
-			console.log("doot: "+(dootholder)+" ms")
-			console.log("partaholder: "+(partaholder)+" ms")
-			console.log("partbholder: "+(partbholder)+" ms")
+			//console.log("doot: "+(dootholder)+" ms")
+			//console.log("partaholder: "+(partaholder)+" ms")
+			//console.log("partbholder: "+(partbholder)+" ms")
 			
       document.getElementById('overlay').getContext('2d').clearRect(0, 0, 720, 576);
 			//debugger;
@@ -676,8 +697,8 @@ var clm = {
 			this.draw(document.getElementById('overlay'), currentParameters);
 			
 			var thirdTime = (new Date).getTime();
-			console.log("optimization of parameters: "+(thirdTime - secondTime)+" ms")
-			console.log("all time: "+(thirdTime - startTime)+" ms")
+			//console.log("optimization of parameters: "+(thirdTime - secondTime)+" ms")
+			//console.log("all time: "+(thirdTime - startTime)+" ms")
 			
 			// return new points
 			return currentPositions;
