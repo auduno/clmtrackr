@@ -48,6 +48,11 @@
 		<script src="./js/goog/size.js"></script>
 		<script src="./js/goog/math.js"></script>
 		<script src="./js/goog/matrix.js"></script>
+		<script src="./js/fft.js"></script>
+		<script src="./js/mosse.js"></script>
+		<script src="./js/left_eye_filter.js"></script>
+		<script src="./js/right_eye_filter.js"></script>
+		<script src="./js/nose_filter.js"></script>
 		<script src="./js/smallmodel.js"></script>
 		<script src="./js/webgl-utils.js"></script>
 		<script src="./js/clm.js"></script>
@@ -72,7 +77,7 @@
 		   };
 		   img.src = './media/franck_02159.jpg';
 		   
-		   var ctrack = new clm.tracker();
+		   var ctrack = new clm.tracker({constantVelocity : true});
 		   ctrack.init(skcc);
 		   
 		   stats = new Stats();

@@ -4,7 +4,8 @@ var clm = {
 	tracker : function(params) {
     
     if (!params) params = {};
-		if (params.constantVelocity === undefined) params.constantVelocity = false;
+		if (params.constantVelocity === undefined) params.constantVelocity = true;
+		if (params.searchWindow === undefined) params.searchWindow = 10;
 	
 		var numPatches, patchSize, numParameters;
 		var gaussianPD;
@@ -17,6 +18,7 @@ var clm = {
 		
 		var weightMatrices = [];
 		var weightMatricesOld = [];
+		var weights = [];
 		
 		var patches = [];
 		var responses = [];
@@ -27,7 +29,8 @@ var clm = {
 		This sequence is pretty arbitrary, but was found to be okay using some manual testing.
 		In Saragih's paper he used the sequence [20,10,5,1], this was however found to be slower and equally precise.
 		*/
-		var varianceSeq = [10,10,5];
+		//var varianceSeq = [10,7,5];
+		var varianceSeq = [3,1.5,0.75];
 		
 		/*
 		The PDM variance determines how the PDM models parameters can vary when fitting.
@@ -36,11 +39,34 @@ var clm = {
 		*/
 		var PDMVariance = 0.05;
 		
+		var relaxation = 0.1;
+		
 		var first = true;
 		
 		var convergenceLimit = 0.01;
+		
+		var learningRate = [];
+		var stepParameter = 1.25;
+		var prevCostFunc = []
+		
 		var searchWindow;
 		var modelWidth;
+		
+		if (pModel.hints && mosseFilter && left_eye_filter && right_eye_filter && nose_filter) {
+		  var mossef_lefteye = new mosseFilter();
+      mossef_lefteye.load(left_eye_filter);
+      var mossef_righteye = new mosseFilter();
+      mossef_righteye.load(right_eye_filter);
+      var mossef_nose = new mosseFilter();
+      mossef_nose.load(nose_filter);
+      
+      var right_eye_position = [0.0,0.0];
+      var left_eye_position = [0.0,0.0];
+      var nose_position = [0.0,0.0];
+      var lep, rep, mep;
+		} else {
+      console.log("MOSSE filters not found, using rough approximation for initialization.");
+    }
 		
 		var webglFi;
 		
@@ -53,30 +79,30 @@ var clm = {
 			sketchW = canvas.width;
 			sketchH = canvas.height;
 			
-			console.log('starting initialization');
+			//console.log('starting initialization');
 			
 			// load from model
 			numPatches = pModel.patchModel.numPatches;
 			patchSize = pModel.patchModel.patchSize[0];
-			searchWindow = Math.ceil(patchSize*1.25);
+			searchWindow = params.searchWindow;
 			numParameters = pModel.shapeModel.numEvalues;
-			modelWidth = 0.75*pModel.patchModel.canvasSize[0];
+			modelWidth = pModel.patchModel.canvasSize[0];
 			
 			// load eigenvectors
 			eigenVectors = new goog.math.Matrix(numPatches*2, numParameters);
 			for (var i = 0;i < numPatches*2;i++) {
 				for (var j = 0;j < numParameters;j++) {
-					eigenVectors.setValueAt(i, j, pModel.shapeModel.eVectors[(j*numPatches*2)+i]);
+					eigenVectors.setValueAt(i, j, pModel.shapeModel.eigenVectors[i][j]);
 				}
 			}
 			
 			// load mean shape
 			for (var i = 0; i < numPatches;i++) {
-			  meanShape[i] = [pModel.shapeModel.meanShape[(i*2)], pModel.shapeModel.meanShape[(i*2)+1]];
+			  meanShape[i] = [pModel.shapeModel.meanShape[i][0], pModel.shapeModel.meanShape[i][1]];
 			}
 			
 			// load eigenvalues
-			eigenValues = pModel.shapeModel.eValues;
+			eigenValues = pModel.shapeModel.eigenValues;
 			
 			// load patchweight matrices for comparing
 			var weight;
@@ -85,7 +111,8 @@ var clm = {
 				// insert
 				for (var i = 0;i < patchSize;i++) {
 					for (var j = 0;j < patchSize;j++) {
-						weight = pModel.patchModel.weights[w+(((i*patchSize)+j)*numPatches)];
+						//weight = pModel.patchModel.weights[w+(((i*patchSize)+j)*numPatches)];
+						weight = pModel.patchModel.weights[w][(i*patchSize)+j];
 						// cut off all values above 1 and below -1
 						weight = weight > 1 ? 1 : weight;
 						weight = weight < -1 ? -1 : weight;
@@ -94,26 +121,22 @@ var clm = {
 				}
 			}
 			
-			var weights = [];
+			//var weights = [];
 			for (var w = 0;w < numPatches;w++) {
 			  for (var i = 0;i < (patchSize*patchSize);i++) {
-			    weight = pModel.patchModel.weights[w+(i*numPatches)];
+			    weight = pModel.patchModel.weights[w][i];
 			    weight = weight > 1 ? 1 : weight;
           weight = weight < -1 ? -1 : weight;
-          weights[Math.floor(i / patchSize)*patchSize + (i % patchSize) +(w*patchSize*patchSize)] = weight;
+          weights[i +(w*patchSize*patchSize)] = weight;
 			  }
 			}
 			
 			// precalculate gaussianPriorDiagonal
 			gaussianPD = new goog.math.Matrix(numParameters+4, numParameters+4);
 			// set values and append manual inverse
-			gaussianPD.setValueAt(4,4,1/eigenValues[0]);
-			gaussianPD.setValueAt(5,5,1/eigenValues[1]);
-			gaussianPD.setValueAt(6,6,1/eigenValues[2]);
-			gaussianPD.setValueAt(7,7,1/eigenValues[3]);
-			gaussianPD.setValueAt(8,8,1/eigenValues[4]);
-			gaussianPD.setValueAt(9,9,1/eigenValues[5]);
-			gaussianPD.setValueAt(10,10,1/eigenValues[6]);
+			for (var i = 0;i < numParameters;i++) {
+			  gaussianPD.setValueAt(i+4,i+4,1/eigenValues[i]);
+			}
 				
 			for (var i = 0;i < numParameters+4;i++) {
 				currentParameters[i] = 0;
@@ -123,7 +146,11 @@ var clm = {
 			webglFi = new webglFilter();
       webglFi.init(weights, numPatches, searchWindow+patchSize, searchWindow+patchSize, patchSize, patchSize, true);
 			
-			console.log('ended initialization');
+			//console.log('ended initialization');
+			for (var i = 0;i < numPatches;i++) {
+			  learningRate[i] = 1.0;
+		    prevCostFunc[i] = 0.0;
+			}
 		}
 		
 		var gaussianProb = function(mean, coordinate, variance) {
@@ -182,11 +209,11 @@ var clm = {
 			var numParameters = parameters.length;
 			positions = [];
 			for (var i = 0;i < numPatches;i++) {
-				x = pModel.shapeModel.meanShape[(2*i)];
-				y = pModel.shapeModel.meanShape[(2*i)+1];
+				x = pModel.shapeModel.meanShape[i][0];
+				y = pModel.shapeModel.meanShape[i][1];
 				for (var j = 0;j < numParameters-4;j++) {
-					x += pModel.shapeModel.eVectors[(j*numPatches*2)+(2*i)]*parameters[j+4];
-					y += pModel.shapeModel.eVectors[(j*numPatches*2)+((2*i)+1)]*parameters[j+4];
+					x += pModel.shapeModel.eigenVectors[(i*2)][j]*parameters[j+4];
+					y += pModel.shapeModel.eigenVectors[(i*2)+1][j]*parameters[j+4];
 				}
 				if (useTransforms) {
 				  a = parameters[0]*x - parameters[1]*y + parameters[2];
@@ -255,16 +282,118 @@ var clm = {
 			if (first) {
 				// do viola-jones on canvas to get initial guess, if we don't have any points
 				
-				// TODO: can't use this here, need way to pass back scaling etc.
 				this.detectPosition(element);
 				
-				// set translation parameters
-        scaling = candidate.width/modelWidth;
-        translateX = candidate.x-Math.round(candidate.width*0.08);
-			  translateY = candidate.y+Math.round(candidate.height*0.08);
-        currentParameters[0] = scaling-1;
-        currentParameters[2] = translateX;
-        currentParameters[3] = translateY;
+				// calculate modelWidth/height from meanshape
+        var xmin = ymin = 1000000;
+        var xmax = ymax = 0;
+        for (var i = 0;i < meanShape.length;i++) {
+          xmin = meanShape[i][0] < xmin ? meanShape[i][0] : xmin;
+          xmax = meanShape[i][0] > xmax ? meanShape[i][0] : xmax;
+          ymin = meanShape[i][1] < ymin ? meanShape[i][1] : ymin;
+          ymax = meanShape[i][1] > ymax ? meanShape[i][1] : ymax;
+        }
+        var modelwidth = xmax-xmin;
+        var modelheight = ymax-ymin;
+        
+        if (pModel.hints && mosseFilter && left_eye_filter && right_eye_filter && nose_filter) {
+				  var eyeFilterWidth = candidate.width * 4.5/10;
+          var noseFilterWidth = candidate.width * 6/10;
+          
+          // detect position of eyes and nose via mosse filter
+          var right_result = mossef_righteye.track(element, Math.round(candidate.x+(candidate.width*3/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth, false);
+          var left_result = mossef_lefteye.track(element, Math.round(candidate.x+(candidate.width/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth, false);
+          var nose_result = mossef_nose.track(element, Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2)), Math.round(candidate.y+candidate.height*(3/4)-(noseFilterWidth/2)), noseFilterWidth, noseFilterWidth, false);
+          right_eye_position[0] = Math.round(candidate.x+(candidate.width*3/4)-(eyeFilterWidth/2))+right_result[0];
+          right_eye_position[1] = Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2))+right_result[1];
+          left_eye_position[0] = Math.round(candidate.x+(candidate.width/4)-(eyeFilterWidth/2))+left_result[0];
+          left_eye_position[1] = Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2))+left_result[1];
+          nose_position[0] = Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2))+nose_result[0];
+          nose_position[1] = Math.round(candidate.y+candidate.height*(3/4)-(noseFilterWidth/2))+nose_result[1];
+          
+          /*var canvasContext = document.getElementById('overlay').getContext('2d')
+          
+          canvasContext.strokeRect(candidate.x, candidate.y, candidate.width, candidate.height);
+          canvasContext.strokeRect(Math.round(candidate.x+(candidate.width*3/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth);
+          canvasContext.strokeRect(Math.round(candidate.x+(candidate.width/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth);
+          canvasContext.strokeRect(Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2)), Math.round(candidate.y+candidate.height*(3/4)-(noseFilterWidth/2)), noseFilterWidth, noseFilterWidth);
+          
+          //element.pause()
+          canvasContext.fillStyle = "rgb(200,200,200)";
+          canvasContext.beginPath();
+          canvasContext.arc(left_eye_position[0], left_eye_position[1], 3, 0, Math.PI*2, true);
+          canvasContext.closePath();
+          canvasContext.fill();
+          
+          canvasContext.beginPath();
+          canvasContext.arc(right_eye_position[0], right_eye_position[1], 3, 0, Math.PI*2, true);
+          canvasContext.closePath();
+          canvasContext.fill();
+          
+          canvasContext.beginPath();
+          canvasContext.arc(nose_position[0], nose_position[1], 3, 0, Math.PI*2, true);
+          canvasContext.closePath();
+          canvasContext.fill();*/
+          
+          // get eye and nose positions of model
+          var lep = pModel.hints.leftEye;
+          var rep = pModel.hints.rightEye;
+          var mep = pModel.hints.nose;
+          
+          // get scaling, rotation, etc. via procrustes analysis
+          var procrustes_params = procrustes([left_eye_position, right_eye_position, nose_position], [lep, rep, mep]);
+          translateX = procrustes_params[0];
+          translateY = procrustes_params[1];
+          scaling = procrustes_params[2];
+          rotation = procrustes_params[3];
+          
+          /*var smean = [0,0];
+          smean[0] += lep[0];
+          smean[1] += lep[1];
+          smean[0] += rep[0];
+          smean[1] += rep[1];
+          smean[0] += mep[0];
+          smean[1] += mep[1];
+          smean[0] /= 3;
+          smean[1] /= 3;
+          
+          var nulep = [(lep[0]*scaling*Math.cos(-rotation)+lep[1]*scaling*Math.sin(-rotation))+translateX, (lep[0]*scaling*(-Math.sin(-rotation)) + lep[1]*scaling*Math.cos(-rotation))+translateY];
+          var nurep = [(rep[0]*scaling*Math.cos(-rotation)+rep[1]*scaling*Math.sin(-rotation))+translateX, (rep[0]*scaling*(-Math.sin(-rotation)) + rep[1]*scaling*Math.cos(-rotation))+translateY];
+          var numep = [(mep[0]*scaling*Math.cos(-rotation)+mep[1]*scaling*Math.sin(-rotation))+translateX, (mep[0]*scaling*(-Math.sin(-rotation)) + mep[1]*scaling*Math.cos(-rotation))+translateY];
+          
+          canvasContext.fillStyle = "rgb(200,10,100)";
+          canvasContext.beginPath();
+          canvasContext.arc(nulep[0], nulep[1], 3, 0, Math.PI*2, true);
+          canvasContext.closePath();
+          canvasContext.fill();
+          
+          canvasContext.beginPath();
+          canvasContext.arc(nurep[0], nurep[1], 3, 0, Math.PI*2, true);
+          canvasContext.closePath();
+          canvasContext.fill();
+          
+          canvasContext.beginPath();
+          canvasContext.arc(numep[0], numep[1], 3, 0, Math.PI*2, true);
+          canvasContext.closePath();
+          canvasContext.fill();*/
+          
+          currentParameters[0] = (scaling*Math.cos(rotation))-1;
+          currentParameters[1] = (scaling*Math.sin(rotation));
+          currentParameters[2] = translateX;
+          currentParameters[3] = translateY;
+          
+          //this.draw(document.getElementById('overlay'), currentParameters);
+          
+				} else {
+          scaling = candidate.width/modelheight;
+          var ccc = document.getElementById('overlay').getContext('2d');
+          ccc.strokeRect(candidate.x,candidate.y,candidate.width,candidate.height);
+          translateX = candidate.x-(xmin*scaling)+0.1*candidate.width;
+          translateY = candidate.y-(ymin*scaling)+0.25*candidate.height;
+          currentParameters[0] = scaling-1;
+          currentParameters[2] = translateX;
+          currentParameters[3] = translateY;
+        }
         
         currentPositions = calculatePositions(currentParameters, true);
 				
@@ -276,7 +405,7 @@ var clm = {
           // calculate where to get patches via constant velocity prediction
           if (previousParameters.length >= 2) {
             for (var i = 0;i < currentParameters.length;i++) {
-              currentParameters[i] = (2*previousParameters[1][i]) - previousParameters[0][i];
+              currentParameters[i] = (relaxation)*previousParameters[1][i] + (1-relaxation)*((2*previousParameters[1][i]) - previousParameters[0][i]);
               //currentParameters[i] = (3*previousParameters[2][i]) - (3*previousParameters[1][i]) + previousParameters[0][i];
             }
           }
@@ -289,7 +418,7 @@ var clm = {
 			}
 			
 			var secondTime = (new Date).getTime();
-			console.log("detectiontiming: "+(secondTime-startTime)+" ms")
+			//console.log("detectiontiming: "+(secondTime-startTime)+" ms")
 			
 			// copy canvas to a new dirty canvas
 			sketchCC.save();
@@ -309,7 +438,7 @@ var clm = {
 			//	get cropped images around new points based on model parameters (not scaled and translated)
 			var patchPositions = calculatePositions(currentParameters, false);
 			
-			console.log("gidtime:"+(gidTime2-gidTime1));
+			//console.log("gidtime:"+(gidTime2-gidTime1));
 			
 			pw = pl = patchSize+searchWindow;
 			
@@ -343,7 +472,8 @@ var clm = {
 			  var psci = sketchCC.createImageData(patchSize, patchSize);
 			  var pscidata = psci.data;
 			  for (var j = 0;j < (patchSize)*(patchSize);j++) {
-			    var val = weightMatricesOld[i].getValueAt(j % (patchSize), (j / (patchSize)) >> 0);
+			    //var val = weightMatricesOld[i].getValueAt(j % (patchSize), (j / (patchSize)) >> 0);
+			    var val = weights[(i*patchSize*patchSize)+j];
 			    val = (val*2000)+127;
 			    val = val > 255 ? 255 : val;
 			    val = val < 0 ? 0 : val;
@@ -372,11 +502,11 @@ var clm = {
 			  }
 			  sketchCC.putImageData(psci, px >> 0, py >> 0);
 			}*/
-			console.log("starting response calculations");
+			//console.log("starting response calculations");
 			//sketchCC.clearRect(0, 0, sketchW, sketchH);
 			
 			var thirdTime = (new Date).getTime();
-			console.log("getting patches: "+(thirdTime-secondTime)+" ms")
+			//console.log("getting patches: "+(thirdTime-secondTime)+" ms")
 			
 			/* start webgl work here */
 			/*var patchResponse, submatrix, submsum;
@@ -433,7 +563,7 @@ var clm = {
       }*/
       
 			var secondTime = (new Date).getTime();
-			console.log("calculating responses: "+(secondTime - thirdTime)+" ms")
+			//console.log("calculating responses: "+(secondTime - thirdTime)+" ms")
 			
 			//testing of printing patches
       /*var canvasppt = document.createElement('canvas')
@@ -508,7 +638,6 @@ var clm = {
 				  // for every point in each response:
 					// calculate PI x gaussian
 				  vecProbs = [];
-          
 				  
           var boot = (new Date).getTime();
           
@@ -569,10 +698,19 @@ var clm = {
 				    }
 				  }
 				  
+				  // evaluate here whether to increase/decrease stepSize
+				  if (vpsum >= prevCostFunc[j]) {
+				    learningRate[j] *= stepParameter;
+				  } else {
+				    learningRate[j] = 1.0;
+				  }
+				  prevCostFunc[j] = vpsum;
+				  
 				  // compute mean shift vectors
+				  // extrapolate meanshiftvectors
 				  var msv = [];
-				  msv[0] = vecpos[0] - currentPositions[j][0];
-				  msv[1] = vecpos[1] - currentPositions[j][1];
+				  msv[0] = learningRate[j]*(vecpos[0] - currentPositions[j][0]);
+				  msv[1] = learningRate[j]*(vecpos[1] - currentPositions[j][1]);
 				  meanshiftVectors[j] = msv;
 				  
 				  //debugging
@@ -620,7 +758,8 @@ var clm = {
 				
 				
 				// compute pdm parameter update
-				var prior = gaussianPD.multiply(PDMVariance);
+				//var prior = gaussianPD.multiply(PDMVariance);
+				var prior = gaussianPD.multiply(varianceSeq[i]);
         var jtj = jac.getTranspose().multiply(jac);
         var cpMatrix = new goog.math.Matrix((numParameters+4),1);
         for (var l = 0;l < (numParameters+4);l++) {
@@ -651,7 +790,7 @@ var clm = {
 				  pnsq_y = (currentPositions[k][1]-oldPositions[k][1]);
 				  positionNorm += ((pnsq_x*pnsq_x) + (pnsq_y*pnsq_y));
 				}
-				console.log("positionnorm:"+positionNorm);
+				//console.log("positionnorm:"+positionNorm);
 				
 				// if norm < limit, then break
 				if (positionNorm < convergenceLimit) {
@@ -670,9 +809,9 @@ var clm = {
         previousParameters.splice(0, previousParameters.length == 3 ? 1 : 0);
 			}
 			
-			console.log("doot: "+(dootholder)+" ms")
-			console.log("partaholder: "+(partaholder)+" ms")
-			console.log("partbholder: "+(partbholder)+" ms")
+			//console.log("doot: "+(dootholder)+" ms")
+			//console.log("partaholder: "+(partaholder)+" ms")
+			//console.log("partbholder: "+(partbholder)+" ms")
 			
       document.getElementById('overlay').getContext('2d').clearRect(0, 0, 720, 576);
 			//debugger;
@@ -680,8 +819,8 @@ var clm = {
 			this.draw(document.getElementById('overlay'), currentParameters);
 			
 			var thirdTime = (new Date).getTime();
-			console.log("optimization of parameters: "+(thirdTime - secondTime)+" ms")
-			console.log("all time: "+(thirdTime - startTime)+" ms")
+			//console.log("optimization of parameters: "+(thirdTime - secondTime)+" ms")
+			//console.log("all time: "+(thirdTime - startTime)+" ms")
 			
 			// return new points
 			return currentPositions;
@@ -748,7 +887,53 @@ var clm = {
 		  }
 		}
 		
-		this.draw = function(canvas, pv, scale) {
+		var drawPath = function(canvasContext, path, dp) {
+			canvasContext.beginPath();
+			var i, x, y;
+			for (var p = 0;p < path.length;p++) {
+				i = path[p]*2;
+				x = pModel.shapeModel.meanShape[i/2][0];
+				y = pModel.shapeModel.meanShape[i/2][1];
+				for (var j = 0;j < numParameters;j++) {
+					x += pModel.shapeModel.eigenVectors[i][j]*dp[j+4];
+					y += pModel.shapeModel.eigenVectors[i+1][j]*dp[j+4];
+				}
+				a = dp[0]*x - dp[1]*y + dp[2];
+				b = dp[0]*y + dp[1]*x + dp[3];
+				x += a;
+				y += b;
+				
+				if (i == 0) {
+					canvasContext.moveTo(x,y);
+				} else {
+					canvasContext.lineTo(x,y);
+				}
+			}
+			canvasContext.moveTo(0,0);
+			canvasContext.closePath();
+			canvasContext.stroke();
+		}
+		
+		function drawPoint(canvasContext, point, dp) {
+		  var i, x, y;
+		  i = point*2;
+			x = pModel.shapeModel.meanShape[i/2][0];
+      y = pModel.shapeModel.meanShape[i/2][1];
+			for (var j = 0;j < numParameters;j++) {
+				x += pModel.shapeModel.eigenVectors[i][j]*dp[j+4];
+				y += pModel.shapeModel.eigenVectors[i+1][j]*dp[j+4];
+			}
+			a = dp[0]*x - dp[1]*y + dp[2];
+			b = dp[0]*y + dp[1]*x + dp[3];
+			x += a;
+			y += b;
+			canvasContext.beginPath();
+		  canvasContext.arc(x, y, 1, 0, Math.PI*2, true);
+			canvasContext.closePath();
+			canvasContext.fill();
+		}
+		
+		this.draw = function(canvas, pv) {
 			// if no previous points, just draw in the middle of canvas
 			
 			var params;
@@ -757,243 +942,108 @@ var clm = {
 			} else {
         params = pv.slice(0);
 			}
-			if (scale === undefined) {
-			  scale = 1;
-			}
-			
-			/*
-			if (params[1] == 0) {
-			  rotation = 0;
-			  var paramscale = (params[0]+1)/Math.cos(0);
-			} else {
-			  var rotation = 0.5*Math.asin(2*(params[0]+1)*params[1]);
-        var paramscale = params[1]/Math.sin(rotation);
-			}
-			
-			params[0] = (paramscale*scale*Math.cos(rotation))-1;
-			params[1] = paramscale*scale*Math.sin(rotation);
-			*/
 			
 			var cc = canvas.getContext('2d');
 			cc.fillStyle = "rgb(200,200,200)";
 			cc.strokeStyle = "rgb(130,255,50)";
 			//cc.lineWidth = 1;
-			var x, y, i, path;
-			
 			cc.save();
 			
-			path = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14]
-			cc.beginPath();
-			for (var p = 0;p < path.length;p++) {
-				i = path[p]*2;
-				x = pModel.shapeModel.meanShape[i];
-				y = pModel.shapeModel.meanShape[i+1];
-				for (var j = 0;j < numParameters;j++) {
-					x += pModel.shapeModel.eVectors[((j)*numPatches*2)+i]*params[j+4];
-					y += pModel.shapeModel.eVectors[((j)*numPatches*2)+(i+1)]*params[j+4];
-				}
-				a = params[0]*x - params[1]*y + params[2];
-				b = params[0]*y + params[1]*x + params[3];
-				x += a;
-				y += b;
-				
-				//cc.fillRect(x,y,3,3);
-				if (i == 0) {
-					cc.moveTo(x,y);
-				} else {
-					cc.lineTo(x,y);
-				}
+			var paths = pModel.path.normal;
+			for (var i = 0;i < paths.length;i++) {
+			  if (typeof(paths.i) == 'number') {
+			    drawPoint(cc, paths[i], params);
+			  } else {
+			    drawPath(cc, paths[i], params);
+			  }
 			}
-			cc.moveTo(0,0);
-			cc.closePath();
-			cc.stroke();
-			
-			//right eyebrow
-			path = [15,16,17,18,19,20,15]
-			cc.beginPath();
-			for (var p = 0;p < path.length;p++) {
-				i = path[p]*2;
-				x = pModel.shapeModel.meanShape[i];
-				y = pModel.shapeModel.meanShape[i+1];
-				for (var j = 0;j < numParameters;j++) {
-					x += pModel.shapeModel.eVectors[((j)*numPatches*2)+i]*params[j+4];
-					y += pModel.shapeModel.eVectors[((j)*numPatches*2)+(i+1)]*params[j+4];
-				}
-				a = params[0]*x - params[1]*y + params[2];
-				b = params[0]*y + params[1]*x + params[3];
-				x += a;
-				y += b;
-				//cc.fillRect(x,y,3,3);
-				if (i == 0) {
-					cc.moveTo(x,y);
-				} else {
-					cc.lineTo(x,y);
-				}
-			}
-			cc.moveTo(0,0);
-			cc.closePath();
-			cc.stroke();
-			
-			// left eyebrow
-			path = [21,22,23,24,25,26,21]
-			cc.beginPath();
-			for (var p = 0;p < path.length;p++) {
-				i = path[p]*2;
-				x = pModel.shapeModel.meanShape[i];
-				y = pModel.shapeModel.meanShape[i+1];
-				for (var j = 0;j < numParameters;j++) {
-					x += pModel.shapeModel.eVectors[((j)*numPatches*2)+i]*params[j+4];
-					y += pModel.shapeModel.eVectors[((j)*numPatches*2)+(i+1)]*params[j+4];
-				}
-				a = params[0]*x - params[1]*y + params[2];
-				b = params[0]*y + params[1]*x + params[3];
-				x += a;
-				y += b;
-				//cc.fillRect(x,y,3,3);
-				if (i == 0) {
-					cc.moveTo(x,y);
-				} else {
-					cc.lineTo(x,y);
-				}
-			}
-			cc.moveTo(0,0);
-			cc.closePath();
-			cc.stroke();
-			
-			// left eye
-			path = [27,28,29,30,27,30,31]
-			cc.beginPath();
-			for (var p = 0;p < path.length;p++) {
-				i = path[p]*2;
-				x = pModel.shapeModel.meanShape[i];
-				y = pModel.shapeModel.meanShape[i+1];
-				for (var j = 0;j < numParameters;j++) {
-					x += pModel.shapeModel.eVectors[((j)*numPatches*2)+i]*params[j+4];
-					y += pModel.shapeModel.eVectors[((j)*numPatches*2)+(i+1)]*params[j+4];
-				}
-				a = params[0]*x - params[1]*y + params[2];
-				b = params[0]*y + params[1]*x + params[3];
-				x += a;
-				y += b;
-				//cc.fillRect(x,y,3,3);
-				if (i == 0) {
-					cc.moveTo(x,y);
-				} else {
-					cc.lineTo(x,y);
-				}
-			}
-			cc.moveTo(0,0);
-			cc.closePath();
-			cc.stroke();
-			
-			// right eye
-			path = [32,33,34,35,32,35,36]
-			cc.beginPath();
-			for (var p = 0;p < path.length;p++) {
-				i = path[p]*2;
-				x = pModel.shapeModel.meanShape[i];
-				y = pModel.shapeModel.meanShape[i+1];
-				for (var j = 0;j < numParameters;j++) {
-					x += pModel.shapeModel.eVectors[(j*numPatches*2)+i]*params[j+4];
-					y += pModel.shapeModel.eVectors[(j*numPatches*2)+(i+1)]*params[j+4];
-				}
-				a = params[0]*x - params[1]*y + params[2];
-				b = params[0]*y + params[1]*x + params[3];
-				x += a;
-				y += b;
-				//cc.fillRect(x,y,3,3);
-				if (i == 0) {
-					cc.moveTo(x,y);
-				} else {
-					cc.lineTo(x,y);
-				}
-			}
-			cc.moveTo(0,0);
-			cc.closePath();
-			cc.stroke();
-			
-			// nose
-			path = [37,38,39,40,46,41,47,42,43,44,45]
-			cc.beginPath();
-			for (var p = 0;p < path.length;p++) {
-				i = path[p]*2;
-				x = pModel.shapeModel.meanShape[i];
-				y = pModel.shapeModel.meanShape[i+1];
-				for (var j = 0;j < numParameters;j++) {
-					x += pModel.shapeModel.eVectors[(j*numPatches*2)+i]*params[j+4];
-					y += pModel.shapeModel.eVectors[(j*numPatches*2)+(i+1)]*params[j+4];
-				}
-				a = params[0]*x - params[1]*y + params[2];
-				b = params[0]*y + params[1]*x + params[3];
-				x += a;
-				y += b;
-				//cc.fillRect(x,y,3,3);
-				if (i == 0) {
-					cc.moveTo(x,y);
-				} else {
-					cc.lineTo(x,y);
-				}
-			}
-			cc.moveTo(0,0);
-			cc.closePath();
-			cc.stroke();
-			
-			// mouth
-			path = [48,49,50,51,52,53,54,55,56,57,58,59,48,60,61,62,54,63,64,65,48]
-			cc.beginPath();
-			for (var p = 0;p < path.length;p++) {
-				i = path[p]*2;
-				x = pModel.shapeModel.meanShape[i];
-				y = pModel.shapeModel.meanShape[i+1];
-				for (var j = 0;j < numParameters;j++) {
-					x += pModel.shapeModel.eVectors[(j*numPatches*2)+i]*params[j+4];
-					y += pModel.shapeModel.eVectors[(j*numPatches*2)+(i+1)]*params[j+4];
-				}
-				a = params[0]*x - params[1]*y + params[2];
-				b = params[0]*y + params[1]*x + params[3];
-				x += a;
-				y += b;
-				//cc.fillRect(x,y,3,3);
-				if (i == 0) {
-					cc.moveTo(x,y);
-				} else {
-					cc.lineTo(x,y);
-				}
-			}
-			cc.moveTo(0,0);
-			cc.closePath();
-			cc.stroke();
-			
-			// mid mouth
-			i = 66*2;
-			x = pModel.shapeModel.meanShape[i];
-			y = pModel.shapeModel.meanShape[i+1];
-			for (var j = 0;j < numParameters;j++) {
-				x += pModel.shapeModel.eVectors[(j*numPatches*2)+i]*params[j+4];
-				y += pModel.shapeModel.eVectors[(j*numPatches*2)+(i+1)]*params[j+4];
-			}
-			a = params[0]*x - params[1]*y + params[2];
-			b = params[0]*y + params[1]*x + params[3];
-			x += a;
-			y += b;
-			cc.fillRect(x,y,3,3);
-			
-			// mid nose
-			i = 67*2;
-			x = pModel.shapeModel.meanShape[i];
-			y = pModel.shapeModel.meanShape[i+1];
-			for (var j = 0;j < numParameters;j++) {
-				x += pModel.shapeModel.eVectors[(j*numPatches*2)+i]*params[j+4];
-				y += pModel.shapeModel.eVectors[(j*numPatches*2)+(i+1)]*params[j+4];
-			}
-			a = params[0]*x - params[1]*y + params[2];
-			b = params[0]*y + params[1]*x + params[3];
-			x += a;
-			y += b;
-			cc.fillRect(x,y,3,3);
 			
 			cc.restore()
 		}
+		
+		function procrustes(template, shape) {
+      // assume template and shape is a vector of x,y-coordinates
+      //i.e. template = [[x1,y1], [x2,y2], [x3,y3]];
+      templateClone = [];
+      shapeClone = [];
+      for (var i = 0;i < template.length;i++) {
+        templateClone[i] = [template[i][0], template[i][1]];
+      }
+      for (var i = 0;i < shape.length;i++) {
+        shapeClone[i] = [shape[i][0], shape[i][1]];
+      }
+      shape = shapeClone;
+      template = templateClone;
+      
+      // calculate translation
+      var templateMean = [0.0, 0.0];
+      for (var i = 0;i < template.length;i++) {
+          templateMean[0] += template[i][0];
+          templateMean[1] += template[i][1];
+      }
+      templateMean[0] /= template.length;
+      templateMean[1] /= template.length;
+      
+      var shapeMean = [0.0, 0.0];
+      for (var i = 0;i < shape.length;i++) {
+          shapeMean[0] += shape[i][0];
+          shapeMean[1] += shape[i][1];
+      }
+      shapeMean[0] /= shape.length;
+      shapeMean[1] /= shape.length;
+      
+      var translationX = templateMean[0] - shapeMean[0];
+      var translationY = templateMean[1] - shapeMean[1];
+      
+      // centralize
+      for (var i = 0;i < shape.length;i++) {
+          shape[i][0] -= shapeMean[0];
+          shape[i][1] -= shapeMean[1];
+      }
+      for (var i = 0;i < template.length;i++) {
+          template[i][0] -= templateMean[0];
+          template[i][1] -= templateMean[1];
+      }
+      
+      // scaling
+      
+      var scaleS = 0.0;
+      for (var i = 0;i < shape.length;i++) {
+          scaleS += ((shape[i][0])*(shape[i][0]));
+          scaleS += ((shape[i][1])*(shape[i][1]));
+      }
+      scaleS = Math.sqrt(scaleS/shape.length);
+      
+      var scaleT = 0.0;
+      for (var i = 0;i < template.length;i++) {
+          scaleT += ((template[i][0])*(template[i][0]));
+          scaleT += ((template[i][1])*(template[i][1]));
+      }
+      scaleT = Math.sqrt(scaleT/template.length);
+      
+      var scaling = scaleT/scaleS;
+      
+      for (var i = 0;i < shape.length;i++) {
+          shape[i][0] *= scaling;
+          shape[i][1] *= scaling;
+      }
+      
+      // rotation
+      
+      var top = 0.0;
+      var bottom = 0.0;
+      for (var i = 0;i < shape.length;i++) {
+          top += (shape[i][0]*template[i][1] - shape[i][1]*template[i][0]);
+          bottom += (shape[i][0]*template[i][0] + shape[i][1]*template[i][1]);
+      }
+      var rotation = Math.atan(top/bottom);
+      
+      translationX += (shapeMean[0]-(scaling*Math.cos(-rotation)*shapeMean[0])-(scaling*shapeMean[1]*Math.sin(-rotation)));
+      translationY += (shapeMean[1]+(scaling*Math.sin(-rotation)*shapeMean[0])-(scaling*shapeMean[1]*Math.cos(-rotation)));
+      
+      //returns rotation, scaling, transformx and transformx
+      return [translationX, translationY, scaling, rotation];
+    }
 		
 		return true
 	}

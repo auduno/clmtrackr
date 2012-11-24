@@ -1,3 +1,6 @@
+// requires webgl-utils.js from html5rocks tutorial:
+//  https://github.com/html5rocks/www.html5rocks.com/blob/master/content/tutorials/webgl/webgl_fundamentals/static/webgl/resources/webgl-utils.js
+
 var webglFilter = function() {
   
   var gl, canvas;
@@ -432,10 +435,10 @@ var webglFilter = function() {
     var starttime = (new Date).getTime();
     gl.finish();
     var endtime = (new Date).getTime();
-    console.log("finish webgl time: "+(endtime-starttime)+" ms");
+    //console.log("finish webgl time: "+(endtime-starttime)+" ms");
     
     endTime1 = (new Date).getTime();
-    console.log("switching programs: "+(endTime1-startTime1)+" ms")
+    //console.log("switching programs: "+(endTime1-startTime1)+" ms")
     
     if (drawOut) {
       var newCanvasWidth = patchWidth-corrFilterWidth;
@@ -551,7 +554,7 @@ var webglFilter = function() {
     }
     
     endTime2 = (new Date).getTime();
-    console.log("switching programs2: "+(endTime2-endTime1)+" ms")
+    //console.log("switching programs2: "+(endTime2-endTime1)+" ms")
 
     var responses = getOutput();
     responses = unpackToFloat(responses);
@@ -569,7 +572,7 @@ var webglFilter = function() {
     first = false;
     
     endTime3 = (new Date).getTime();
-    console.log("entire time: "+(endTime3-startTime1)+" ms")
+    //console.log("entire time: "+(endTime3-startTime1)+" ms")
     
     return responses;
   }
@@ -600,7 +603,7 @@ var webglFilter = function() {
     var data = gl.readPixels(0, 0, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, pixelValues);
     //var data = gl.readPixels(0, 0, 2, 2, gl.RGBA, gl.UNSIGNED_BYTE, pixelValues);
     var endtime = (new Date).getTime();
-    console.log("readpixels time: "+(endtime-starttime)+" ms")
+    //console.log("readpixels time: "+(endtime-starttime)+" ms")
     // return
     return pixelValues;
   }
@@ -628,7 +631,7 @@ var webglFilter = function() {
     var dist = max-min;
     
     if (dist == 0) {
-      console.log("a patchresponse was monotone, causing normalization to fail. Leaving it unchanged.")
+      //console.log("a patchresponse was monotone, causing normalization to fail. Leaving it unchanged.")
       response = response.map(function() {return 1});
     } else {
       for (var i = 0;i < msize;i++) {
