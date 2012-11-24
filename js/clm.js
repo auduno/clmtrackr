@@ -44,6 +44,11 @@ var clm = {
 		var first = true;
 		
 		var convergenceLimit = 0.01;
+		
+		var learningRate = [];
+		var stepParameter = 1.25;
+		var prevCostFunc = []
+		
 		var searchWindow;
 		var modelWidth;
 		
@@ -141,6 +146,10 @@ var clm = {
       webglFi.init(weights, numPatches, searchWindow+patchSize, searchWindow+patchSize, patchSize, patchSize, true);
 			
 			//console.log('ended initialization');
+			for (var i = 0;i < numPatches;i++) {
+			  learningRate[i] = 1.0;
+		    prevCostFunc[i] = 0.0;
+			}
 		}
 		
 		var gaussianProb = function(mean, coordinate, variance) {
@@ -688,10 +697,19 @@ var clm = {
 				    }
 				  }
 				  
+				  // evaluate here whether to increase/decrease stepSize
+				  if (vpsum >= prevCostFunc[i]) {
+				    learningRate[i] *= stepParameter;
+				  } else {
+				    learningRate[i] = 1.0;
+				  }
+				  prevCostFunc[i] = vpsum;
+				  
 				  // compute mean shift vectors
+				  // extrapolate meanshiftvectors
 				  var msv = [];
-				  msv[0] = vecpos[0] - currentPositions[j][0];
-				  msv[1] = vecpos[1] - currentPositions[j][1];
+				  msv[0] = learningRate[j]*(vecpos[0] - currentPositions[j][0]);
+				  msv[1] = learningRate[j]*(vecpos[1] - currentPositions[j][1]);
 				  meanshiftVectors[j] = msv;
 				  
 				  //debugging
