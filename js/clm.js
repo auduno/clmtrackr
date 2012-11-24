@@ -53,7 +53,6 @@ var clm = {
 		var modelWidth;
 		
 		if (pModel.hints && mosseFilter && left_eye_filter && right_eye_filter && nose_filter) {
-      console.log("MOSSE filters not found, using rough approximation for initialization.");
 		  var mossef_lefteye = new mosseFilter();
       mossef_lefteye.load(left_eye_filter);
       var mossef_righteye = new mosseFilter();
@@ -65,7 +64,9 @@ var clm = {
       var left_eye_position = [0.0,0.0];
       var nose_position = [0.0,0.0];
       var lep, rep, mep;
-		}
+		} else {
+      console.log("MOSSE filters not found, using rough approximation for initialization.");
+    }
 		
 		var webglFi;
 		
@@ -698,12 +699,12 @@ var clm = {
 				  }
 				  
 				  // evaluate here whether to increase/decrease stepSize
-				  if (vpsum >= prevCostFunc[i]) {
-				    learningRate[i] *= stepParameter;
+				  if (vpsum >= prevCostFunc[j]) {
+				    learningRate[j] *= stepParameter;
 				  } else {
-				    learningRate[i] = 1.0;
+				    learningRate[j] = 1.0;
 				  }
-				  prevCostFunc[i] = vpsum;
+				  prevCostFunc[j] = vpsum;
 				  
 				  // compute mean shift vectors
 				  // extrapolate meanshiftvectors
