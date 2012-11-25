@@ -15,6 +15,21 @@
 				position: absolute;
 				top: 0px;
 				left: 0px;
+				-o-transform : scaleX(-1);
+        -moz-transform : scaleX(-1);
+        -webkit-transform : scaleX(-1);
+        transform : scaleX(-1);
+        -ms-filter : fliph; /*IE*/
+        filter : fliph; /*IE*/
+			}
+			
+			#videoel {
+			  -o-transform : scaleX(-1);
+        -moz-transform : scaleX(-1);
+        -webkit-transform : scaleX(-1);
+        transform : scaleX(-1);
+        -ms-filter : fliph; /*IE*/
+        filter : fliph; /*IE*/
 			}
 			
 			#sketch {
@@ -48,7 +63,12 @@
 		<script src="./ext_js/goog/size.js"></script>
 		<script src="./ext_js/goog/math.js"></script>
 		<script src="./ext_js/goog/matrix.js"></script>
-		<script src="../models/smallmodel.js"></script>
+		<script src="./ext_js/fft.js"></script>
+		<script src="./ext_js/mosse.js"></script>
+		<script src="./ext_js/left_eye_filter.js"></script>
+		<script src="./ext_js/right_eye_filter.js"></script>
+		<script src="./ext_js/nose_filter.js"></script>
+		<script src="../models/model_ns7.js"></script>
 		<script src="./ext_js/webgl-utils.js"></script>
 		<script src="../js/clm.js"></script>
 		<script src="./ext_js/ccv.js"></script>

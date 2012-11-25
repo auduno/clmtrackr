@@ -282,7 +282,11 @@ var clm = {
 			if (first) {
 				// do viola-jones on canvas to get initial guess, if we don't have any points
 				
-				this.detectPosition(element);
+				var det = this.detectPosition(element);
+				if (!det) {
+				  // if no face found, stop.
+				  return false;
+				}
 				
 				// calculate modelWidth/height from meanshape
         var xmin = ymin = 1000000;
