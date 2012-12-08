@@ -1,4 +1,4 @@
-//requires: ccv, closure matrix library
+//requires: ccv, numeric.js
 
 var clm = {
 	tracker : function(params) {
@@ -11,6 +11,7 @@ var clm = {
 		var gaussianPD;
 		var eigenVectors, eigenValues;
 		var sketchCC, sketchW, sketchH;
+		var candidate;
 		
 		var currentParameters = [];
 		var currentPositions = [];
@@ -89,10 +90,10 @@ var clm = {
 			modelWidth = pModel.patchModel.canvasSize[0];
 			
 			// load eigenvectors
-			eigenVectors = new goog.math.Matrix(numPatches*2, numParameters);
+			eigenVectors = numeric.rep([numPatches*2,numParameters],0.0);
 			for (var i = 0;i < numPatches*2;i++) {
 				for (var j = 0;j < numParameters;j++) {
-					eigenVectors.setValueAt(i, j, pModel.shapeModel.eigenVectors[i][j]);
+          eigenVectors[i][j] = pModel.shapeModel.eigenVectors[i][j];
 				}
 			}
 			
@@ -106,8 +107,8 @@ var clm = {
 			
 			// load patchweight matrices for comparing
 			var weight;
-			for (var w = 0;w < numPatches;w++) {
-				weightMatricesOld[w] = new goog.math.Matrix(patchSize, patchSize);
+			/*for (var w = 0;w < numPatches;w++) {
+				weightMatricesOld[w] = numeric.rep([patchSize, patchSize],0);
 				// insert
 				for (var i = 0;i < patchSize;i++) {
 					for (var j = 0;j < patchSize;j++) {
@@ -116,10 +117,10 @@ var clm = {
 						// cut off all values above 1 and below -1
 						weight = weight > 1 ? 1 : weight;
 						weight = weight < -1 ? -1 : weight;
-						weightMatricesOld[w].setValueAt(i, j, weight);
+						weightMatricesOld[w][i][j] = weight;
 					}
 				}
-			}
+			}*/
 			
 			//var weights = [];
 			for (var w = 0;w < numPatches;w++) {
@@ -132,10 +133,10 @@ var clm = {
 			}
 			
 			// precalculate gaussianPriorDiagonal
-			gaussianPD = new goog.math.Matrix(numParameters+4, numParameters+4);
+			gaussianPD = numeric.rep([numParameters+4, numParameters+4],0);
 			// set values and append manual inverse
 			for (var i = 0;i < numParameters;i++) {
-			  gaussianPD.setValueAt(i+4,i+4,1/eigenValues[i]);
+			  gaussianPD[i+4][i+4] = 1/eigenValues[i];
 			}
 				
 			for (var i = 0;i < numParameters+4;i++) {
@@ -157,47 +158,46 @@ var clm = {
 		  // calculate pdf gaussian probability
 		  var dx = coordinate[0] - mean[0];
 			var dy = coordinate[1] - mean[1];
-			var prob = Math.exp(-0.5*((dx*dx)+(dy*dy))/variance);
 			
-			return prob;
+			return Math.exp(-0.5*((dx*dx)+(dy*dy))/variance);
 		}
 		
 		var createJacobian = function(parameters, eigenVectors) {
 			// generates the jacobian matrix
-
-			var jacobian = new goog.math.Matrix(2*numPatches, numParameters+4);
+      
+			var jacobian = numeric.rep([2*numPatches, numParameters+4],0.0);
 			var j0,j1;
 			for (var i = 0;i < numPatches;i ++) {
 				// 1
 				j0 = meanShape[i][0];
 				j1 = meanShape[i][1];
 				for (var p = 0;p < numParameters;p++) {
-					j0 += parameters[p+4]*eigenVectors.getValueAt((i*2),p);
-					j1 += parameters[p+4]*eigenVectors.getValueAt((i*2)+1,p);
+					j0 += parameters[p+4]*eigenVectors[i*2][p];
+					j1 += parameters[p+4]*eigenVectors[(i*2)+1][p];
 				}
-				jacobian.setValueAt((i*2), 0, j0);
-				jacobian.setValueAt((i*2)+1, 0, j1);
+				jacobian[i*2][0] = j0;
+				jacobian[(i*2)+1][0] = j1;
 				// 2
 				j0 = meanShape[i][1];
 				j1 = meanShape[i][0];
 				for (var p = 0;p < numParameters;p++) {
-					j0 += parameters[p+4]*eigenVectors.getValueAt((i*2)+1,p);
-					j1 += parameters[p+4]*eigenVectors.getValueAt((i*2),p);
+					j0 += parameters[p+4]*eigenVectors[(i*2)+1][p];
+					j1 += parameters[p+4]*eigenVectors[i*2][p];
 				}
-				jacobian.setValueAt(i*2, 1, -j0);
-				jacobian.setValueAt((i*2)+1, 1, j1);
+				jacobian[i*2][1] = -j0;
+				jacobian[(i*2)+1][1] = j1;
 				// 3
-				jacobian.setValueAt((i*2), 2, 1)
-				jacobian.setValueAt((i*2)+1, 2, 0)
+				jacobian[i*2][2] = 1;
+				jacobian[(i*2)+1][2] = 0;
 				// 4
-				jacobian.setValueAt((i*2), 3, 0)
-				jacobian.setValueAt((i*2)+1, 3, 1)
+				jacobian[i*2][3] = 0;
+				jacobian[(i*2)+1][3] = 1;
 				// the rest
 				for (var j = 0;j < numParameters;j++) {
-					j0 = parameters[0]*eigenVectors.getValueAt(i*2,j) - parameters[1]*eigenVectors.getValueAt((i*2)+1,j) + eigenVectors.getValueAt(i*2,j);
-					j1 = parameters[0]*eigenVectors.getValueAt((i*2)+1,j) + parameters[1]*eigenVectors.getValueAt((i*2),j) + eigenVectors.getValueAt((i*2)+1,j);
-					jacobian.setValueAt(i*2,j+4,j0);
-					jacobian.setValueAt((i*2)+1,j+4,j1);
+					j0 = parameters[0]*eigenVectors[i*2][j] - parameters[1]*eigenVectors[(i*2)+1][j] + eigenVectors[i*2][j];
+					j1 = parameters[0]*eigenVectors[(i*2)+1][j] + parameters[1]*eigenVectors[i*2][j] + eigenVectors[(i*2)+1][j];
+					jacobian[i*2][j+4] = j0;
+					jacobian[(i*2)+1][j+4] = j1;
 				}
 			}
 			
@@ -205,9 +205,9 @@ var clm = {
 		}
 		
 		var calculatePositions = function(parameters, useTransforms) {
-			var x, y;
+			var x, y, a, b;
 			var numParameters = parameters.length;
-			positions = [];
+			var positions = [];
 			for (var i = 0;i < numPatches;i++) {
 				x = pModel.shapeModel.meanShape[i][0];
 				y = pModel.shapeModel.meanShape[i][1];
@@ -275,7 +275,7 @@ var clm = {
 			// for timing only
 			var startTime = (new Date).getTime();
 			
-			var scaling, translateX, translateY;
+			var scaling, translateX, translateY, rotation;
 			var croppedPatches = [];
 			var ptch, px, py, pw;
 			
@@ -289,8 +289,9 @@ var clm = {
 				}
 				
 				// calculate modelWidth/height from meanshape
-        var xmin = ymin = 1000000;
-        var xmax = ymax = 0;
+				var xmin, ymin, xmax, ymax;
+        xmin = ymin = 1000000;
+        xmax = ymax = 0;
         for (var i = 0;i < meanShape.length;i++) {
           xmin = meanShape[i][0] < xmin ? meanShape[i][0] : xmin;
           xmax = meanShape[i][0] > xmax ? meanShape[i][0] : xmax;
@@ -444,6 +445,7 @@ var clm = {
 			
 			//console.log("gidtime:"+(gidTime2-gidTime1));
 			
+			var pw, pl;
 			pw = pl = patchSize+searchWindow;
 			
 			var pdata, pmatrix, grayscaleColor, pdataLength;
@@ -455,10 +457,10 @@ var clm = {
 			  // load patchdata to matrix
 			  pdata = ptch.data;
 			  pdataLength = pw*pl;
-			  /*pmatrix = new goog.math.Matrix(pw, pl);
+			  /*pmatrix = numeric.rep([pw, pl],0);
 			  for (var j = 0;j < pdataLength;j++) {
 			    grayscaleColor = pdata[j*4]*0.3 + pdata[(j*4)+1]*0.59 + pdata[(j*4)+2]*0.11;
-			    pmatrix.setValueAt(j % pw, (j / pw) >> 0, grayscaleColor)
+			    pmatrix[j % pw][(j / pw) >> 0] = grayscaleColor;
 			  }*/
 			  pmatrix = [];
 			  for (var j = 0;j < pdataLength;j++) {
@@ -630,9 +632,8 @@ var clm = {
 				jac = createJacobian(currentParameters, eigenVectors);
 
 				/* continue webgl work here? */
-				
 				//debugging
-				var debugMVs = [];
+				//var debugMVs = [];
 				//
 				
 				var partaend = (new Date).getTime();
@@ -745,10 +746,10 @@ var clm = {
         }*/
 				
 				/* end webgl work here */
-				var meanShiftVector = new goog.math.Matrix(numPatches*2, 1);
+				var meanShiftVector = numeric.rep([numPatches*2, 1],0.0);
 				for (var k = 0;k < numPatches;k++) {
-				  meanShiftVector.setValueAt(k*2, 0, meanshiftVectors[k][0]);
-				  meanShiftVector.setValueAt((k*2)+1, 0, meanshiftVectors[k][1]);
+				  meanShiftVector[k*2][0] = meanshiftVectors[k][0];
+				  meanShiftVector[(k*2)+1][0] = meanshiftVectors[k][1];
 				}
 				
 				
@@ -760,27 +761,34 @@ var clm = {
 				  testMV[k][1] = currentPositions[k][1] + meanShiftVector.getValueAt((k*2)+1, 0);
 				}*/
 				
-				
 				// compute pdm parameter update
 				//var prior = gaussianPD.multiply(PDMVariance);
-				var prior = gaussianPD.multiply(varianceSeq[i]);
-        var jtj = jac.getTranspose().multiply(jac);
-        var cpMatrix = new goog.math.Matrix((numParameters+4),1);
+				var prior = numeric.mul(gaussianPD, varianceSeq[i]);
+				var jtj = numeric.dot(numeric.transpose(jac), jac);
+				var cpMatrix = numeric.rep([numParameters+4, 1],0.0);
         for (var l = 0;l < (numParameters+4);l++) {
-          cpMatrix.setValueAt(l,0,currentParameters[l]);
+          cpMatrix[l][0] = currentParameters[l];
         }
-				var priorP = prior.multiply(cpMatrix);
-				var jtv = jac.getTranspose().multiply(meanShiftVector);
-				var paramUpdateLeft = (prior.add(jtj)).getInverse();
-				var paramUpdateRight = priorP.subtract(jtv);
-				var paramUpdate = paramUpdateLeft.multiply(paramUpdateRight);
+				var priorP = numeric.dot(prior, cpMatrix);
+        var jtv = numeric.dot(numeric.transpose(jac), meanShiftVector);
+        var paramUpdateLeft = numeric.add(prior, jtj);
+        var paramUpdateRight = numeric.sub(priorP, jtv);
+				var paramUpdate = numeric.dot(numeric.inv(paramUpdateLeft), paramUpdateRight);
 				
 				var oldPositions = currentPositions;
 				
 				// update estimated parameters
 				for (var k = 0;k < numParameters+4;k++) {
-				  currentParameters[k] -= paramUpdate.getValueAt(k,0);
+				  currentParameters[k] -= paramUpdate[k];
 				}
+				
+				// clipping of parameters if they're too high
+				/*for (var k = 0;k < numParameters;k++) {
+				  if (Math.abs(currentParameters[k+4]) > Math.abs(3*Math.sqrt(eigenValues[k]))) {
+				    if (currentParameters[k+4] > 0) currentParameters[k+4] = Math.abs(3*Math.sqrt(eigenValues[k]/1116));
+				    else currentParameters[k+4] = -Math.abs(3*Math.sqrt(eigenValues[k]));
+				  }
+				}*/
 				
 				// update current coordinates
 				currentPositions = calculatePositions(currentParameters, true);
@@ -893,7 +901,7 @@ var clm = {
 		
 		var drawPath = function(canvasContext, path, dp) {
 			canvasContext.beginPath();
-			var i, x, y;
+			var i, x, y, a, b;
 			for (var p = 0;p < path.length;p++) {
 				i = path[p]*2;
 				x = pModel.shapeModel.meanShape[i/2][0];
@@ -919,7 +927,7 @@ var clm = {
 		}
 		
 		function drawPoint(canvasContext, point, dp) {
-		  var i, x, y;
+		  var i, x, y, a, b;
 		  i = point*2;
 			x = pModel.shapeModel.meanShape[i/2][0];
       y = pModel.shapeModel.meanShape[i/2][1];
@@ -955,7 +963,7 @@ var clm = {
 			
 			var paths = pModel.path.normal;
 			for (var i = 0;i < paths.length;i++) {
-			  if (typeof(paths.i) == 'number') {
+			  if (typeof(paths[i]) == 'number') {
 			    drawPoint(cc, paths[i], params);
 			  } else {
 			    drawPath(cc, paths[i], params);
@@ -968,8 +976,8 @@ var clm = {
 		function procrustes(template, shape) {
       // assume template and shape is a vector of x,y-coordinates
       //i.e. template = [[x1,y1], [x2,y2], [x3,y3]];
-      templateClone = [];
-      shapeClone = [];
+      var templateClone = [];
+      var shapeClone = [];
       for (var i = 0;i < template.length;i++) {
         templateClone[i] = [template[i][0], template[i][1]];
       }
