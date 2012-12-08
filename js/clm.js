@@ -157,9 +157,8 @@ var clm = {
 		  // calculate pdf gaussian probability
 		  var dx = coordinate[0] - mean[0];
 			var dy = coordinate[1] - mean[1];
-			var prob = Math.exp(-0.5*((dx*dx)+(dy*dy))/variance);
 			
-			return prob;
+			return Math.exp(-0.5*((dx*dx)+(dy*dy))/variance);
 		}
 		
 		var createJacobian = function(parameters, eigenVectors) {
@@ -630,9 +629,8 @@ var clm = {
 				jac = createJacobian(currentParameters, eigenVectors);
 
 				/* continue webgl work here? */
-				
 				//debugging
-				var debugMVs = [];
+				//var debugMVs = [];
 				//
 				
 				var partaend = (new Date).getTime();
@@ -760,7 +758,6 @@ var clm = {
 				  testMV[k][1] = currentPositions[k][1] + meanShiftVector.getValueAt((k*2)+1, 0);
 				}*/
 				
-				
 				// compute pdm parameter update
 				//var prior = gaussianPD.multiply(PDMVariance);
 				var prior = gaussianPD.multiply(varianceSeq[i]);
@@ -781,6 +778,14 @@ var clm = {
 				for (var k = 0;k < numParameters+4;k++) {
 				  currentParameters[k] -= paramUpdate.getValueAt(k,0);
 				}
+				
+				// clipping of parameters if they're too high
+				/*for (var k = 0;k < numParameters;k++) {
+				  if (Math.abs(currentParameters[k+4]) > Math.abs(3*Math.sqrt(eigenValues[k]))) {
+				    if (currentParameters[k+4] > 0) currentParameters[k+4] = Math.abs(3*Math.sqrt(eigenValues[k]/1116));
+				    else currentParameters[k+4] = -Math.abs(3*Math.sqrt(eigenValues[k]));
+				  }
+				}*/
 				
 				// update current coordinates
 				currentPositions = calculatePositions(currentParameters, true);
@@ -955,7 +960,7 @@ var clm = {
 			
 			var paths = pModel.path.normal;
 			for (var i = 0;i < paths.length;i++) {
-			  if (typeof(paths.i) == 'number') {
+			  if (typeof(paths[i]) == 'number') {
 			    drawPoint(cc, paths[i], params);
 			  } else {
 			    drawPath(cc, paths[i], params);
