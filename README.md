@@ -7,7 +7,7 @@ clmtrackr is a work-in-progress javascript library for precise tracking of facia
 
 The library provides a generic face model that was trained on [the MUCT database](http://www.milbo.org/muct/). [Xiaoguang Yan](https://sites.google.com/site/xgyanhome/my-information) also kindly allowed us to use the trained model from [his implementation of Constrained Local Models](https://sites.google.com/site/xgyanhome/home/projects/clm-implementation). The aim is to provide a model that is trained on a larger set of facial expressions, as well as a model builder for building your own facial models.
 
-The library requires [ccv](https://github.com/liuliu/ccv) (for initial face detection) and parts of [google closure library](https://developers.google.com/closure/library/) (for matrix math).
+The library requires [ccv](https://github.com/liuliu/ccv) (for initial face detection) and [numeric.js](http://numericjs.com) (for matrix math).
 
 For some more information about Constrained Local Models, take a look at Xiaoguang Yan's [excellent tutorial](https://sites.google.com/site/xgyanhome/home/projects/clm-implementation/ConstrainedLocalModel-tutorial%2Cv0.7.pdf?attredirects=0), which was of great help in implementing this library.
 
