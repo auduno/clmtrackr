@@ -43,7 +43,7 @@ var clm = {
 		*/
 		var PDMVariance = 0.05;
 		
-		var relaxation = 0.1;
+		var relaxation = 0.3;
 		
 		var first = true;
 		
@@ -155,10 +155,10 @@ var clm = {
 			nu_p = 8;
 			kappa_p = 1;
       lambda_p = new goog.math.Matrix(4,4); // 4 x 4 matrix
-      lambda_p.setValueAt(0,0,0.05*0.05);
-      lambda_p.setValueAt(1,1,0.005*0.005);
-      lambda_p.setValueAt(2,2,5*5);
-      lambda_p.setValueAt(3,3,5*5);
+      lambda_p.setValueAt(0,0,0.05);
+      lambda_p.setValueAt(1,1,0.005);
+      lambda_p.setValueAt(2,2,5);
+      lambda_p.setValueAt(3,3,5);
       nu_s = numParameters*2;
       kappa_s = 1;
       lambda_s = new goog.math.Matrix(numParameters, numParameters); // p x p matrix
@@ -1143,7 +1143,7 @@ var clm = {
       var theta_s = shape_params; // p x 1 matrix
       
       // estimate pose parameters
-		  var startTime = (new Date).getTime();
+		  //var startTime = (new Date).getTime();
       
       // update inverse-Wishart parameters, move this to separate function
       var nu_p_upd = nu_p+1;
@@ -1162,7 +1162,6 @@ var clm = {
       // update pose parameters
       nu_p = nu_p_upd;kappa_p = kappa_p_upd;theta_p = theta_p_upd;lambda_p = lambda_p_upd;sigma_p = sigma_p_upd;mu_p = mu_p_upd;
       pose_params = mu_p;
-      debugger;
       
       // estimate shape parameters
       // update inverse-Wishart parameters, move this to separate function
@@ -1183,8 +1182,8 @@ var clm = {
       nu_s = nu_s_upd;kappa_s = kappa_s_upd;theta_s = theta_s_upd;lambda_s = lambda_s_upd;sigma_s = sigma_s_upd;mu_s = mu_s_upd;
       shape_params = mu_s;
       
-      var secondTime = (new Date).getTime();
-			console.log("basmtime: "+(secondTime-startTime)+" ms")
+      //var secondTime = (new Date).getTime();
+			//console.log("basmtime: "+(secondTime-startTime)+" ms")
       
       // return params as array of both pose and shape params
       var returnParams = [];
@@ -1194,8 +1193,6 @@ var clm = {
       for (var i = 0;i < numParameters;i++) {
         returnParams[i+4] = shape_params.getValueAt(i,0);
       }
-      
-      
       
       return returnParams;
     }
