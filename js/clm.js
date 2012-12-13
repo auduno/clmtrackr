@@ -136,7 +136,7 @@ var clm = {
 			gaussianPD = numeric.rep([numParameters+4, numParameters+4],0);
 			// set values and append manual inverse
 			for (var i = 0;i < numParameters;i++) {
-			  gaussianPD[i+4][i+4] = 1/eigenValues[i];
+        gaussianPD[i+4][i+4] = 1/eigenValues[i];
 			}
 				
 			for (var i = 0;i < numParameters+4;i++) {
@@ -783,12 +783,17 @@ var clm = {
 				}
 				
 				// clipping of parameters if they're too high
-				/*for (var k = 0;k < numParameters;k++) {
-				  if (Math.abs(currentParameters[k+4]) > Math.abs(3*Math.sqrt(eigenValues[k]))) {
-				    if (currentParameters[k+4] > 0) currentParameters[k+4] = Math.abs(3*Math.sqrt(eigenValues[k]/1116));
-				    else currentParameters[k+4] = -Math.abs(3*Math.sqrt(eigenValues[k]));
+				var clip;
+				for (var k = 0;k < numParameters;k++) {
+				  clip = Math.abs(3*Math.sqrt(eigenValues[k]));
+				  if (Math.abs(currentParameters[k+4]) > clip) {
+				    if (currentParameters[k+4] > 0) {
+				      currentParameters[k+4] = clip;
+				    } else {
+				      currentParameters[k+4] = -clip;
+				    }
 				  }
-				}*/
+				}
 				
 				// update current coordinates
 				currentPositions = calculatePositions(currentParameters, true);
