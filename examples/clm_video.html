@@ -45,6 +45,7 @@
 		<script src="./ext_js/left_eye_filter.js"></script>
 		<script src="./ext_js/right_eye_filter.js"></script>
 		<script src="./ext_js/nose_filter.js"></script>
+		<script src="./ext_js/entire_face_filter.js"></script>
 		<script src="../models/model_ns7.js"></script>
 		<!--<script src="../models/smallmodel.js"></script>-->
 		<script src="./ext_js/webgl-utils.js"></script>
@@ -61,7 +62,8 @@
 		<canvas id="filter"></canvas>
 		<canvas id="sketch" width="138" height="138"></canvas>
 		<input type="button" value="wait, loading video" disabled="disabled" onclick="start()" id="startbutton"></input>
-		
+		<p id="peak"></p>
+		<p id="psr"></p>
 		<script>
 		   var skcc = document.getElementById('sketch');
 		   

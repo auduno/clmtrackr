@@ -64,14 +64,20 @@ var clm = {
       mossef_righteye.load(right_eye_filter);
       var mossef_nose = new mosseFilter();
       mossef_nose.load(nose_filter);
+      var mossef_face = new mosseFilter();
+      mossef_face.load(face_filter);
       
       var right_eye_position = [0.0,0.0];
       var left_eye_position = [0.0,0.0];
       var nose_position = [0.0,0.0];
+      var face_position = [0.0,0.0];
       var lep, rep, mep;
 		} else {
       console.log("MOSSE filters not found, using rough approximation for initialization.");
     }
+    var facecheck_count = 0;
+    var face_peak = [];
+    var face_diff = [];
 		
 		var webglFi;
 		
@@ -326,6 +332,71 @@ var clm = {
 			var croppedPatches = [];
 			var ptch, px, py, pw;
 			
+			if (!first) {
+        // TODO: check here if the previous tracked position is good enough, every 100th frame?
+        facecheck_count += 1;
+        if (facecheck_count % 10 == 0) {
+          //get centerpoint and approximate width
+          var centerpoint = [];
+          centerpoint[0] = currentPositions[62][0];
+          centerpoint[1] = currentPositions[62][1];
+          //get xmin and xmax
+          var xmin = 10000000;
+          var xmax = 0;
+          for (var i = 0;i < currentPositions.length;i++) {
+            if (currentPositions[i][0] < xmin) {
+              xmin = currentPositions[i][0];
+            }
+            if (currentPositions[i][0] > xmax) {
+              xmax = currentPositions[i][0];
+            }
+          }
+          var modelwidth = xmax-xmin
+          var face_result = mossef_face.track(element, Math.round(centerpoint[0]-(modelwidth/2)), Math.round(centerpoint[1]-(modelwidth/2)), modelwidth, modelwidth, false, false, true);
+          var peak = mossef_face.peak_prev;
+          var psr = mossef_face.psr_prev;
+          // TODO : check if peak is within center of model?
+          // or check if peak/sidelobe is over some threshold
+          // else, set first = true
+          
+          var peak_avg = 0;
+          face_peak.push(peak);
+          if (face_peak.length > 5) {
+            face_peak.splice(0,1);
+            for (var i = 0;i < face_peak.length;i++) {
+              peak_avg += face_peak[i]; 
+            }
+            peak_avg /= face_peak.length;
+          }
+          var diffx = centerpoint[0]-(face_result[0]+centerpoint[0]-(modelwidth/2));
+          var diffy = centerpoint[1]-(face_result[1]+centerpoint[1]-(modelwidth/2));
+          var diff = Math.sqrt(diffx*diffx + diffy*diffy);
+          var diff_avg = 0;
+          face_diff.push(diff);
+          if (face_diff.length > 5) {
+            face_diff.splice(0,1);
+            for (var i = 0;i < face_diff.length;i++) {
+              diff_avg += face_diff[i]; 
+            }
+            diff_avg /= face_diff.length;
+          }
+          
+          document.getElementById('peak').innerHTML = "peak average :"+peak_avg;
+          document.getElementById('psr').innerHTML = "diff :"+diff_avg;
+          
+          if ((face_peak.length > 5 && peak_avg < 0.10) || (face_diff.length && diff_avg > 15)) {
+            first = true;
+            face_diff = [];
+            face_peak = [];
+            for (var i = 0;i < currentParameters.length;i++) {
+              currentParameters[i] = 0;
+              previousParameters = [];
+            }
+          }
+        }
+			}
+
+			
 			if (first) {
 				// do viola-jones on canvas to get initial guess, if we don't have any points
 				
@@ -510,6 +581,7 @@ var clm = {
 			    grayscaleColor = pdata[j*4]*0.3 + pdata[(j*4)+1]*0.59 + pdata[(j*4)+2]*0.11;
 			    pmatrix[j % pw][(j / pw) >> 0] = grayscaleColor;
 			  }*/
+			  
 			  // TODO: preinitialize this
 			  pmatrix = new Float64Array(pdataLength);
 			  for (var j = 0;j < pdataLength;j++) {
