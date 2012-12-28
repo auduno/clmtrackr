@@ -253,9 +253,11 @@ var clm = {
 		  cc.drawImage(el, 0, 0, el.width, el.height);
 		  
 		  // do viola-jones on canvas to get initial guess, if we don't have any points
-      var comp = ccv.detect_objects(
+      /*var comp = ccv.detect_objects(
         ccv.grayscale(canvas), ccv.cascade, 5, 1
-      );
+      );*/
+      var jf = new jsfeat_face(canvas);
+      var comp = jf.findFace(1);
       
       if (comp.length > 0) {
         candidate = comp[0];
@@ -426,13 +428,16 @@ var clm = {
           // detect position of eyes and nose via mosse filter
           var right_result = mossef_righteye.track(element, Math.round(candidate.x+(candidate.width*3/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth, false);
           var left_result = mossef_lefteye.track(element, Math.round(candidate.x+(candidate.width/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth, false);
-          var nose_result = mossef_nose.track(element, Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2)), Math.round(candidate.y+candidate.height*(3/4)-(noseFilterWidth/2)), noseFilterWidth, noseFilterWidth, false);
+          //var nose_result = mossef_nose.track(element, Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2)), Math.round(candidate.y+candidate.height*(3/4)-(noseFilterWidth/2)), noseFilterWidth, noseFilterWidth, false);
+          var nose_result = mossef_nose.track(element, Math.round(candidate.x+(candidate.width/2)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(5/8)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth, false);
           right_eye_position[0] = Math.round(candidate.x+(candidate.width*3/4)-(eyeFilterWidth/2))+right_result[0];
           right_eye_position[1] = Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2))+right_result[1];
           left_eye_position[0] = Math.round(candidate.x+(candidate.width/4)-(eyeFilterWidth/2))+left_result[0];
           left_eye_position[1] = Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2))+left_result[1];
-          nose_position[0] = Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2))+nose_result[0];
-          nose_position[1] = Math.round(candidate.y+candidate.height*(3/4)-(noseFilterWidth/2))+nose_result[1];
+          //nose_position[0] = Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2))+nose_result[0];
+          //nose_position[1] = Math.round(candidate.y+candidate.height*(3/4)-(noseFilterWidth/2))+nose_result[1];
+          nose_position[0] = Math.round(candidate.x+(candidate.width/2)-(eyeFilterWidth/2))+nose_result[0];
+          nose_position[1] = Math.round(candidate.y+candidate.height*(5/8)-(eyeFilterWidth/2))+nose_result[1];
           
           /*var canvasContext = document.getElementById('overlay').getContext('2d')
           
