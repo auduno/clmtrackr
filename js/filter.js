@@ -246,25 +246,25 @@ var webglFilter = function() {
         for (var k = 0;k < filterWidth;k++) {
           //set r with first filter
           if (filterSize*i*4 < filterVector.length) {
-            filterArray[((filterSize*i) + (j*filterWidth) + k)*4] = filterVector[(filterSize*i*4) + (j*filterWidth) + k];
+            filterArray[((filterSize*i) + (j*filterWidth) + k)*4] = filterVector[(filterSize*i*4) + (k*filterWidth) + j];
           } else {
             filterArray[((filterSize*i) + (j*filterWidth) + k)*4] = 0;
           }
           //set g with 2nd filter
           if ((filterSize*i*4 + 1) < filterVector.length) {
-            filterArray[((filterSize*i) + (j*filterWidth) + k)*4 + 1] = filterVector[(filterSize*(i*4 + 1)) + (j*filterWidth) + k];
+            filterArray[((filterSize*i) + (j*filterWidth) + k)*4 + 1] = filterVector[(filterSize*(i*4 + 1)) + (k*filterWidth) + j];
           } else {
             filterArray[((filterSize*i) + (j*filterWidth) + k)*4 + 1] = 0;
           }
           //set b with 3rd filter
           if ((filterSize*i*4 + 2) < filterVector.length) {
-            filterArray[((filterSize*i) + (j*filterWidth) + k)*4 + 2] = filterVector[(filterSize*(i*4 + 2)) + (j*filterWidth) + k];
+            filterArray[((filterSize*i) + (j*filterWidth) + k)*4 + 2] = filterVector[(filterSize*(i*4 + 2)) + (k*filterWidth) + j];
           } else {
             filterArray[((filterSize*i) + (j*filterWidth) + k)*4 + 2] = 0;
           }
           //set a with 4th filter
           if ((filterSize*i*4 + 3) < filterVector.length) {
-            filterArray[((filterSize*i) + (j*filterWidth) + k)*4 + 3] = filterVector[(filterSize*(i*4 + 3)) + (j*filterWidth) + k];
+            filterArray[((filterSize*i) + (j*filterWidth) + k)*4 + 3] = filterVector[(filterSize*(i*4 + 3)) + (k*filterWidth) + j];
           } else {
             filterArray[((filterSize*i) + (j*filterWidth) + k)*4 + 3] = 0;
           }
@@ -387,25 +387,25 @@ var webglFilter = function() {
         for (var k = 0;k < patchWidth;k++) {
           //set r with first patch
           if (i*4 < patches.length) {
-            patchArray[((patchSize*i) + (j*patchWidth) + k)*4] = patches[(i*4)][(k*patchWidth) + j];
+            patchArray[((patchSize*i) + (j*patchWidth) + k)*4] = patches[(i*4)][(j*patchWidth) + k];
           } else {
             patchArray[((patchSize*i) + (j*patchWidth) + k)*4] = 0;
           }
           //set g with 2nd patch
           if ((i*4)+1 < patches.length) {
-            patchArray[((patchSize*i) + (j*patchWidth) + k)*4 + 1] = patches[(i*4)+1][(k*patchWidth) + j];
+            patchArray[((patchSize*i) + (j*patchWidth) + k)*4 + 1] = patches[(i*4)+1][(j*patchWidth) + k];
           } else {
             patchArray[((patchSize*i) + (j*patchWidth) + k)*4 + 1] = 0;
           }
           //set b with 3rd patch
           if ((i*4)+2 < patches.length) {
-            patchArray[((patchSize*i) + (j*patchWidth) + k)*4 + 2] = patches[(i*4)+2][(k*patchWidth) + j];
+            patchArray[((patchSize*i) + (j*patchWidth) + k)*4 + 2] = patches[(i*4)+2][(j*patchWidth) + k];
           } else {
             patchArray[((patchSize*i) + (j*patchWidth) + k)*4 + 2] = 0;
           }
           //set a with 4th patch
           if ((i*4)+3 < patches.length) {
-            patchArray[((patchSize*i) + (j*patchWidth) + k)*4 + 3] = patches[(i*4)+3][(k*patchWidth) + j];
+            patchArray[((patchSize*i) + (j*patchWidth) + k)*4 + 3] = patches[(i*4)+3][(j*patchWidth) + k];
           } else {
             patchArray[((patchSize*i) + (j*patchWidth) + k)*4 + 3] = 0;
           }

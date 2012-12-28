@@ -53,6 +53,10 @@ var clm = {
 		var searchWindow;
 		var modelWidth;
 		
+		var halfSearchWindow, vecProbs;
+		var updatePosition = new Float64Array(2);
+		var vecpos = new Float64Array(2);
+		
 		if (pModel.hints && mosseFilter && left_eye_filter && right_eye_filter && nose_filter) {
 		  var mossef_lefteye = new mosseFilter();
       mossef_lefteye.load(left_eye_filter);
@@ -146,6 +150,10 @@ var clm = {
 			// set up webgl filter calculation
 			webglFi = new webglFilter();
       webglFi.init(weights, numPatches, searchWindow+patchSize, searchWindow+patchSize, patchSize, patchSize, true);
+			
+			halfSearchWindow = searchWindow/2;
+			patchPixNums = searchWindow*searchWindow;
+			vecProbs = new Float64Array(patchPixNums);
 			
 			//console.log('ended initialization');
 			for (var i = 0;i < numPatches;i++) {
@@ -265,6 +273,45 @@ var clm = {
 		this.getCurrentParameters = function() {
 		  return currentParameters;
 		}
+		
+		var gpopt = function(patchSize, currentPositionsj, updatePosition, vecProbs, responses, opj0, opj1, i, j, variance) {
+      var pos_idx = 0;
+      var vpsum = 0;
+      var dx, dy;
+      for (var k = 0;k < patchSize;k++) {
+        updatePosition[1] = opj1+k;
+        for (var l = 0;l < patchSize;l++) {
+          updatePosition[0] = opj0+l;
+          
+          dx = currentPositionsj[0] - updatePosition[0];
+          dy = currentPositionsj[1] - updatePosition[1];
+          
+          //vecProbs[pos_idx] = responses[j][pos_idx] * gaussianProb(updatePosition, currentPositions[j], varianceSeq[i]);
+          vecProbs[pos_idx] = responses[j][pos_idx] * Math.exp(-0.5*((dx*dx)+(dy*dy))/variance);
+          vpsum += vecProbs[pos_idx];
+          pos_idx++;
+        }
+      }
+      
+      return vpsum;
+    }
+    
+    var gpopt2 = function(patchSize, vecpos, updatePosition, vecProbs, vpsum, opj0, opj1) {
+      var pos_idx = 0;
+      var vecsum = 0;
+      vecpos[0] = 0;
+      vecpos[1] = 0;
+      for (var k = 0;k < patchSize;k++) {
+        updatePosition[1] = opj1+k;
+        for (var l = 0;l < patchSize;l++) {
+          updatePosition[0] = opj0+l;
+          vecsum = vecProbs[pos_idx]/vpsum;
+          vecpos[0] += vecsum*updatePosition[0];
+          vecpos[1] += vecsum*updatePosition[1];
+          pos_idx++;
+        }
+      }
+    }
 		
 		/*
      *  element : canvas or video element
@@ -447,8 +494,9 @@ var clm = {
 			
 			var pw, pl;
 			pw = pl = patchSize+searchWindow;
+			var pdataLength = pw*pl;
 			
-			var pdata, pmatrix, grayscaleColor, pdataLength;
+			var pdata, pmatrix, grayscaleColor;
 			for (var i = 0; i < numPatches; i++) {
 			  px = patchPositions[i][0]-(pw/2);
 			  py = patchPositions[i][1]-(pl/2);
@@ -456,13 +504,14 @@ var clm = {
 			  // add channels and convert to grayscale
 			  // load patchdata to matrix
 			  pdata = ptch.data;
-			  pdataLength = pw*pl;
+			  
 			  /*pmatrix = numeric.rep([pw, pl],0);
 			  for (var j = 0;j < pdataLength;j++) {
 			    grayscaleColor = pdata[j*4]*0.3 + pdata[(j*4)+1]*0.59 + pdata[(j*4)+2]*0.11;
 			    pmatrix[j % pw][(j / pw) >> 0] = grayscaleColor;
 			  }*/
-			  pmatrix = [];
+			  // TODO: preinitialize this
+			  pmatrix = new Float64Array(pdataLength);
 			  for (var j = 0;j < pdataLength;j++) {
 			    grayscaleColor = pdata[j*4]*0.3 + pdata[(j*4)+1]*0.59 + pdata[(j*4)+2]*0.11;
 			    pmatrix[j] = grayscaleColor;
@@ -615,7 +664,7 @@ var clm = {
 			
 			// iterate until convergence or max 10, 20 iterations?:
 			var originalPositions = currentPositions;
-			var jac, vecProbs;
+			var jac;
 			var meanshiftVectors = [];
 			
 			var dootholder = 0;
@@ -639,14 +688,14 @@ var clm = {
 				var partaend = (new Date).getTime();
 				partaholder += (partaend-partastart);
 				
+				var opj0, opj1;
+				
 				for (var j = 0;j < numPatches;j++) {
 				  // for every point in each response:
 					// calculate PI x gaussian
-				  vecProbs = [];
 				  
           var boot = (new Date).getTime();
           
-          var halfSearchWindow = searchWindow/2;
           var opj0 = originalPositions[j][0]-halfSearchWindow;
           var opj1 = originalPositions[j][1]-halfSearchWindow;
           
@@ -655,53 +704,54 @@ var clm = {
 				    var updatePosition = [opj0+b, opj1+a];
 				    vecProbs[pos] = value * gaussianProb(updatePosition, currentPositions[j], varianceSeq[i]);
 				  });*/
-				  var resplength = searchWindow*searchWindow;
-				  var a, b;
-				  for (var k = 0;k < resplength;k++) {
-            
-            a = k % searchWindow;
-            b = (k / searchWindow) >> 0;
-            //var pos = (searchWindow*b)+a;
-				    var updatePosition = [opj0+b, opj1+a];
-				    
-				    /*if (Math.abs(updatePosition[0]-currentPositions[j][0]) > maxDiff) {
-				      maxDiff = Math.abs(updatePosition[0]-currentPositions[j][0]);
-				    }
-				    if (Math.abs(updatePosition[1]-currentPositions[j][1]) > maxDiff) {
-				      maxDiff = Math.abs(updatePosition[1]-currentPositions[j][1]);
-				    }*/
-				    
-				    //vecProbs[pos] = responses[j][k] * gaussianProb(updatePosition, currentPositions[j], varianceSeq[i]);
-				    vecProbs[k] = responses[j][k] * gaussianProb(updatePosition, currentPositions[j], varianceSeq[i]);
-				  }
+				  
+          /*var pos_idx = 0;
+          for (var k = 0;k < searchWindow;k++) {
+            updatePosition[1] = opj1+k;
+            for (var l = 0;l < searchWindow;l++) {
+              updatePosition[0] = opj0+l;
+              
+              vecProbs[pos_idx] = responses[j][pos_idx] * gaussianProb(updatePosition, currentPositions[j], varianceSeq[i]);
+              pos_idx++;
+            }
+          }*/
 				  
 				  var doot = (new Date).getTime();
           dootholder += (doot-boot);
 				  
 				  // sum PI x gaussians 
-				  var vpsum = 0;
+				  /*var vpsum = 0;
 				  for (var k = 0;k < vecProbs.length;k++) {
 				    vpsum += vecProbs[k];
-				  }
+				  }*/
+				  
+				  var vpsum = gpopt(searchWindow, currentPositions[j], updatePosition, vecProbs, responses, opj0, opj1, i, j, varianceSeq[i]);
 				  
 				  //debugging
 				  //var debugMatrixMV = new goog.math.Matrix(searchWindow, searchWindow);
 				  //
 				  
+          /*var pos_idx = 0;
 				  var vecsum = 0;
-				  var vecpos = [0,0];
+				  vecpos[0] = 0;
+				  vecpos[1] = 0;
 				  for (var k = 0;k < searchWindow;k++) {
+				    updatePosition[1] = opj1+k;
 				    for (var l = 0;l < searchWindow;l++) {
-				      var pos = (searchWindow*l)+k;
-				      var updatePosition = [originalPositions[j][0]+l-(searchWindow/2), originalPositions[j][1]+k-(searchWindow/2)];
-				      vecsum = (vecProbs[pos]/vpsum)
+				      
+				      updatePosition[0] = opj0+l;
+				      vecsum = vecProbs[pos_idx]/vpsum;
+				      
 				      //debugging
-				      //debugMatrixMV.setValueAt(k,l,vecsum);
+				      //debugMatrixMV[k][l] = vecsum;
 				      //
 				      vecpos[0] += vecsum*updatePosition[0];
 				      vecpos[1] += vecsum*updatePosition[1];
+				      pos_idx++;
 				    }
-				  }
+				  }*/
+				  
+				  gpopt2(searchWindow, vecpos, updatePosition, vecProbs, vpsum, opj0, opj1);
 				  
 				  // evaluate here whether to increase/decrease stepSize
 				  if (vpsum >= prevCostFunc[j]) {
@@ -717,6 +767,9 @@ var clm = {
 				  msv[0] = learningRate[j]*(vecpos[0] - currentPositions[j][0]);
 				  msv[1] = learningRate[j]*(vecpos[1] - currentPositions[j][1]);
 				  meanshiftVectors[j] = msv;
+				  //meanshiftVectors[j] = [vecpos[0] - currentPositions[j][0], vecpos[1] - currentPositions[j][1]];
+				  
+				  if (isNaN(msv[0]) || isNaN(msv[1])) debugger;
 				  
 				  //debugging
 				  //debugMVs[j] = debugMatrixMV;
