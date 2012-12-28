@@ -381,8 +381,8 @@ var clm = {
             diff_avg /= face_diff.length;
           }
           
-          document.getElementById('peak').innerHTML = "peak average :"+peak_avg;
-          document.getElementById('psr').innerHTML = "diff :"+diff_avg;
+          //document.getElementById('peak').innerHTML = "peak average :"+peak_avg;
+          //document.getElementById('psr').innerHTML = "diff :"+diff_avg;
           
           if ((face_peak.length > 5 && peak_avg < 0.10) || (face_diff.length && diff_avg > 15)) {
             first = true;
