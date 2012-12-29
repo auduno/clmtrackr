@@ -1,4 +1,4 @@
-//requires: ccv, closure matrix library
+//requires: ccv, numeric.js
 
 var clm = {
 	tracker : function(params) {
@@ -89,10 +89,10 @@ var clm = {
 			modelWidth = pModel.patchModel.canvasSize[0];
 			
 			// load eigenvectors
-			eigenVectors = new goog.math.Matrix(numPatches*2, numParameters);
+			eigenVectors = numeric.rep([numPatches*2,numParameters],0.0);
 			for (var i = 0;i < numPatches*2;i++) {
 				for (var j = 0;j < numParameters;j++) {
-					eigenVectors.setValueAt(i, j, pModel.shapeModel.eigenVectors[i][j]);
+          eigenVectors[i][j] = pModel.shapeModel.eigenVectors[i][j];
 				}
 			}
 			
@@ -100,10 +100,10 @@ var clm = {
 			for (var i = 0; i < numPatches;i++) {
 			  meanShape[i] = [pModel.shapeModel.meanShape[i][0], pModel.shapeModel.meanShape[i][1]];
 			}
-			meanShapeMatrix = new goog.math.Matrix(numPatches*2,1);
+			meanShapeMatrix = numeric.rep([numPatches*2,1],0);
 			for (var i = 0;i < numPatches;i++) {
-			  meanShapeMatrix.setValueAt(i*2,0,meanShape[i][0]);
-			  meanShapeMatrix.setValueAt((i*2)+1,0,meanShape[i][1]);
+			  meanShapeMatrix[i*2][0] = meanShape[i][0];
+			  meanShapeMatrix[(i*2)+1][0] = meanShape[i][1];
 			}
 			
 			// load eigenvalues
@@ -111,8 +111,8 @@ var clm = {
 			
 			// load patchweight matrices for comparing
 			var weight;
-			for (var w = 0;w < numPatches;w++) {
-				weightMatricesOld[w] = new goog.math.Matrix(patchSize, patchSize);
+			/*for (var w = 0;w < numPatches;w++) {
+				weightMatricesOld[w] = numeric.rep([patchSize, patchSize],0);
 				// insert
 				for (var i = 0;i < patchSize;i++) {
 					for (var j = 0;j < patchSize;j++) {
@@ -121,10 +121,10 @@ var clm = {
 						// cut off all values above 1 and below -1
 						weight = weight > 1 ? 1 : weight;
 						weight = weight < -1 ? -1 : weight;
-						weightMatricesOld[w].setValueAt(i, j, weight);
+						weightMatricesOld[w][i][j] = weight;
 					}
 				}
-			}
+			}*/
 			
 			//var weights = [];
 			for (var w = 0;w < numPatches;w++) {
@@ -137,10 +137,10 @@ var clm = {
 			}
 			
 			// precalculate gaussianPriorDiagonal
-			gaussianPD = new goog.math.Matrix(numParameters+4, numParameters+4);
+			gaussianPD = numeric.rep([numParameters+4, numParameters+4],0);
 			// set values and append manual inverse
 			for (var i = 0;i < numParameters;i++) {
-			  gaussianPD.setValueAt(i+4,i+4,1/eigenValues[i]);
+			  gaussianPD[i+4][i+4] = 1/eigenValues[i];
 			}
 				
 			for (var i = 0;i < numParameters+4;i++) {
@@ -154,16 +154,16 @@ var clm = {
 			// initialize all the BASM parameters
 			nu_p = 8;
 			kappa_p = 1;
-      lambda_p = new goog.math.Matrix(4,4); // 4 x 4 matrix
-      lambda_p.setValueAt(0,0,0.05);
-      lambda_p.setValueAt(1,1,0.005);
-      lambda_p.setValueAt(2,2,5);
-      lambda_p.setValueAt(3,3,5);
+      lambda_p = numeric.rep([4,4],0); // 4 x 4 matrix
+      lambda_p[0][0] = 0.05;
+      lambda_p[1][1] = 0.005;
+      lambda_p[2][2] = 5;
+      lambda_p[3][3] = 5;
       nu_s = numParameters*2;
       kappa_s = 1;
-      lambda_s = new goog.math.Matrix(numParameters, numParameters); // p x p matrix
+      lambda_s = numeric.rep([numParameters, numParameters],0); // p x p matrix
       for (var i = 0;i < numParameters;i++) {
-        lambda_s.setValueAt(i,i,numParameters*eigenValues[i]);
+        lambda_s[i][i] = numParameters*eigenValues[i];
       }
 			
 			//console.log('ended initialization');
@@ -178,40 +178,40 @@ var clm = {
 		
 		var createJacobian = function(parameters, eigenVectors) {
 			// generates the jacobian matrix
-
-			var jacobian = new goog.math.Matrix(2*numPatches, numParameters+4);
+      
+			var jacobian = numeric.rep([2*numPatches, numParameters+4],0.0);
 			var j0,j1;
 			for (var i = 0;i < numPatches;i ++) {
 				// 1
 				j0 = meanShape[i][0];
 				j1 = meanShape[i][1];
 				for (var p = 0;p < numParameters;p++) {
-					j0 += parameters[p+4]*eigenVectors.getValueAt((i*2),p);
-					j1 += parameters[p+4]*eigenVectors.getValueAt((i*2)+1,p);
+					j0 += parameters[p+4]*eigenVectors[i*2][p];
+					j1 += parameters[p+4]*eigenVectors[(i*2)+1][p];
 				}
-				jacobian.setValueAt((i*2), 0, j0);
-				jacobian.setValueAt((i*2)+1, 0, j1);
+				jacobian[i*2][0] = j0;
+				jacobian[(i*2)+1][0] = j1;
 				// 2
 				j0 = meanShape[i][1];
 				j1 = meanShape[i][0];
 				for (var p = 0;p < numParameters;p++) {
-					j0 += parameters[p+4]*eigenVectors.getValueAt((i*2)+1,p);
-					j1 += parameters[p+4]*eigenVectors.getValueAt((i*2),p);
+					j0 += parameters[p+4]*eigenVectors[(i*2)+1][p];
+					j1 += parameters[p+4]*eigenVectors[i*2][p];
 				}
-				jacobian.setValueAt(i*2, 1, -j0);
-				jacobian.setValueAt((i*2)+1, 1, j1);
+				jacobian[i*2][1] = -j0;
+				jacobian[(i*2)+1][1] = j1;
 				// 3
-				jacobian.setValueAt((i*2), 2, 1)
-				jacobian.setValueAt((i*2)+1, 2, 0)
+				jacobian[i*2][2] = 1;
+				jacobian[(i*2)+1][2] = 0;
 				// 4
-				jacobian.setValueAt((i*2), 3, 0)
-				jacobian.setValueAt((i*2)+1, 3, 1)
+				jacobian[i*2][3] = 0;
+				jacobian[(i*2)+1][3] = 1;
 				// the rest
 				for (var j = 0;j < numParameters;j++) {
-					j0 = parameters[0]*eigenVectors.getValueAt(i*2,j) - parameters[1]*eigenVectors.getValueAt((i*2)+1,j) + eigenVectors.getValueAt(i*2,j);
-					j1 = parameters[0]*eigenVectors.getValueAt((i*2)+1,j) + parameters[1]*eigenVectors.getValueAt((i*2),j) + eigenVectors.getValueAt((i*2)+1,j);
-					jacobian.setValueAt(i*2,j+4,j0);
-					jacobian.setValueAt((i*2)+1,j+4,j1);
+					j0 = parameters[0]*eigenVectors[i*2][j] - parameters[1]*eigenVectors[(i*2)+1][j] + eigenVectors[i*2][j];
+					j1 = parameters[0]*eigenVectors[(i*2)+1][j] + parameters[1]*eigenVectors[i*2][j] + eigenVectors[(i*2)+1][j];
+					jacobian[i*2][j+4] = j0;
+					jacobian[(i*2)+1][j+4] = j1;
 				}
 			}
 			
@@ -414,21 +414,21 @@ var clm = {
         }
         
         // set BASM parameters
-        mu_p = new goog.math.Matrix(4,1);
+        mu_p = numeric.rep([4,1],0);
         for (var i = 0;i < 4;i++) {
-          mu_p.setValueAt(i,0,currentParameters[i]); // 4 x 1 matrix
+          mu_p[i][0] = currentParameters[i]; // 4 x 1 matrix
         }
         // TODO: need to adjust this?
-        sigma_p = new goog.math.Matrix(4,4);
-        sigma_p.setValueAt(0,0,0.05*0.05);
-        sigma_p.setValueAt(1,1,0.005*0.005);
-        sigma_p.setValueAt(2,2,candidate.width*0.20*candidate.width*0.20);
-        sigma_p.setValueAt(3,3,candidate.height*0.20*candidate.height*0.20);
-        mu_s = new goog.math.Matrix(numParameters,1);
-        sigma_s = new goog.math.Matrix(numParameters, numParameters);
+        sigma_p = numeric.rep([4,4],0);
+        sigma_p[0][0] = 0.05*0.05;
+        sigma_p[1][1] = 0.005*0.005;
+        sigma_p[2][2] = candidate.width*0.20*candidate.width*0.20;
+        sigma_p[3][3] = candidate.height*0.20*candidate.height*0.20;
+        mu_s = numeric.rep([numParameters,1],0);
+        sigma_s = numeric.rep([numParameters, numParameters],0);
         // TODO: need to adjust this?
         for (var i = 0;i < numParameters;i++) {
-          sigma_s.setValueAt(i,i,2*2);
+          sigma_s[i][i] = 2*2;
         }
         currentPositions = calculatePositions(currentParameters, true);
 				
@@ -486,10 +486,10 @@ var clm = {
 			  // load patchdata to matrix
 			  pdata = ptch.data;
 			  pdataLength = pw*pl;
-			  /*pmatrix = new goog.math.Matrix(pw, pl);
+			  /*pmatrix = numeric.rep([pw, pl],0);
 			  for (var j = 0;j < pdataLength;j++) {
 			    grayscaleColor = pdata[j*4]*0.3 + pdata[(j*4)+1]*0.59 + pdata[(j*4)+2]*0.11;
-			    pmatrix.setValueAt(j % pw, (j / pw) >> 0, grayscaleColor)
+			    pmatrix[j % pw][(j / pw) >> 0] = grayscaleColor;
 			  }*/
 			  pmatrix = [];
 			  for (var j = 0;j < pdataLength;j++) {
@@ -645,8 +645,8 @@ var clm = {
 			// iterate until convergence or max 10, 20 iterations?:
 			var originalPositions = currentPositions;
 			var jac, vecProbs;
-			var meanshiftVectors = new goog.math.Matrix(numPatches*2,1);
-			var uncertainties_inv = new goog.math.Matrix(numPatches*2, numPatches*2);
+			var meanshiftVectors = numeric.rep([numPatches*2,1],0);
+			var uncertainties_inv = numeric.rep([numPatches*2, numPatches*2], 0);
 			
 			var dootholder = 0;
 			var partbholder = 0;
@@ -739,8 +739,8 @@ var clm = {
 				  }
 				  
 				  // compute mean shift vectors
-				  meanshiftVectors.setValueAt(j*2,0,vecpos[0]);
-				  meanshiftVectors.setValueAt((j*2)+1,0,vecpos[1]);
+				  meanshiftVectors[j*2][0] = vecpos[0];
+				  meanshiftVectors[(j*2)+1][0] = vecpos[1];
 				  //meanshiftVectors[j] = [vecpos[0], vecpos[1]];
 				  
 				  //calculate uncertainty
@@ -764,10 +764,10 @@ var clm = {
 				  // we pre-invert the matrix
 				  
 				  det = 1/((uncertainty[0]*uncertainty[3])-(uncertainty[1]*uncertainty[2]));
-				  uncertainties_inv.setValueAt(j*2,j*2, responseSum*det*uncertainty[3]);
-				  uncertainties_inv.setValueAt(j*2,(j*2)+1, responseSum*det*(-uncertainty[1]));
-				  uncertainties_inv.setValueAt((j*2)+1,j*2, responseSum*det*(-uncertainty[2]));
-				  uncertainties_inv.setValueAt((j*2)+1,(j*2)+1, responseSum*det*uncertainty[0]);
+				  uncertainties_inv[j*2][j*2] = responseSum*det*uncertainty[3];
+				  uncertainties_inv[j*2][(j*2)+1] = responseSum*det*(-uncertainty[1]);
+				  uncertainties_inv[(j*2)+1][j*2] = responseSum*det*(-uncertainty[2]);
+				  uncertainties_inv[(j*2)+1][(j*2)+1] = responseSum*det*uncertainty[0];
 				  
 				  //uncertainties.setValueAt(j*2,j*2, (1/responseSum)*uncertainty[0]);
 				  //uncertainties.setValueAt(j*2,(j*2)+1, (1/responseSum)*uncertainty[1]);
@@ -1112,31 +1112,31 @@ var clm = {
 		  // var meanshape:  n*2 x 1 matrix - meanShapeMatrix
       var shape_matrix = eigenVectors;// n*2 x p matrix
       // set params into matrix shape
-      var pose_params = new goog.math.Matrix(4,1); // 4 x 1 matrix // current pose params
+      var pose_params = numeric.rep([4,1],0); // 4 x 1 matrix // current pose params
       for (var i = 0;i < 4;i++) {
-        pose_params.setValueAt(i,0,currentParameters[i]);
+        pose_params[i][0] = currentParameters[i];
       }
-      var shape_params = new goog.math.Matrix(numParameters,1); // p x 1 matrix // current shape params
+      var shape_params = numeric.rep([numParameters,1],0); // p x 1 matrix // current shape params
       for (var i = 0;i < numParameters;i++) {
-        shape_params.setValueAt(i,0,currentParameters[i+4]);
+        shape_params[i][0] = currentParameters[i+4];
       }
       
       // calculate pose-matrix from meanshape + shape_matrix*shape_params
-      var pose_matrix = new goog.math.Matrix(numPatches*2,4)// n*2 x 4 matrix 
+      var pose_matrix = numeric.rep([numPatches*2,4],0)// n*2 x 4 matrix 
       var dx,dy;
       for (var i = 0;i < numPatches;i++) {
         dx = meanShape[i][0];
         dy = meanShape[i][1];
         for (var j = 0;j < numParameters;j++) {
-          dx += shape_matrix.getValueAt(i*2,j)*currentParameters[j+4];
-          dy += shape_matrix.getValueAt((i*2)+1,j)*currentParameters[j+4];
+          dx += shape_matrix[i*2][j]*currentParameters[j+4];
+          dy += shape_matrix[(i*2)+1][j]*currentParameters[j+4];
         }
-        pose_matrix.setValueAt(i*2,0,dx);
-        pose_matrix.setValueAt((i*2)+1,0,dy);
-        pose_matrix.setValueAt(i*2,1,-dy);
-        pose_matrix.setValueAt((i*2)+1,1,dx);
-        pose_matrix.setValueAt(i*2,2,1.0);
-        pose_matrix.setValueAt((i*2)+1,3,1.0);
+        pose_matrix[i*2][0] = dx;
+        pose_matrix[(i*2)+1][0] = dy;
+        pose_matrix[i*2][1] = -dy;
+        pose_matrix[(i*2)+1][1] = dx;
+        pose_matrix[i*2][2] = 1.0;
+        pose_matrix[(i*2)+1][3] = 1.0;
       }
 		
       var theta_p = pose_params; // 4 x 1 matrix
@@ -1148,17 +1148,17 @@ var clm = {
       // update inverse-Wishart parameters, move this to separate function
       var nu_p_upd = nu_p+1;
       var kappa_p_upd = kappa_p+1;
-      var theta_p_upd = theta_p.multiply(kappa_p/(kappa_p+1)).add(pose_params.multiply(1/(1+kappa_p)));
-      var lambda_p_upd = lambda_p.add((pose_params.subtract(theta_p)).multiply((pose_params.subtract(theta_p)).getTranspose()).multiply(kappa_p/(kappa_p+1)));
+      var theta_p_upd = numeric.add( numeric.mul(theta_p, kappa_p/(kappa_p+1)), numeric.mul(pose_params, 1/(1+kappa_p)) );;
+      var lambda_p_upd = numeric.add(lambda_p, numeric.mul(numeric.dot(numeric.sub(pose_params, theta_p), numeric.transpose(numeric.sub(pose_params, theta_p))), kappa_p/(kappa_p+1)));
       // calculate expectation of prior parameters
       var prior_expect_mean = theta_p_upd;
-      var prior_expect_cov = lambda_p_upd.multiply(1/(nu_p_upd-4-1));
+      var prior_expect_cov = numeric.mul(lambda_p_upd, 1/(nu_p_upd-4-1));
       // get shape observation
-      var pose_obs = landmarks.subtract(meanShapeMatrix);
+      var pose_obs = numeric.sub(landmarks, meanShapeMatrix);
       // evaluate pose parameters and covariance
-		  var huge = pose_matrix.getTranspose().multiply(landmark_cov_inv).multiply(pose_matrix)
-      var sigma_p_upd = ((prior_expect_cov.add(sigma_p)).getInverse().add(huge)).getInverse();
-      var mu_p_upd = sigma_p_upd.multiply(pose_matrix.getTranspose().multiply(landmark_cov_inv.multiply(pose_obs)).add((prior_expect_cov.add(sigma_p)).getInverse().multiply(prior_expect_mean)));
+		  var huge = numeric.dot(numeric.dot(numeric.transpose(pose_matrix), landmark_cov_inv), pose_matrix);
+      var sigma_p_upd = numeric.inv(numeric.add(numeric.inv(numeric.add(prior_expect_cov, sigma_p)), huge));
+      var mu_p_upd = numeric.dot(sigma_p_upd, numeric.add(numeric.dot(numeric.transpose(pose_matrix), numeric.dot(landmark_cov_inv, pose_obs)), numeric.dot(numeric.inv(numeric.add(prior_expect_cov, sigma_p)), prior_expect_mean) ));
       // update pose parameters
       nu_p = nu_p_upd;kappa_p = kappa_p_upd;theta_p = theta_p_upd;lambda_p = lambda_p_upd;sigma_p = sigma_p_upd;mu_p = mu_p_upd;
       pose_params = mu_p;
@@ -1167,17 +1167,17 @@ var clm = {
       // update inverse-Wishart parameters, move this to separate function
       var nu_s_upd = nu_s+1;
       var kappa_s_upd = kappa_s+1;
-      var theta_s_upd = theta_s.multiply(kappa_s/(kappa_s+1)).add(shape_params.multiply(1/(1+kappa_s)));
-      var lambda_s_upd = lambda_s.add((shape_params.subtract(theta_s)).multiply((shape_params.subtract(theta_s)).getTranspose()).multiply(kappa_s/(kappa_s+1)));
+      var theta_s_upd = numeric.add( numeric.mul(theta_s, kappa_s/(kappa_s+1)), numeric.mul(shape_params, 1/(1+kappa_s)) );
+      var lambda_s_upd = numeric.add(lambda_s, numeric.mul(numeric.dot(numeric.sub(shape_params, theta_s), numeric.transpose(numeric.sub(shape_params, theta_s))), kappa_s/(kappa_s+1)));
       // calculate expectation of prior parameters
       prior_expect_mean = theta_s_upd;
-      prior_expect_cov = lambda_s_upd.multiply(1/(nu_s_upd-numParameters-1));
+      prior_expect_cov = numeric.mul(lambda_s_upd, 1/(nu_s_upd-numParameters-1));
       // get shape observation
-      shape_obs = landmarks.subtract(meanShapeMatrix).subtract(pose_matrix.multiply(pose_params));
+      shape_obs = numeric.sub(numeric.sub(landmarks, meanShapeMatrix), numeric.dot(pose_matrix, pose_params));
       // evaluate pose parameters and covariance
-      huge = shape_matrix.getTranspose().multiply(landmark_cov_inv).multiply(shape_matrix);
-      var sigma_s_upd = ((prior_expect_cov.add(sigma_s)).getInverse().add(huge)).getInverse();
-      var mu_s_upd = sigma_s_upd.multiply(shape_matrix.getTranspose().multiply(landmark_cov_inv.multiply(shape_obs)).add((prior_expect_cov.add(sigma_s)).getInverse().multiply(prior_expect_mean)));
+      huge = numeric.dot(numeric.dot(numeric.transpose(shape_matrix), landmark_cov_inv), shape_matrix);
+      var sigma_s_upd = numeric.inv(numeric.add(numeric.inv(numeric.add(prior_expect_cov, sigma_s)), huge));
+      var mu_s_upd = numeric.dot(sigma_s_upd, numeric.add(numeric.dot(numeric.transpose(shape_matrix), numeric.dot(landmark_cov_inv, shape_obs)), numeric.dot(numeric.inv(numeric.add(prior_expect_cov, sigma_s)), prior_expect_mean) ));
       // update pose parameters
       nu_s = nu_s_upd;kappa_s = kappa_s_upd;theta_s = theta_s_upd;lambda_s = lambda_s_upd;sigma_s = sigma_s_upd;mu_s = mu_s_upd;
       shape_params = mu_s;
@@ -1188,10 +1188,10 @@ var clm = {
       // return params as array of both pose and shape params
       var returnParams = [];
       for (var i = 0;i < 4;i++) {
-        returnParams[i] = pose_params.getValueAt(i,0);
+        returnParams[i] = pose_params[i][0];
       }
       for (var i = 0;i < numParameters;i++) {
-        returnParams[i+4] = shape_params.getValueAt(i,0);
+        returnParams[i+4] = shape_params[i][0];
       }
       
       return returnParams;
