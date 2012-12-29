@@ -81,17 +81,12 @@ var clm = {
 		
 		var webglFi, mosseCalc;
 		
-		var gidTime1, gidTime2;
-		
 		this.init = function(canvas) {
 			// do all prep stuff
 			
 			sketchCC = canvas.getContext('2d');
 			sketchW = canvas.width;
 			sketchH = canvas.height;
-			
-			//console.log('starting initialization');
-			
 			
 			// load from model
 			patchType = pModel.patchModel.patchType;
@@ -341,9 +336,6 @@ var clm = {
      */
 		this.track = function(element) {
 			
-			// for timing only
-			var startTime = (new Date).getTime();
-			
 			var scaling, translateX, translateY, rotation;
 			var croppedPatches = [];
 			var ptch, px, py, pw;
@@ -397,8 +389,8 @@ var clm = {
             diff_avg /= face_diff.length;
           }
           
-          document.getElementById('peak').innerHTML = "peak average :"+peak_avg;
-          document.getElementById('psr').innerHTML = "diff :"+diff_avg;
+          //document.getElementById('peak').innerHTML = "peak average :"+peak_avg;
+          //document.getElementById('psr').innerHTML = "diff :"+diff_avg;
           
           if ((face_peak.length > 5 && peak_avg < 0.10) || (face_diff.length && diff_avg > 0.5)) {
             first = true;
@@ -560,9 +552,6 @@ var clm = {
 				translateY = currentParameters[3];
 			}
 			
-			var secondTime = (new Date).getTime();
-			//console.log("detectiontiming: "+(secondTime-startTime)+" ms")
-			
 			// copy canvas to a new dirty canvas
 			sketchCC.save();
 			
@@ -572,16 +561,12 @@ var clm = {
 			sketchCC.scale(1/scaling, 1/scaling);
 			sketchCC.rotate(-Math.asin(currentParameters[1]/scaling));
 			sketchCC.translate(-translateX, -translateY);
-			gidTime1 = (new Date).getTime();
 			
 			sketchCC.drawImage(element, 0, 0, element.width, element.height);
 			
-			gidTime2 = (new Date).getTime();
 			sketchCC.restore();
 			//	get cropped images around new points based on model parameters (not scaled and translated)
 			var patchPositions = calculatePositions(currentParameters, false);
-			
-			//console.log("gidtime:"+(gidTime2-gidTime1));
 			
 			var pw, pl;
 			if (patchType == "SVM") {
@@ -653,11 +638,7 @@ var clm = {
 			  }
 			  sketchCC.putImageData(psci, px >> 0, py >> 0);
 			}*/
-			//console.log("starting response calculations");
 			//sketchCC.clearRect(0, 0, sketchW, sketchH);
-			
-			var thirdTime = (new Date).getTime();
-			//console.log("getting patches: "+(thirdTime-secondTime)+" ms")
 			
 			/* start webgl work here */
 			/*var patchResponse, submatrix, submsum;
@@ -716,9 +697,6 @@ var clm = {
         //responses[i] = respi.getTranspose();
         responses[i] = respi;
       }*/
-      
-			var secondTime = (new Date).getTime();
-			//console.log("calculating responses: "+(secondTime - thirdTime)+" ms")
 			
 			//testing of printing patches
       /*var canvasppt = document.createElement('canvas')
@@ -767,13 +745,7 @@ var clm = {
 			var jac;
 			var meanshiftVectors = [];
 			
-			var dootholder = 0;
-			var partbholder = 0;
-			var partaholder = 0;
-			
 			for (var i = 0; i < varianceSeq.length; i++) {
-				
-				var partastart = (new Date).getTime();
 				
 				// calculate jacobian
 				jac = createJacobian(currentParameters, eigenVectors);
@@ -783,16 +755,11 @@ var clm = {
 				//var debugMVs = [];
 				//
 				
-				var partaend = (new Date).getTime();
-				partaholder += (partaend-partastart);
-				
 				var opj0, opj1;
 				
 				for (var j = 0;j < numPatches;j++) {
 				  // for every point in each response:
 					// calculate PI x gaussian
-				  
-          //var boot = (new Date).getTime();
           
           opj0 = originalPositions[j][0]-halfSearchWindow;
           opj1 = originalPositions[j][1]-halfSearchWindow;
@@ -813,9 +780,6 @@ var clm = {
               pos_idx++;
             }
           }*/
-				  
-				  //var doot = (new Date).getTime();
-          //dootholder += (doot-boot);
 				  
 				  // sum PI x gaussians 
 				  /*var vpsum = 0;
@@ -873,8 +837,6 @@ var clm = {
 				  //debugMVs[j] = debugMatrixMV;
 				  //
 				}
-				
-				var partbstart = (new Date).getTime();
 				
 				// plot the meanshiftvector to see if it's correct
         /*sketchCC.clearRect(0, 0, sketchW, sketchH);
@@ -965,9 +927,6 @@ var clm = {
 				  break;
 				}
 				
-				var partbend = (new Date).getTime();
-				partbholder += (partbend-partbstart);
-				
 			}
 			
 			if (params.constantVelocity) {
@@ -976,18 +935,10 @@ var clm = {
         previousParameters.splice(0, previousParameters.length == 3 ? 1 : 0);
 			}
 			
-			//console.log("doot: "+(dootholder)+" ms")
-			//console.log("partaholder: "+(partaholder)+" ms")
-			//console.log("partbholder: "+(partbholder)+" ms")
-			
       document.getElementById('overlay').getContext('2d').clearRect(0, 0, 720, 576);
 			//debugger;
 			
 			this.draw(document.getElementById('overlay'), currentParameters);
-			
-			var thirdTime = (new Date).getTime();
-			//console.log("optimization of parameters: "+(thirdTime - secondTime)+" ms")
-			//console.log("all time: "+(thirdTime - startTime)+" ms")
 			
 			// return new points
 			return currentPositions;

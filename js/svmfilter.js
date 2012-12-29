@@ -13,9 +13,6 @@ var webglFilter = function() {
   var drawRectBuffer, drawLayerBuffer, drawImageBuffer, rttTexture, filters;
   var texCoordBuffer, texCoordLocation, apositionBuffer;
   
-  var startTime1;
-  var endTime1;
-  
   this.init = function(filterVector, nP, pW, pH, fW, fH, drawOut) {
     // we assume filterVector goes from left to right, rowwise
     if (fW != fH) {
@@ -307,7 +304,7 @@ var webglFilter = function() {
 
   this.getResponses = function(patches, drawOut) {
     // TODO: check patches correct length/dimension
-    startTime1 = (new Date).getTime();
+    
     // switch to response generation program if we're not already using it
     if (!first) {
       gl.useProgram(patchResponseProgram);
@@ -432,13 +429,7 @@ var webglFilter = function() {
     // draw to framebuffer
     gl.drawArrays(gl.TRIANGLES, 0, patchCells*6);
     
-    var starttime = (new Date).getTime();
     gl.finish();
-    var endtime = (new Date).getTime();
-    //console.log("finish webgl time: "+(endtime-starttime)+" ms");
-    
-    endTime1 = (new Date).getTime();
-    //console.log("switching programs: "+(endTime1-startTime1)+" ms")
     
     if (drawOut) {
       var newCanvasWidth = patchWidth-corrFilterWidth;
@@ -552,9 +543,6 @@ var webglFilter = function() {
       // draw out
       gl.drawArrays(gl.TRIANGLES, 0, numPatches*6);
     }
-    
-    endTime2 = (new Date).getTime();
-    //console.log("switching programs2: "+(endTime2-endTime1)+" ms")
 
     var responses = getOutput();
     responses = unpackToFloat(responses);
@@ -570,9 +558,6 @@ var webglFilter = function() {
     }
     
     first = false;
-    
-    endTime3 = (new Date).getTime();
-    //console.log("entire time: "+(endTime3-startTime1)+" ms")
     
     return responses;
   }
@@ -602,8 +587,6 @@ var webglFilter = function() {
     var starttime = (new Date).getTime();
     var data = gl.readPixels(0, 0, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, pixelValues);
     //var data = gl.readPixels(0, 0, 2, 2, gl.RGBA, gl.UNSIGNED_BYTE, pixelValues);
-    var endtime = (new Date).getTime();
-    //console.log("readpixels time: "+(endtime-starttime)+" ms")
     // return
     return pixelValues;
   }
@@ -631,7 +614,7 @@ var webglFilter = function() {
     var dist = max-min;
     
     if (dist == 0) {
-      //console.log("a patchresponse was monotone, causing normalization to fail. Leaving it unchanged.")
+      console.log("a patchresponse was monotone, causing normalization to fail. Leaving it unchanged.")
       response = response.map(function() {return 1});
     } else {
       for (var i = 0;i < msize;i++) {
@@ -745,25 +728,3 @@ var webglFilter = function() {
     "}"
   ].join('\n');
 };
-
-var pack = function(val) {
-  var x = val * 256*256*256;
-  var y = val * 256*256;
-  var z = val * 256;
-  var u = val;
-  
-  x = x-Math.floor(x);
-  y = y-Math.floor(y);
-  z = z-Math.floor(z);
-  u = u-Math.floor(u);
-  
-  y = y-(x/256);
-  z = z-(y/256);
-  u = u-(z/256);
-  
-  return [x,y,z,u]
-}
-
-var unpack = function(vec) {
-  return (vec[0]/(256*256*256))+(vec[1]/(256*256))+(vec[2]/(256))+(vec[3]);
-}
