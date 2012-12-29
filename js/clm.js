@@ -386,7 +386,7 @@ var clm = {
           }
           var diffx = centerpoint[0]-(face_result[0]+centerpoint[0]-(modelwidth/2));
           var diffy = centerpoint[1]-(face_result[1]+centerpoint[1]-(modelwidth/2));
-          var diff = Math.sqrt(diffx*diffx + diffy*diffy);
+          var diff = Math.sqrt(diffx*diffx + diffy*diffy)/modelwidth;
           var diff_avg = 0;
           face_diff.push(diff);
           if (face_diff.length > 5) {
@@ -397,10 +397,10 @@ var clm = {
             diff_avg /= face_diff.length;
           }
           
-          //document.getElementById('peak').innerHTML = "peak average :"+peak_avg;
-          //document.getElementById('psr').innerHTML = "diff :"+diff_avg;
+          document.getElementById('peak').innerHTML = "peak average :"+peak_avg;
+          document.getElementById('psr').innerHTML = "diff :"+diff_avg;
           
-          if ((face_peak.length > 5 && peak_avg < 0.10) || (face_diff.length && diff_avg > 15)) {
+          if ((face_peak.length > 5 && peak_avg < 0.10) || (face_diff.length && diff_avg > 0.5)) {
             first = true;
             face_diff = [];
             face_peak = [];
