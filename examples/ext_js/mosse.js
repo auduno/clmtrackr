@@ -20,6 +20,7 @@ function mosseFilter(params) {
     var _im_part;
     var _arrlen;
     var _cc;
+    var _image_array;
     
     this.psr_prev = undefined;
     this.peak_prev = undefined;
@@ -61,8 +62,10 @@ function mosseFilter(params) {
         // set up temporary variables
         if(typeof Float64Array !== 'undefined') {
             _im_part = new Float64Array(_arrlen);
+            _image_array = new Float64Array(_arrlen);
         } else {
             _im_part = new Array(_arrlen);
+            _image_array = new Array(_arrlen);
         }
         var canvas = document.createElement("canvas");
         canvas.setAttribute('width', _w);
@@ -215,25 +218,22 @@ function mosseFilter(params) {
         var image = _cc.getImageData(0,0,_w,_h);
         var id = image.data;
         
-        // TODO: this should be preinitialized float64Array
-        var newImage = new Array(_arrlen);
-        
         if (params.convertToGrayscale) {
             // convert to grayscale
             for (var i = 0;i < _arrlen;i++) {
-                newImage[i] = id[(4*i)]*0.3;
-                newImage[i] += id[(4*i)+1]*0.59;
-                newImage[i] += id[(4*i)+2]*0.11;
+                _image_array[i] = id[(4*i)]*0.3;
+                _image_array[i] += id[(4*i)+1]*0.59;
+                _image_array[i] += id[(4*i)+2]*0.11;
             } 
         } else {
             // use only one channel
             for (var i = 0;i < _arrlen;i++) {
-                newImage[i] = id[(4*i)];
+                _image_array[i] = id[(4*i)];
             } 
         }
         
         // preprocess
-        var prepImage = preprocess(newImage);
+        var prepImage = preprocess(_image_array);
         prepImage = cosine_window(prepImage);
         
         // filter
@@ -330,7 +330,6 @@ function mosseFilter(params) {
                     }
                     
                     //fft target
-                    // TODO : this uses same complex mult
                     target = this.fft(target);
                     
                     // create filter
@@ -388,18 +387,16 @@ function mosseFilter(params) {
         
         var image = _cc.getImageData(0,0,_w,_h);
         var id = image.data;
-        
+         
         // convert to grayscale
-        var imagesize = _w*_h;
-        var newImage = [];  
-        for (var i = 0;i < imagesize;i++) {
-            newImage[i] = id[(4*i)]*0.3;
-            newImage[i] += id[(4*i)+1]*0.59;
-            newImage[i] += id[(4*i)+2]*0.11;
+        for (var i = 0;i < _arrlen;i++) {
+            _image_array[i] = id[(4*i)]*0.3;
+            _image_array[i] += id[(4*i)+1]*0.59;
+            _image_array[i] += id[(4*i)+2]*0.11;
         }
         
         // preprocess
-        var prepImage = preprocess(newImage);
+        var prepImage = preprocess(_image_array);
         prepImage = cosine_window(prepImage);
         
         // create target
@@ -424,8 +421,7 @@ function mosseFilter(params) {
         
         // add up
         var eta = params.eta;
-        var fulen = fuTop[0].length;
-        for (var i = 0;i < fulen;i++) {
+        for (var i = 0;i < _arrlen;i++) {
             _top[0][i] = eta*fuTop[0][i] + (1-eta)*_top[0][i];
             _top[1][i] = eta*fuTop[1][i] + (1-eta)*_top[1][i];
             _bottom[0][i] = eta*fuBottom[0][i] + (1-eta)*_bottom[0][i];
