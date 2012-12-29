@@ -222,6 +222,7 @@ var pModel = {
     ]
   },
   patchModel : {
+    patchType: "SVM",
     numPatches : 68,
     patchSize : [11, 11],
     canvasSize : [138, 138],

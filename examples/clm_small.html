@@ -55,7 +55,7 @@
 		<script src="../js/clm.js"></script>
 		<script src="./ext_js/ccv.js"></script>
 		<script src="./ext_js/cascade.js"></script>
-		<script src="../js/filter.js"></script>
+		<script src="../js/svmfilter.js"></script>
 		<script src="./ext_js/Stats.js"></script>
 		<div id="container"></div>
 		<canvas id="compare" width="720" height="576"></canvas>
@@ -64,6 +64,8 @@
 		<!--<canvas id="sketch" width="400" height="400"></canvas>-->
 		<canvas id="filter"></canvas>
 		<input type="button" value="start" onclick="animate()"></input>
+		<p id="peak"></p>
+		<p id="psr"></p>
 		
 		<script>
 		   var cc = document.getElementById('compare').getContext('2d');

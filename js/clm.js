@@ -7,7 +7,7 @@ var clm = {
 		if (params.constantVelocity === undefined) params.constantVelocity = true;
 		if (params.searchWindow === undefined) params.searchWindow = 10;
 	
-		var numPatches, patchSize, numParameters;
+		var numPatches, patchSize, numParameters, patchType;
 		var gaussianPD;
 		var eigenVectors, eigenValues;
 		var sketchCC, sketchW, sketchH;
@@ -53,7 +53,7 @@ var clm = {
 		var searchWindow;
 		var modelWidth;
 		
-		var halfSearchWindow, vecProbs;
+		var halfSearchWindow, vecProbs, responsePixels;
 		var updatePosition = new Float64Array(2);
 		var vecpos = new Float64Array(2);
 		
@@ -79,7 +79,7 @@ var clm = {
     var face_peak = [];
     var face_diff = [];
 		
-		var webglFi;
+		var webglFi, mosseCalc;
 		
 		var gidTime1, gidTime2;
 		
@@ -92,10 +92,16 @@ var clm = {
 			
 			//console.log('starting initialization');
 			
+			
 			// load from model
+			patchType = pModel.patchModel.patchType;
 			numPatches = pModel.patchModel.numPatches;
 			patchSize = pModel.patchModel.patchSize[0];
-			searchWindow = params.searchWindow;
+			if (patchType == "MOSSE") {
+			  searchWindow = patchSize;
+			} else {
+			  searchWindow = params.searchWindow;
+			}
 			numParameters = pModel.shapeModel.numEvalues;
 			modelWidth = pModel.patchModel.canvasSize[0];
 			
@@ -132,15 +138,18 @@ var clm = {
 				}
 			}*/
 			
-			//var weights = [];
-			for (var w = 0;w < numPatches;w++) {
-			  for (var i = 0;i < (patchSize*patchSize);i++) {
-			    weight = pModel.patchModel.weights[w][i];
-			    weight = weight > 1 ? 1 : weight;
-          weight = weight < -1 ? -1 : weight;
-          weights[i +(w*patchSize*patchSize)] = weight;
-			  }
-			}
+			if (patchType == "SVM") {
+        for (var w = 0;w < numPatches;w++) {
+          for (var i = 0;i < (patchSize*patchSize);i++) {
+            weight = pModel.patchModel.weights[w][i];
+            weight = weight > 1 ? 1 : weight;
+            weight = weight < -1 ? -1 : weight;
+            weights[i +(w*patchSize*patchSize)] = weight;
+          }
+        }
+      } else {
+        weights = pModel.patchModel.weights;
+      }
 			
 			// precalculate gaussianPriorDiagonal
 			gaussianPD = numeric.rep([numParameters+4, numParameters+4],0);
@@ -154,12 +163,17 @@ var clm = {
 			}
 			
 			// set up webgl filter calculation
-			webglFi = new webglFilter();
-      webglFi.init(weights, numPatches, searchWindow+patchSize, searchWindow+patchSize, patchSize, patchSize, true);
+			if (patchType == "SVM") {
+			  webglFi = new webglFilter();
+        webglFi.init(weights, numPatches, searchWindow+patchSize, searchWindow+patchSize, patchSize, patchSize, true);
+			} else if (patchType == "MOSSE") {
+			  mosseCalc = new mosseFilterResponses();
+			  mosseCalc.init(weights, numPatches, patchSize, patchSize);
+			}
 			
 			halfSearchWindow = searchWindow/2;
-			patchPixNums = searchWindow*searchWindow;
-			vecProbs = new Float64Array(patchPixNums);
+			responsePixels = searchWindow*searchWindow;
+			vecProbs = new Float64Array(responsePixels);
 			
 			//console.log('ended initialization');
 			for (var i = 0;i < numPatches;i++) {
@@ -282,13 +296,13 @@ var clm = {
 		  return currentParameters;
 		}
 		
-		var gpopt = function(patchSize, currentPositionsj, updatePosition, vecProbs, responses, opj0, opj1, i, j, variance) {
+		var gpopt = function(responseWidth, currentPositionsj, updatePosition, vecProbs, responses, opj0, opj1, i, j, variance) {
       var pos_idx = 0;
       var vpsum = 0;
       var dx, dy;
-      for (var k = 0;k < patchSize;k++) {
+      for (var k = 0;k < responseWidth;k++) {
         updatePosition[1] = opj1+k;
-        for (var l = 0;l < patchSize;l++) {
+        for (var l = 0;l < responseWidth;l++) {
           updatePosition[0] = opj0+l;
           
           dx = currentPositionsj[0] - updatePosition[0];
@@ -304,14 +318,14 @@ var clm = {
       return vpsum;
     }
     
-    var gpopt2 = function(patchSize, vecpos, updatePosition, vecProbs, vpsum, opj0, opj1) {
+    var gpopt2 = function(responseWidth, vecpos, updatePosition, vecProbs, vpsum, opj0, opj1) {
       var pos_idx = 0;
       var vecsum = 0;
       vecpos[0] = 0;
       vecpos[1] = 0;
-      for (var k = 0;k < patchSize;k++) {
+      for (var k = 0;k < responseWidth;k++) {
         updatePosition[1] = opj1+k;
-        for (var l = 0;l < patchSize;l++) {
+        for (var l = 0;l < responseWidth;l++) {
           updatePosition[0] = opj0+l;
           vecsum = vecProbs[pos_idx]/vpsum;
           vecpos[0] += vecsum*updatePosition[0];
@@ -444,7 +458,8 @@ var clm = {
           canvasContext.strokeRect(candidate.x, candidate.y, candidate.width, candidate.height);
           canvasContext.strokeRect(Math.round(candidate.x+(candidate.width*3/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth);
           canvasContext.strokeRect(Math.round(candidate.x+(candidate.width/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth);
-          canvasContext.strokeRect(Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2)), Math.round(candidate.y+candidate.height*(3/4)-(noseFilterWidth/2)), noseFilterWidth, noseFilterWidth);
+          //canvasContext.strokeRect(Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2)), Math.round(candidate.y+candidate.height*(3/4)-(noseFilterWidth/2)), noseFilterWidth, noseFilterWidth);
+          canvasContext.strokeRect(Math.round(candidate.x+(candidate.width/2)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(5/8)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth);
           
           //element.pause()
           canvasContext.fillStyle = "rgb(200,200,200)";
@@ -569,7 +584,11 @@ var clm = {
 			//console.log("gidtime:"+(gidTime2-gidTime1));
 			
 			var pw, pl;
-			pw = pl = patchSize+searchWindow;
+			if (patchType == "SVM") {
+			  pw = pl = patchSize+searchWindow;
+			} else {
+			  pw = pl = searchWindow;
+			}
 			var pdataLength = pw*pl;
 			
 			var pdata, pmatrix, grayscaleColor;
@@ -622,11 +641,11 @@ var clm = {
 			for (var i = 0; i < numPatches; i++) {
 			  px = patchPositions[i][0]-(pw/2);
 			  py = patchPositions[i][1]-(pl/2);
-			  var psci = sketchCC.createImageData(patchSize+searchWindow ,patchSize+searchWindow );
+			  var psci = sketchCC.createImageData(pw ,pl);
 			  var pscidata = psci.data;
-			  for (var j = 0;j < (patchSize+searchWindow )*(patchSize+searchWindow );j++) {
-			    var val = patches[i][(((j / (patchSize+searchWindow)) >> 0)*(patchSize+searchWindow))+(j % (patchSize+searchWindow))];
-			    //var val = patches[i].getValueAt(j % (patchSize+searchWindow ), (j / (patchSize+searchWindow )) >> 0);
+			  for (var j = 0;j < (pw)*(pl);j++) {
+			    var val = patches[i][(((j / (pw)) >> 0)*(pw))+(j % (pl))];
+			    //var val = patches[i].getValueAt(j % (pw), (j / (pl)) >> 0);
 			    pscidata[j*4] = val;
 			    pscidata[(j*4)+1] = val;
 			    pscidata[(j*4)+2] = val;
@@ -680,9 +699,13 @@ var clm = {
       }*/
 			/* end webgl work here */
 			
-      var responses = webglFi.getResponses(patches, true);
-      // change responses to matrix form
+			if (patchType == "SVM") {
+        var responses = webglFi.getResponses(patches, true);
+      } else if (patchType == "MOSSE") {
+        var responses = mosseCalc.getResponses(patches);
+      }
       
+      // change responses to matrix form
       /*var respi;
       var responseSize = searchWindow*searchWindow;
       for (var i = 0;i < numPatches;i++) {
@@ -748,8 +771,6 @@ var clm = {
 			var partbholder = 0;
 			var partaholder = 0;
 			
-			//var maxDiff = 0;
-			
 			for (var i = 0; i < varianceSeq.length; i++) {
 				
 				var partastart = (new Date).getTime();
@@ -771,10 +792,10 @@ var clm = {
 				  // for every point in each response:
 					// calculate PI x gaussian
 				  
-          var boot = (new Date).getTime();
+          //var boot = (new Date).getTime();
           
-          var opj0 = originalPositions[j][0]-halfSearchWindow;
-          var opj1 = originalPositions[j][1]-halfSearchWindow;
+          opj0 = originalPositions[j][0]-halfSearchWindow;
+          opj1 = originalPositions[j][1]-halfSearchWindow;
           
 				  /*goog.math.Matrix.forEach(responses[j], function(value, a, b) {
 				    var pos = (searchWindow*b)+a;
@@ -793,19 +814,19 @@ var clm = {
             }
           }*/
 				  
-				  var doot = (new Date).getTime();
-          dootholder += (doot-boot);
+				  //var doot = (new Date).getTime();
+          //dootholder += (doot-boot);
 				  
 				  // sum PI x gaussians 
 				  /*var vpsum = 0;
-				  for (var k = 0;k < vecProbs.length;k++) {
+				  for (var k = 0;k < responsePixels;k++) {
 				    vpsum += vecProbs[k];
 				  }*/
 				  
 				  var vpsum = gpopt(searchWindow, currentPositions[j], updatePosition, vecProbs, responses, opj0, opj1, i, j, varianceSeq[i]);
 				  
 				  //debugging
-				  //var debugMatrixMV = new goog.math.Matrix(searchWindow, searchWindow);
+				  //var debugMatrixMV = numeric.rep([searchWindow,searchWindow],0.0);
 				  //
 				  
           /*var pos_idx = 0;
@@ -831,22 +852,22 @@ var clm = {
 				  gpopt2(searchWindow, vecpos, updatePosition, vecProbs, vpsum, opj0, opj1);
 				  
 				  // evaluate here whether to increase/decrease stepSize
-				  if (vpsum >= prevCostFunc[j]) {
+				  /*if (vpsum >= prevCostFunc[j]) {
 				    learningRate[j] *= stepParameter;
 				  } else {
 				    learningRate[j] = 1.0;
 				  }
-				  prevCostFunc[j] = vpsum;
+				  prevCostFunc[j] = vpsum;*/
 				  
 				  // compute mean shift vectors
 				  // extrapolate meanshiftvectors
-				  var msv = [];
-				  msv[0] = learningRate[j]*(vecpos[0] - currentPositions[j][0]);
-				  msv[1] = learningRate[j]*(vecpos[1] - currentPositions[j][1]);
-				  meanshiftVectors[j] = msv;
-				  //meanshiftVectors[j] = [vecpos[0] - currentPositions[j][0], vecpos[1] - currentPositions[j][1]];
+				  //var msv = [];
+				  //msv[0] = learningRate[j]*(vecpos[0] - currentPositions[j][0]);
+				  //msv[1] = learningRate[j]*(vecpos[1] - currentPositions[j][1]);
+				  //meanshiftVectors[j] = msv;
+				  meanshiftVectors[j] = [vecpos[0] - currentPositions[j][0], vecpos[1] - currentPositions[j][1]];
 				  
-				  if (isNaN(msv[0]) || isNaN(msv[1])) debugger;
+				  //if (isNaN(msv[0]) || isNaN(msv[1])) debugger;
 				  
 				  //debugging
 				  //debugMVs[j] = debugMatrixMV;
@@ -863,7 +884,7 @@ var clm = {
           var psci = sketchCC.createImageData(searchWindow,searchWindow);
           var pscidata = psci.data;
           for (var j = 0;j < (searchWindow)*(searchWindow);j++) {
-            var val = debugMVs[k].getValueAt((j / searchWindow) >> 0, j % searchWindow);
+            var val = debugMVs[k][(j / searchWindow) >> 0][j % searchWindow];
             val = val*255*500;
             val = val > 255 ? 255 : val;
             val = val < 0 ? 0 : val;
@@ -948,7 +969,6 @@ var clm = {
 				partbholder += (partbend-partbstart);
 				
 			}
-			//console.log("maxdiff:"+maxDiff);
 			
 			if (params.constantVelocity) {
         // add current parameter to array of previous parameters

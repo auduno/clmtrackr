@@ -307,7 +307,6 @@ var webglFilter = function() {
 
   this.getResponses = function(patches, drawOut) {
     // TODO: check patches correct length/dimension
-    
     startTime1 = (new Date).getTime();
     // switch to response generation program if we're not already using it
     if (!first) {
@@ -382,6 +381,7 @@ var webglFilter = function() {
     var textureHeight = patchHeight*patchCells;
     var patchSize = patchWidth*patchHeight;
     
+    // TODO : optimize this block
     for (var i = 0;i < patchCells;i++) {
       for (var j = 0;j < patchHeight;j++) {
         for (var k = 0;k < patchWidth;k++) {
