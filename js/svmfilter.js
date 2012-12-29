@@ -13,6 +13,9 @@ var webglFilter = function() {
   var drawRectBuffer, drawLayerBuffer, drawImageBuffer, rttTexture, filters;
   var texCoordBuffer, texCoordLocation, apositionBuffer;
   
+  var newCanvasWidth, newCanvasBlockHeight, newCanvasHeight;
+  var drawOutRectangles, drawOutImages, drawOutLayer;
+  
   this.init = function(filterVector, nP, pW, pH, fW, fH, drawOut) {
     // we assume filterVector goes from left to right, rowwise
     if (fW != fH) {
@@ -236,8 +239,8 @@ var webglFilter = function() {
     
     // insert filters into float32array and pass to texture via this mechanism:
     // http://stackoverflow.com/questions/7709689/webgl-pass-array-shader
-    var filterArray = [];
     var filterSize = filterWidth*filterHeight;
+    var filterArray = new Float32Array(filterSize*(numBlocks+1)*4);
     for (var i = 0;i < numBlocks;i++) {
       for (var j = 0;j < filterHeight;j++) {
         for (var k = 0;k < filterWidth;k++) {
@@ -272,7 +275,7 @@ var webglFilter = function() {
     gl.activeTexture(gl.TEXTURE0);
     filters = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, filters);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, filterWidth, filterHeight*numBlocks, 0, gl.RGBA, gl.FLOAT, new Float32Array(filterArray));
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, filterWidth, filterHeight*numBlocks, 0, gl.RGBA, gl.FLOAT, filterArray);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
@@ -300,6 +303,76 @@ var webglFilter = function() {
     //gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, renderBuffer);
     
     gl.viewport(0, 0, patchWidth, patchHeight*numBlocks);
+    
+    // preinitialization of drawOut variables
+    
+    newCanvasWidth = patchWidth-corrFilterWidth;
+    newCanvasBlockHeight = patchHeight-corrFilterWidth;
+    newCanvasHeight = newCanvasBlockHeight*numPatches;
+    // drawOutRectangles
+    drawOutRectangles = new Float32Array(12*numPatches);
+    var yOffset, indexOffset;
+    for (var i = 0;i < numPatches;i++) {
+      yOffset = i*newCanvasBlockHeight;
+      indexOffset = i*12;
+      
+      //first triangle
+      drawOutRectangles[indexOffset] = 0.0;
+      drawOutRectangles[indexOffset+1] = yOffset;
+      drawOutRectangles[indexOffset+2] = newCanvasWidth;
+      drawOutRectangles[indexOffset+3] = yOffset;
+      drawOutRectangles[indexOffset+4] = 0.0;
+      drawOutRectangles[indexOffset+5] = yOffset+newCanvasBlockHeight;
+      
+      //second triangle
+      drawOutRectangles[indexOffset+6] = 0.0;
+      drawOutRectangles[indexOffset+7] = yOffset+newCanvasBlockHeight;
+      drawOutRectangles[indexOffset+8] = newCanvasWidth;
+      drawOutRectangles[indexOffset+9] = yOffset;
+      drawOutRectangles[indexOffset+10] = newCanvasWidth;
+      drawOutRectangles[indexOffset+11] = yOffset+newCanvasBlockHeight;
+    }
+    
+    // images
+    drawOutImages = new Float32Array(numPatches*12);
+    var patchCells = (Math.floor(numPatches / 4) + Math.ceil(numPatches % 4));
+    var halfFilterWidth = (corrFilterWidth/2)/patchWidth;
+    var halfFilterHeight = (corrFilterWidth/2)/(patchHeight*patchCells);
+    var patchHeightT = patchHeight / (patchHeight*patchCells);
+    for (var i = 0;i < numPatches;i++) {
+      yOffset = Math.floor(i / 4)*patchHeightT;
+      indexOffset = i*12;
+      
+      //first triangle
+      drawOutImages[indexOffset] = halfFilterWidth;
+      drawOutImages[indexOffset+1] = yOffset+halfFilterHeight;
+      drawOutImages[indexOffset+2] = 1.0-halfFilterWidth;
+      drawOutImages[indexOffset+3] = yOffset+halfFilterHeight;
+      drawOutImages[indexOffset+4] = halfFilterWidth;
+      drawOutImages[indexOffset+5] = yOffset+patchHeightT-halfFilterHeight;
+      
+      //second triangle
+      drawOutImages[indexOffset+6] = halfFilterWidth;
+      drawOutImages[indexOffset+7] = yOffset+patchHeightT-halfFilterHeight;
+      drawOutImages[indexOffset+8] = 1.0-halfFilterWidth;
+      drawOutImages[indexOffset+9] = yOffset+halfFilterHeight;
+      drawOutImages[indexOffset+10] = 1.0-halfFilterWidth;
+      drawOutImages[indexOffset+11] = yOffset+patchHeightT-halfFilterHeight;
+    }
+    
+    // layer
+    drawOutLayer = new Float32Array(numPatches*6);
+    var layernum;
+    for (var i = 0;i < numPatches;i++) {
+      layernum = i % 4;
+      indexOffset = i*6;
+      drawOutLayer[indexOffset] = layernum;
+      drawOutLayer[indexOffset+1] = layernum;
+      drawOutLayer[indexOffset+2] = layernum;
+      drawOutLayer[indexOffset+3] = layernum;
+      drawOutLayer[indexOffset+4] = layernum;
+      drawOutLayer[indexOffset+5] = layernum;
+    }
   }
 
   this.getResponses = function(patches, drawOut) {
@@ -372,39 +445,45 @@ var webglFilter = function() {
     
     // pass patches into texture, each patch in either r, g, b or a
     var numPatches = patches.length;
-    var patchArray = [];
     var patchCells = (Math.floor(numPatches / 4) + Math.ceil(numPatches % 4));
     var textureWidth = patchWidth;
     var textureHeight = patchHeight*patchCells;
     var patchSize = patchWidth*patchHeight;
+    var patchArray = new Float32Array(patchSize*(patchCells+1)*4);
     
-    // TODO : optimize this block
+    var patchArrayIndex = 0;
+    var patchesIndex1 = 0;
+    var patchesIndex2 = 0;
     for (var i = 0;i < patchCells;i++) {
       for (var j = 0;j < patchHeight;j++) {
         for (var k = 0;k < patchWidth;k++) {
+          patchesIndex1 = i*4;
+          patchesIndex2 = (j*patchWidth) + k;
+          patchArrayIndex = ((patchSize*i) + patchesIndex2)*4;
+          
           //set r with first patch
-          if (i*4 < patches.length) {
-            patchArray[((patchSize*i) + (j*patchWidth) + k)*4] = patches[(i*4)][(j*patchWidth) + k];
+          if (patchesIndex1 < numPatches) {
+            patchArray[patchArrayIndex] = patches[patchesIndex1][patchesIndex2];
           } else {
-            patchArray[((patchSize*i) + (j*patchWidth) + k)*4] = 0;
+            patchArray[patchArrayIndex] = 0;
           }
           //set g with 2nd patch
-          if ((i*4)+1 < patches.length) {
-            patchArray[((patchSize*i) + (j*patchWidth) + k)*4 + 1] = patches[(i*4)+1][(j*patchWidth) + k];
+          if (patchesIndex1+1 < numPatches) {
+            patchArray[patchArrayIndex + 1] = patches[patchesIndex1+1][patchesIndex2];
           } else {
-            patchArray[((patchSize*i) + (j*patchWidth) + k)*4 + 1] = 0;
+            patchArray[patchArrayIndex + 1] = 0;
           }
           //set b with 3rd patch
-          if ((i*4)+2 < patches.length) {
-            patchArray[((patchSize*i) + (j*patchWidth) + k)*4 + 2] = patches[(i*4)+2][(j*patchWidth) + k];
+          if (patchesIndex1+2 < numPatches) {
+            patchArray[patchArrayIndex + 2] = patches[patchesIndex1+2][patchesIndex2];
           } else {
-            patchArray[((patchSize*i) + (j*patchWidth) + k)*4 + 2] = 0;
+            patchArray[patchArrayIndex + 2] = 0;
           }
           //set a with 4th patch
-          if ((i*4)+3 < patches.length) {
-            patchArray[((patchSize*i) + (j*patchWidth) + k)*4 + 3] = patches[(i*4)+3][(j*patchWidth) + k];
+          if (patchesIndex1+3 < numPatches) {
+            patchArray[patchArrayIndex + 3] = patches[patchesIndex1+3][patchesIndex2];
           } else {
-            patchArray[((patchSize*i) + (j*patchWidth) + k)*4 + 3] = 0;
+            patchArray[patchArrayIndex + 3] = 0;
           }
         }
       }
@@ -416,7 +495,7 @@ var webglFilter = function() {
       patchTex = gl.createTexture();
     }
     gl.bindTexture(gl.TEXTURE_2D, patchTex);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, textureWidth, textureHeight, 0, gl.RGBA, gl.FLOAT, new Float32Array(patchArray));
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, textureWidth, textureHeight, 0, gl.RGBA, gl.FLOAT, patchArray);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
@@ -432,9 +511,6 @@ var webglFilter = function() {
     gl.finish();
     
     if (drawOut) {
-      var newCanvasWidth = patchWidth-corrFilterWidth;
-      var newCanvasBlockHeight = patchHeight-corrFilterWidth;
-      var newCanvasHeight = newCanvasBlockHeight*numPatches;
       
       // switch programs
       gl.useProgram(patchDrawProgram);
@@ -454,87 +530,37 @@ var webglFilter = function() {
       var responsesLocation = gl.getUniformLocation(patchDrawProgram, "u_responses");
       gl.uniform1i(responsesLocation, 2);
       
-      // set attributes
-      // rectangles
-      var rectangles = [];
-      var yOffset;
-      for (var i = 0;i < numPatches;i++) {
-        yOffset = i*newCanvasBlockHeight;
-        //first triangle
-        rectangles = rectangles.concat(
-          [0.0, yOffset, 
-          newCanvasWidth, yOffset,
-          0.0, yOffset+newCanvasBlockHeight]
-        );
-        //second triangle
-        rectangles = rectangles.concat(
-          [0.0, yOffset+newCanvasBlockHeight, 
-          newCanvasWidth, yOffset,
-          newCanvasWidth, yOffset+newCanvasBlockHeight]
-        );
-      }
-      rectangles = new Float32Array(rectangles);
       if (first) {
         drawRectBuffer = gl.createBuffer();
       }
       gl.bindBuffer(gl.ARRAY_BUFFER, drawRectBuffer);
       gl.bufferData(
         gl.ARRAY_BUFFER, 
-        rectangles, 
+        drawOutRectangles, 
         gl.STATIC_DRAW);
       var positionLocation = gl.getAttribLocation(patchDrawProgram, "a_position_draw");
       gl.enableVertexAttribArray(positionLocation);
       gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
       
-      // images
-      var images = [];
-      var yOffset;
-      var halfFilterWidth = (corrFilterWidth/2)/patchWidth;
-      var halfFilterHeight = (corrFilterWidth/2)/(patchHeight*patchCells);
-      var patchHeightT = patchHeight / (patchHeight*patchCells);
-      for (var i = 0;i < numPatches;i++) {
-        yOffset = Math.floor(i / 4)*patchHeightT;
-        //first triangle
-        images = images.concat(
-          [halfFilterWidth, yOffset+halfFilterHeight, 
-          1.0-halfFilterWidth, yOffset+halfFilterHeight,
-          halfFilterWidth, yOffset+patchHeightT-halfFilterHeight]
-        );
-        //second triangle
-        images = images.concat(
-          [halfFilterWidth, yOffset+patchHeightT-halfFilterHeight, 
-          1.0-halfFilterWidth, yOffset+halfFilterHeight,
-          1.0-halfFilterWidth, yOffset+patchHeightT-halfFilterHeight]
-        );
-      }
-      images = new Float32Array(images);
       if (first) {
         drawImageBuffer = gl.createBuffer();
       }
       gl.bindBuffer(gl.ARRAY_BUFFER, drawImageBuffer);
       gl.bufferData(
         gl.ARRAY_BUFFER, 
-        images, 
+        drawOutImages, 
         gl.STATIC_DRAW);
       var textureLocation = gl.getAttribLocation(patchDrawProgram, "a_texCoord_draw");
       gl.enableVertexAttribArray(textureLocation);
       gl.vertexAttribPointer(textureLocation, 2, gl.FLOAT, false, 0, 0);
       
-      // layer
-      var layer = [];
-      var layernum;
-      for (var i = 0;i < numPatches;i++) {
-        layernum = i % 4;
-        layer = layer.concat([layernum, layernum, layernum, layernum, layernum, layernum]);
-      }
-      layer = new Float32Array(layer);
       if (first) {
         drawLayerBuffer = gl.createBuffer();
       }
       gl.bindBuffer(gl.ARRAY_BUFFER, drawLayerBuffer);
       gl.bufferData(
         gl.ARRAY_BUFFER, 
-        layer, 
+        drawOutLayer, 
         gl.STATIC_DRAW);
       var layerLocation = gl.getAttribLocation(patchDrawProgram, "a_patchChoice_draw");
       gl.enableVertexAttribArray(layerLocation);
