@@ -54,8 +54,14 @@ var clm = {
 		var modelWidth;
 		
 		var halfSearchWindow, vecProbs, responsePixels;
-		var updatePosition = new Float64Array(2);
-		var vecpos = new Float64Array(2);
+		if(typeof Float64Array !== 'undefined') {
+      var updatePosition = new Float64Array(2);
+      var vecpos = new Float64Array(2);
+    } else {
+      var updatePosition = new Array(2);
+      var vecpos = new Array(2);
+    }
+    var pw, pl, pdataLength;
 		
 		if (pModel.hints && mosseFilter && left_eye_filter && right_eye_filter && nose_filter) {
 		  var mossef_lefteye = new mosseFilter();
@@ -166,23 +172,30 @@ var clm = {
 			  mosseCalc.init(weights, numPatches, patchSize, patchSize);
 			}
 			
+			if (patchType == "SVM") {
+			  pw = pl = patchSize+searchWindow;
+			} else {
+			  pw = pl = searchWindow;
+			}
+			pdataLength = pw*pl;
 			halfSearchWindow = searchWindow/2;
 			responsePixels = searchWindow*searchWindow;
-			vecProbs = new Float64Array(responsePixels);
+			if(typeof Float64Array !== 'undefined') {
+			  vecProbs = new Float64Array(responsePixels);
+			  for (var i = 0;i < numPatches;i++) {
+			    patches[i] = new Float64Array(pdataLength);
+			  }
+			} else {
+			  vecProbs = new Array(responsePixels);
+			  for (var i = 0;i < numPatches;i++) {
+			    patches[i] = new Array(pdataLength);
+			  }
+			}
 			
-			//console.log('ended initialization');
 			for (var i = 0;i < numPatches;i++) {
 			  learningRate[i] = 1.0;
 		    prevCostFunc[i] = 0.0;
 			}
-		}
-		
-		var gaussianProb = function(mean, coordinate, variance) {
-		  // calculate pdf gaussian probability
-		  var dx = coordinate[0] - mean[0];
-			var dy = coordinate[1] - mean[1];
-			
-			return Math.exp(-0.5*((dx*dx)+(dy*dy))/variance);
 		}
 		
 		var createJacobian = function(parameters, eigenVectors) {
@@ -291,7 +304,7 @@ var clm = {
 		  return currentParameters;
 		}
 		
-		var gpopt = function(responseWidth, currentPositionsj, updatePosition, vecProbs, responses, opj0, opj1, i, j, variance) {
+		var gpopt = function(responseWidth, currentPositionsj, updatePosition, vecProbs, responses, opj0, opj1, j, variance) {
       var pos_idx = 0;
       var vpsum = 0;
       var dx, dy;
@@ -302,9 +315,8 @@ var clm = {
           
           dx = currentPositionsj[0] - updatePosition[0];
           dy = currentPositionsj[1] - updatePosition[1];
-          
-          //vecProbs[pos_idx] = responses[j][pos_idx] * gaussianProb(updatePosition, currentPositions[j], varianceSeq[i]);
           vecProbs[pos_idx] = responses[j][pos_idx] * Math.exp(-0.5*((dx*dx)+(dy*dy))/variance);
+          
           vpsum += vecProbs[pos_idx];
           pos_idx++;
         }
@@ -338,7 +350,7 @@ var clm = {
 			
 			var scaling, translateX, translateY, rotation;
 			var croppedPatches = [];
-			var ptch, px, py, pw;
+			var ptch, px, py;
 			
 			if (!first) {
         // TODO: check here if the previous tracked position is good enough, every 100th frame?
@@ -568,36 +580,19 @@ var clm = {
 			//	get cropped images around new points based on model parameters (not scaled and translated)
 			var patchPositions = calculatePositions(currentParameters, false);
 			
-			var pw, pl;
-			if (patchType == "SVM") {
-			  pw = pl = patchSize+searchWindow;
-			} else {
-			  pw = pl = searchWindow;
-			}
-			var pdataLength = pw*pl;
-			
 			var pdata, pmatrix, grayscaleColor;
 			for (var i = 0; i < numPatches; i++) {
 			  px = patchPositions[i][0]-(pw/2);
 			  py = patchPositions[i][1]-(pl/2);
 			  ptch = sketchCC.getImageData(px >> 0, py >> 0, pw, pl);
-			  // add channels and convert to grayscale
-			  // load patchdata to matrix
 			  pdata = ptch.data;
 			  
-			  /*pmatrix = numeric.rep([pw, pl],0);
-			  for (var j = 0;j < pdataLength;j++) {
-			    grayscaleColor = pdata[j*4]*0.3 + pdata[(j*4)+1]*0.59 + pdata[(j*4)+2]*0.11;
-			    pmatrix[j % pw][(j / pw) >> 0] = grayscaleColor;
-			  }*/
-			  
-			  // TODO: preinitialize this
-			  pmatrix = new Float64Array(pdataLength);
+			  // convert to grayscale
+			  pmatrix = patches[i];
 			  for (var j = 0;j < pdataLength;j++) {
 			    grayscaleColor = pdata[j*4]*0.3 + pdata[(j*4)+1]*0.59 + pdata[(j*4)+2]*0.11;
 			    pmatrix[j] = grayscaleColor;
 			  }
-			  patches[i] = pmatrix;
 			}
 			
 			/*testing of printing weights*/
@@ -750,7 +745,6 @@ var clm = {
 				// calculate jacobian
 				jac = createJacobian(currentParameters, eigenVectors);
 
-				/* continue webgl work here? */
 				//debugging
 				//var debugMVs = [];
 				//
@@ -787,7 +781,7 @@ var clm = {
 				    vpsum += vecProbs[k];
 				  }*/
 				  
-				  var vpsum = gpopt(searchWindow, currentPositions[j], updatePosition, vecProbs, responses, opj0, opj1, i, j, varianceSeq[i]);
+				  var vpsum = gpopt(searchWindow, currentPositions[j], updatePosition, vecProbs, responses, opj0, opj1, j, varianceSeq[i]);
 				  
 				  //debugging
 				  //var debugMatrixMV = numeric.rep([searchWindow,searchWindow],0.0);
@@ -825,10 +819,10 @@ var clm = {
 				  
 				  // compute mean shift vectors
 				  // extrapolate meanshiftvectors
-				  //var msv = [];
-				  //msv[0] = learningRate[j]*(vecpos[0] - currentPositions[j][0]);
-				  //msv[1] = learningRate[j]*(vecpos[1] - currentPositions[j][1]);
-				  //meanshiftVectors[j] = msv;
+				  /*var msv = [];
+				  msv[0] = learningRate[j]*(vecpos[0] - currentPositions[j][0]);
+				  msv[1] = learningRate[j]*(vecpos[1] - currentPositions[j][1]);
+				  meanshiftVectors[j] = msv;*/
 				  meanshiftVectors[j] = [vecpos[0] - currentPositions[j][0], vecpos[1] - currentPositions[j][1]];
 				  
 				  //if (isNaN(msv[0]) || isNaN(msv[1])) debugger;
@@ -858,7 +852,6 @@ var clm = {
           sketchCC.putImageData(psci, px >> 0, py >> 0);
         }*/
 				
-				/* end webgl work here */
 				var meanShiftVector = numeric.rep([numPatches*2, 1],0.0);
 				for (var k = 0;k < numPatches;k++) {
 				  meanShiftVector[k*2][0] = meanshiftVectors[k][0];
