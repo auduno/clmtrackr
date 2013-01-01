@@ -1,4 +1,4 @@
-//requires: ccv, numeric.js
+//requires: jsfeat, numeric.js
 
 var clm = {
 	tracker : function(params) {
@@ -51,7 +51,7 @@ var clm = {
 		var prevCostFunc = []
 		
 		var searchWindow;
-		var modelWidth;
+		var modelWidth, modelHeight;
 		
 		var halfSearchWindow, vecProbs, responsePixels;
 		if(typeof Float64Array !== 'undefined') {
@@ -64,10 +64,13 @@ var clm = {
     var pw, pl, pdataLength;
 		
 		if (pModel.hints && mosseFilter && left_eye_filter && right_eye_filter && nose_filter) {
+		  //var mossef_lefteye = new mosseFilter({drawResponse : document.getElementById('overlay2')});
 		  var mossef_lefteye = new mosseFilter();
       mossef_lefteye.load(left_eye_filter);
+      //var mossef_righteye = new mosseFilter({drawResponse : document.getElementById('overlay2')});
       var mossef_righteye = new mosseFilter();
       mossef_righteye.load(right_eye_filter);
+      //var mossef_nose = new mosseFilter({drawResponse : document.getElementById('overlay2')});
       var mossef_nose = new mosseFilter();
       mossef_nose.load(nose_filter);
       var mossef_face = new mosseFilter();
@@ -105,6 +108,7 @@ var clm = {
 			}
 			numParameters = pModel.shapeModel.numEvalues;
 			modelWidth = pModel.patchModel.canvasSize[0];
+			modelHeight = pModel.patchModel.canvasSize[1];
 			
 			// load eigenvectors
 			eigenVectors = numeric.rep([numPatches*2,numParameters],0.0);
@@ -245,8 +249,8 @@ var clm = {
 			var numParameters = parameters.length;
 			var positions = [];
 			for (var i = 0;i < numPatches;i++) {
-				x = pModel.shapeModel.meanShape[i][0];
-				y = pModel.shapeModel.meanShape[i][1];
+				x = meanShape[i][0];
+				y = meanShape[i][1];
 				for (var j = 0;j < numParameters-4;j++) {
 					x += pModel.shapeModel.eigenVectors[(i*2)][j]*parameters[j+4];
 					y += pModel.shapeModel.eigenVectors[(i*2)+1][j]*parameters[j+4];
@@ -287,11 +291,11 @@ var clm = {
         return false;
       }
       
-      for (var i = 1; i < comp.length; i++) {
+      /*for (var i = 1; i < comp.length; i++) {
         if (comp[i].confidence > candidate.confidence) {
           candidate = comp[i];
         }
-      }
+      }*/
       
       return candidate;
 		}
@@ -342,6 +346,64 @@ var clm = {
       }
     }
 		
+		
+		var checkTracking = function(element) {
+      
+      //get centerpoint and approximate width
+      var centerpoint = [];
+      centerpoint[0] = currentPositions[62][0];
+      centerpoint[1] = currentPositions[62][1];
+      //get xmin and xmax
+      var xmin = 10000000;
+      var xmax = 0;
+      for (var i = 0;i < currentPositions.length;i++) {
+        if (currentPositions[i][0] < xmin) {
+          xmin = currentPositions[i][0];
+        }
+        if (currentPositions[i][0] > xmax) {
+          xmax = currentPositions[i][0];
+        }
+      }
+      var modelwidth = xmax-xmin
+      var face_result = mossef_face.track(element, Math.round(centerpoint[0]-(modelwidth/2)), Math.round(centerpoint[1]-(modelwidth/2)), modelwidth, modelwidth, false, false, true);
+      var peak = mossef_face.peak_prev;
+      var psr = mossef_face.psr_prev;
+      // TODO : check if peak is within center of model?
+      // or check if peak/sidelobe is over some threshold
+      // else, set first = true
+      
+      var peak_avg = 0;
+      face_peak.push(peak);
+      if (face_peak.length > 5) {
+        face_peak.splice(0,1);
+        for (var i = 0;i < face_peak.length;i++) {
+          peak_avg += face_peak[i]; 
+        }
+        peak_avg /= face_peak.length;
+      }
+      var diffx = centerpoint[0]-(face_result[0]+centerpoint[0]-(modelwidth/2));
+      var diffy = centerpoint[1]-(face_result[1]+centerpoint[1]-(modelwidth/2));
+      var diff = Math.sqrt(diffx*diffx + diffy*diffy)/modelwidth;
+      var diff_avg = 0;
+      face_diff.push(diff);
+      if (face_diff.length > 5) {
+        face_diff.splice(0,1);
+        for (var i = 0;i < face_diff.length;i++) {
+          diff_avg += face_diff[i]; 
+        }
+        diff_avg /= face_diff.length;
+      }
+      
+      //document.getElementById('peak').innerHTML = "peak average :"+peak_avg;
+      //document.getElementById('psr').innerHTML = "diff :"+diff_avg;
+      
+      if ((face_peak.length > 5 && peak_avg < 0.10) || (face_diff.length && diff_avg > 0.4)) {
+        return false
+      } else {
+        return true
+      } 
+		}
+		
 		/*
      *  element : canvas or video element
      *  TODO: should be able to take img element as well
@@ -356,55 +418,7 @@ var clm = {
         // TODO: check here if the previous tracked position is good enough, every 100th frame?
         facecheck_count += 1;
         if (facecheck_count % 10 == 0) {
-          //get centerpoint and approximate width
-          var centerpoint = [];
-          centerpoint[0] = currentPositions[62][0];
-          centerpoint[1] = currentPositions[62][1];
-          //get xmin and xmax
-          var xmin = 10000000;
-          var xmax = 0;
-          for (var i = 0;i < currentPositions.length;i++) {
-            if (currentPositions[i][0] < xmin) {
-              xmin = currentPositions[i][0];
-            }
-            if (currentPositions[i][0] > xmax) {
-              xmax = currentPositions[i][0];
-            }
-          }
-          var modelwidth = xmax-xmin
-          var face_result = mossef_face.track(element, Math.round(centerpoint[0]-(modelwidth/2)), Math.round(centerpoint[1]-(modelwidth/2)), modelwidth, modelwidth, false, false, true);
-          var peak = mossef_face.peak_prev;
-          var psr = mossef_face.psr_prev;
-          // TODO : check if peak is within center of model?
-          // or check if peak/sidelobe is over some threshold
-          // else, set first = true
-          
-          var peak_avg = 0;
-          face_peak.push(peak);
-          if (face_peak.length > 5) {
-            face_peak.splice(0,1);
-            for (var i = 0;i < face_peak.length;i++) {
-              peak_avg += face_peak[i]; 
-            }
-            peak_avg /= face_peak.length;
-          }
-          var diffx = centerpoint[0]-(face_result[0]+centerpoint[0]-(modelwidth/2));
-          var diffy = centerpoint[1]-(face_result[1]+centerpoint[1]-(modelwidth/2));
-          var diff = Math.sqrt(diffx*diffx + diffy*diffy)/modelwidth;
-          var diff_avg = 0;
-          face_diff.push(diff);
-          if (face_diff.length > 5) {
-            face_diff.splice(0,1);
-            for (var i = 0;i < face_diff.length;i++) {
-              diff_avg += face_diff[i]; 
-            }
-            diff_avg /= face_diff.length;
-          }
-          
-          //document.getElementById('peak').innerHTML = "peak average :"+peak_avg;
-          //document.getElementById('psr').innerHTML = "diff :"+diff_avg;
-          
-          if ((face_peak.length > 5 && peak_avg < 0.10) || (face_diff.length && diff_avg > 0.5)) {
+          if (!checkTracking(element)) {
             first = true;
             face_diff = [];
             face_peak = [];
@@ -426,7 +440,7 @@ var clm = {
 				  return false;
 				}
 				
-				// calculate modelWidth/height from meanshape
+				// calculate model Width/height from meanshape
 				var xmin, ymin, xmax, ymax;
         xmin = ymin = 1000000;
         xmax = ymax = 0;
@@ -440,33 +454,36 @@ var clm = {
         var modelheight = ymax-ymin;
         
         if (pModel.hints && mosseFilter && left_eye_filter && right_eye_filter && nose_filter) {
-				  var eyeFilterWidth = candidate.width * 4.5/10;
-          var noseFilterWidth = candidate.width * 6/10;
+				  var noseFilterWidth = candidate.width * 4.5/10;
+          var eyeFilterWidth = candidate.width * 6/10;
+          //var eyeFilterWidth = candidate.width * 4.5/10;
           
           // detect position of eyes and nose via mosse filter
+          //element.pause();
+          
+          /*var canvasContext = document.getElementById('overlay2').getContext('2d')
+          canvasContext.clearRect(0,0,320,240);
+          canvasContext.strokeRect(candidate.x, candidate.y, candidate.width, candidate.height);*/
+          
+          var nose_result = mossef_nose.track(element, Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2)), Math.round(candidate.y+candidate.height*(5/8)-(noseFilterWidth/2)), noseFilterWidth, noseFilterWidth, false);
           var right_result = mossef_righteye.track(element, Math.round(candidate.x+(candidate.width*3/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth, false);
           var left_result = mossef_lefteye.track(element, Math.round(candidate.x+(candidate.width/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth, false);
           //var nose_result = mossef_nose.track(element, Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2)), Math.round(candidate.y+candidate.height*(3/4)-(noseFilterWidth/2)), noseFilterWidth, noseFilterWidth, false);
-          var nose_result = mossef_nose.track(element, Math.round(candidate.x+(candidate.width/2)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(5/8)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth, false);
           right_eye_position[0] = Math.round(candidate.x+(candidate.width*3/4)-(eyeFilterWidth/2))+right_result[0];
           right_eye_position[1] = Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2))+right_result[1];
           left_eye_position[0] = Math.round(candidate.x+(candidate.width/4)-(eyeFilterWidth/2))+left_result[0];
           left_eye_position[1] = Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2))+left_result[1];
           //nose_position[0] = Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2))+nose_result[0];
           //nose_position[1] = Math.round(candidate.y+candidate.height*(3/4)-(noseFilterWidth/2))+nose_result[1];
-          nose_position[0] = Math.round(candidate.x+(candidate.width/2)-(eyeFilterWidth/2))+nose_result[0];
-          nose_position[1] = Math.round(candidate.y+candidate.height*(5/8)-(eyeFilterWidth/2))+nose_result[1];
+          nose_position[0] = Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2))+nose_result[0];
+          nose_position[1] = Math.round(candidate.y+candidate.height*(5/8)-(noseFilterWidth/2))+nose_result[1];
           
-          /*var canvasContext = document.getElementById('overlay').getContext('2d')
-          
-          canvasContext.strokeRect(candidate.x, candidate.y, candidate.width, candidate.height);
-          canvasContext.strokeRect(Math.round(candidate.x+(candidate.width*3/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth);
+          /*canvasContext.strokeRect(Math.round(candidate.x+(candidate.width*3/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth);
           canvasContext.strokeRect(Math.round(candidate.x+(candidate.width/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth);
           //canvasContext.strokeRect(Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2)), Math.round(candidate.y+candidate.height*(3/4)-(noseFilterWidth/2)), noseFilterWidth, noseFilterWidth);
-          canvasContext.strokeRect(Math.round(candidate.x+(candidate.width/2)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(5/8)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth);
+          canvasContext.strokeRect(Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2)), Math.round(candidate.y+candidate.height*(5/8)-(noseFilterWidth/2)), noseFilterWidth, noseFilterWidth);
           
-          //element.pause()
-          canvasContext.fillStyle = "rgb(200,200,200)";
+          canvasContext.fillStyle = "rgb(0,0,250)";
           canvasContext.beginPath();
           canvasContext.arc(left_eye_position[0], left_eye_position[1], 3, 0, Math.PI*2, true);
           canvasContext.closePath();
@@ -480,7 +497,10 @@ var clm = {
           canvasContext.beginPath();
           canvasContext.arc(nose_position[0], nose_position[1], 3, 0, Math.PI*2, true);
           canvasContext.closePath();
-          canvasContext.fill();*/
+          canvasContext.fill();
+          
+          debugger;
+          canvasContext.clearRect(0,0,320,240);*/
           
           // get eye and nose positions of model
           var lep = pModel.hints.leftEye;
@@ -493,6 +513,12 @@ var clm = {
           translateY = procrustes_params[1];
           scaling = procrustes_params[2];
           rotation = procrustes_params[3];
+          //debugger;
+          //element.play();
+          
+          //var maxscale = 1.10;
+          //if ((scaling*modelHeight)/candidate.height < maxscale*0.7) scaling = (maxscale*0.7*candidate.height)/modelHeight;
+          //if ((scaling*modelHeight)/candidate.height > maxscale*1.2) scaling = (maxscale*1.2*candidate.height)/modelHeight;
           
           /*var smean = [0,0];
           smean[0] += lep[0];
@@ -714,6 +740,9 @@ var clm = {
 			  pptcc.putImageData(psci, 0, searchWindow*i);
 			}*/
 			
+			//function:
+			// input: canvas to draw on, data, width, height, transposed
+			
 			// print responses
 			/*sketchCC.clearRect(0, 0, sketchW, sketchH);
 			for (var i = 0; i < numPatches; i++) {
@@ -722,8 +751,7 @@ var clm = {
 			  var psci = sketchCC.createImageData(searchWindow,searchWindow);
 			  var pscidata = psci.data;
 			  for (var j = 0;j < (searchWindow)*(searchWindow);j++) {
-			    //var val = responses[i].getValueAt(j % searchWindow, (j / searchWindow) >> 0);
-			    var val = responses[i][((j % searchWindow)*searchWindow) + ((j / searchWindow) >> 0)]
+			    var val = responses[i][(j % searchWindow) + ((j / searchWindow) >> 0)*searchWindow]
 			    val = (val)*255;
 			    val = val > 255 ? 255 : val;
 			    val = val < 0 ? 0 : val;
@@ -733,6 +761,7 @@ var clm = {
 			    pscidata[(j*4)+3] = 255;
 			  }
 			  sketchCC.putImageData(psci, px >> 0, py >> 0);
+			  debugger;
 			}*/
 			
 			// iterate until convergence or max 10, 20 iterations?:
@@ -1003,8 +1032,8 @@ var clm = {
 			var i, x, y, a, b;
 			for (var p = 0;p < path.length;p++) {
 				i = path[p]*2;
-				x = pModel.shapeModel.meanShape[i/2][0];
-				y = pModel.shapeModel.meanShape[i/2][1];
+				x = meanShape[i/2][0];
+				y = meanShape[i/2][1];
 				for (var j = 0;j < numParameters;j++) {
 					x += pModel.shapeModel.eigenVectors[i][j]*dp[j+4];
 					y += pModel.shapeModel.eigenVectors[i+1][j]*dp[j+4];
@@ -1028,8 +1057,8 @@ var clm = {
 		function drawPoint(canvasContext, point, dp) {
 		  var i, x, y, a, b;
 		  i = point*2;
-			x = pModel.shapeModel.meanShape[i/2][0];
-      y = pModel.shapeModel.meanShape[i/2][1];
+			x = meanShape[i/2][0];
+      y = meanShape[i/2][1];
 			for (var j = 0;j < numParameters;j++) {
 				x += pModel.shapeModel.eigenVectors[i][j]*dp[j+4];
 				y += pModel.shapeModel.eigenVectors[i+1][j]*dp[j+4];
