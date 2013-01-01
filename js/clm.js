@@ -440,6 +440,8 @@ var clm = {
       if (le_peaks.length > 5) {
         le_peaks.splice(0,1);
         re_peaks.splice(0,1);
+      }
+      if (le_peaks.length == 5) {
         for (var i = 0;i < le_peaks.length;i++) {
           le_peak_avg += le_peaks[i]; 
           re_peak_avg += re_peaks[i]; 
@@ -634,6 +636,8 @@ var clm = {
             first = true;
             face_diff = [];
             face_peak = [];
+            le_peaks = [];
+            re_peaks = [];
             for (var i = 0;i < currentParameters.length;i++) {
               currentParameters[i] = 0;
               previousParameters = [];
