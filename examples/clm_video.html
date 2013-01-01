@@ -17,6 +17,13 @@
 			  left: 0px;
 			}
 			
+			#overlay2 {
+			  display: none;
+			  position: absolute;
+			  top: 0px;
+			  left: 0px;
+			}
+			
 			#sketch {
 			  display: none;
 			}
@@ -49,7 +56,7 @@
 		<script src="./ext_js/right_eye_filter.js"></script>
 		<script src="./ext_js/nose_filter.js"></script>
 		<script src="./ext_js/entire_face_filter.js"></script>
-		<script src="../models/model_spca_8.js"></script>
+		<script src="../models/model_pca_7_svm.js"></script>
 		<!--<script src="../models/smallmodel.js"></script>-->
 		<script src="../js/clm.js"></script>
 		<script src="./ext_js/ccv.js"></script>
@@ -62,6 +69,7 @@
       <source src="./media/franck.ogv" type="video/ogg"/>
 		</video>
 		<canvas id="overlay" width="370" height="288"></canvas>
+		<canvas id="overlay2" width="370" height="288"></canvas>
 		<canvas id="filter"></canvas>
 		<canvas id="sketch" width="138" height="138"></canvas>
 		<input type="button" value="wait, loading video" disabled="disabled" onclick="start()" id="startbutton"></input>
@@ -70,10 +78,7 @@
 		<script>
 		   var skcc = document.getElementById('sketch');
 		   
-		   var overlay = document.getElementById('overlay');
-		   overlay.style = "position:absolute";
-		   
-		   var ctrack = new clm.tracker({'constantVelocity' : true});
+		   var ctrack = new clm.tracker({'constantVelocity' : true, searchWindow : 10});
 		   ctrack.init(skcc);
 		   
 		   stats = new Stats();

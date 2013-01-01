@@ -641,8 +641,8 @@ var pModel = {
     ]
   },
   hints : {
-    leftEye : [28.40, 23.28],
-    rightEye : [46.44, 22.25],
-    nose : [38.02, 33.29]
+    leftEye : [30.40, 25.28],
+    rightEye : [48.44, 24.25],
+    nose : [40.02, 35.29]
   }
 };
