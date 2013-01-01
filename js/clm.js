@@ -88,6 +88,9 @@ var clm = {
     var face_peak = [];
     var face_diff = [];
 		
+    var le_peaks = [];
+    var re_peaks = [];
+    
 		var webglFi, mosseCalc;
 		
 		this.init = function(canvas) {
@@ -271,7 +274,7 @@ var clm = {
 		  return calculatePositions(parameters, true);
 		}
 		
-		this.detectPosition = function(el) {
+		var detectPosition = function(el) {
 		  var canvas = document.createElement('canvas');
 		  canvas.width = el.width;
 		  canvas.height = el.height;
@@ -348,6 +351,7 @@ var clm = {
 		
 		
 		var checkTracking = function(element) {
+		  // uses mosse face filter and checks whether peak is too low value or difference between peak_pos and midpoint is too far
       
       //get centerpoint and approximate width
       var centerpoint = [];
@@ -404,6 +408,214 @@ var clm = {
       } 
 		}
 		
+		var checkTracking2 = function(element) {
+		  // uses eye filters and checks whether peak is too low value
+      
+      //get centerpoint and approximate width
+      var centerpoint = [];
+      centerpoint[0] = currentPositions[62][0];
+      centerpoint[1] = currentPositions[62][1];
+      //get xmin and xmax
+      var xmin = 10000000;
+      var xmax = 0;
+      for (var i = 0;i < currentPositions.length;i++) {
+        if (currentPositions[i][0] < xmin) {
+          xmin = currentPositions[i][0];
+        }
+        if (currentPositions[i][0] > xmax) {
+          xmax = currentPositions[i][0];
+        }
+      }
+      var modelwidth = xmax-xmin;
+      
+      var le_result = mossef_lefteye.track(element, Math.round(currentPositions[27][0]-(modelwidth/3)), Math.round(currentPositions[27][1]-(modelwidth/3)), modelwidth*2/3, modelwidth*2/3, false, false, true);
+      var re_result = mossef_righteye.track(element, Math.round(currentPositions[32][0]-(modelwidth/3)), Math.round(currentPositions[32][1]-(modelwidth/3)), modelwidth*2/3, modelwidth*2/3, false, false, true);
+      var le_peak = mossef_lefteye.peak_prev;
+      var re_peak = mossef_righteye.peak_prev;
+      
+      var le_peak_avg = 0;
+      var re_peak_avg = 0;
+      le_peaks.push(le_peak);
+      re_peaks.push(re_peak);
+      if (le_peaks.length > 5) {
+        le_peaks.splice(0,1);
+        re_peaks.splice(0,1);
+        for (var i = 0;i < le_peaks.length;i++) {
+          le_peak_avg += le_peaks[i]; 
+          re_peak_avg += re_peaks[i]; 
+        }
+        le_peak_avg /= le_peaks.length;
+        re_peak_avg /= re_peaks.length;
+      }
+      
+      /*var diffx = centerpoint[0]-(face_result[0]+centerpoint[0]-(modelwidth/2));
+      var diffy = centerpoint[1]-(face_result[1]+centerpoint[1]-(modelwidth/2));
+      var diff = Math.sqrt(diffx*diffx + diffy*diffy)/modelwidth;
+      var diff_avg = 0;
+      face_diff.push(diff);
+      if (face_diff.length > 5) {
+        face_diff.splice(0,1);
+        for (var i = 0;i < face_diff.length;i++) {
+          diff_avg += face_diff[i]; 
+        }
+        diff_avg /= face_diff.length;
+      }*/
+      
+      //document.getElementById('peak').innerHTML = "left eye peak :"+le_peak_avg;
+      //document.getElementById('psr').innerHTML = "right eye peak :"+re_peak_avg;
+      
+      /*if ((face_peak.length > 5 && peak_avg < 0.10) || (face_diff.length && diff_avg > 0.4)) {
+        return false
+      } else {
+        return true
+      }*/
+      
+      if ((le_peaks.length == 5 && le_peak_avg < 0.10) || (re_peaks.length == 5 && re_peak_avg < 0.10)) {
+        return false;
+      }
+      return true;
+		}
+		
+		var getInitialPosition = function(element) {
+		  var det = detectPosition(element);
+      if (!det) {
+        // if no face found, stop.
+        return false;
+      }
+      
+      // calculate model Width/height from meanshape
+      var xmin, ymin, xmax, ymax;
+      xmin = ymin = 1000000;
+      xmax = ymax = 0;
+      for (var i = 0;i < meanShape.length;i++) {
+        xmin = meanShape[i][0] < xmin ? meanShape[i][0] : xmin;
+        xmax = meanShape[i][0] > xmax ? meanShape[i][0] : xmax;
+        ymin = meanShape[i][1] < ymin ? meanShape[i][1] : ymin;
+        ymax = meanShape[i][1] > ymax ? meanShape[i][1] : ymax;
+      }
+      var modelwidth = xmax-xmin;
+      var modelheight = ymax-ymin;
+      
+      if (pModel.hints && mosseFilter && left_eye_filter && right_eye_filter && nose_filter) {
+        var noseFilterWidth = candidate.width * 4.5/10;
+        var eyeFilterWidth = candidate.width * 6/10;
+        //var eyeFilterWidth = candidate.width * 4.5/10;
+        
+        // detect position of eyes and nose via mosse filter
+        //element.pause();
+        
+        /*var canvasContext = document.getElementById('overlay2').getContext('2d')
+        canvasContext.clearRect(0,0,320,240);
+        canvasContext.strokeRect(candidate.x, candidate.y, candidate.width, candidate.height);*/
+        
+        var nose_result = mossef_nose.track(element, Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2)), Math.round(candidate.y+candidate.height*(5/8)-(noseFilterWidth/2)), noseFilterWidth, noseFilterWidth, false);
+        var right_result = mossef_righteye.track(element, Math.round(candidate.x+(candidate.width*3/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth, false);
+        var left_result = mossef_lefteye.track(element, Math.round(candidate.x+(candidate.width/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth, false);
+        //var nose_result = mossef_nose.track(element, Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2)), Math.round(candidate.y+candidate.height*(3/4)-(noseFilterWidth/2)), noseFilterWidth, noseFilterWidth, false);
+        right_eye_position[0] = Math.round(candidate.x+(candidate.width*3/4)-(eyeFilterWidth/2))+right_result[0];
+        right_eye_position[1] = Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2))+right_result[1];
+        left_eye_position[0] = Math.round(candidate.x+(candidate.width/4)-(eyeFilterWidth/2))+left_result[0];
+        left_eye_position[1] = Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2))+left_result[1];
+        //nose_position[0] = Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2))+nose_result[0];
+        //nose_position[1] = Math.round(candidate.y+candidate.height*(3/4)-(noseFilterWidth/2))+nose_result[1];
+        nose_position[0] = Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2))+nose_result[0];
+        nose_position[1] = Math.round(candidate.y+candidate.height*(5/8)-(noseFilterWidth/2))+nose_result[1];
+        
+        /*canvasContext.strokeRect(Math.round(candidate.x+(candidate.width*3/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth);
+        canvasContext.strokeRect(Math.round(candidate.x+(candidate.width/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth);
+        //canvasContext.strokeRect(Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2)), Math.round(candidate.y+candidate.height*(3/4)-(noseFilterWidth/2)), noseFilterWidth, noseFilterWidth);
+        canvasContext.strokeRect(Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2)), Math.round(candidate.y+candidate.height*(5/8)-(noseFilterWidth/2)), noseFilterWidth, noseFilterWidth);
+        
+        canvasContext.fillStyle = "rgb(0,0,250)";
+        canvasContext.beginPath();
+        canvasContext.arc(left_eye_position[0], left_eye_position[1], 3, 0, Math.PI*2, true);
+        canvasContext.closePath();
+        canvasContext.fill();
+        
+        canvasContext.beginPath();
+        canvasContext.arc(right_eye_position[0], right_eye_position[1], 3, 0, Math.PI*2, true);
+        canvasContext.closePath();
+        canvasContext.fill();
+        
+        canvasContext.beginPath();
+        canvasContext.arc(nose_position[0], nose_position[1], 3, 0, Math.PI*2, true);
+        canvasContext.closePath();
+        canvasContext.fill();
+        
+        debugger;
+        canvasContext.clearRect(0,0,320,240);*/
+        
+        // get eye and nose positions of model
+        var lep = pModel.hints.leftEye;
+        var rep = pModel.hints.rightEye;
+        var mep = pModel.hints.nose;
+        
+        // get scaling, rotation, etc. via procrustes analysis
+        var procrustes_params = procrustes([left_eye_position, right_eye_position, nose_position], [lep, rep, mep]);
+        translateX = procrustes_params[0];
+        translateY = procrustes_params[1];
+        scaling = procrustes_params[2];
+        rotation = procrustes_params[3];
+        //debugger;
+        //element.play();
+        
+        //var maxscale = 1.10;
+        //if ((scaling*modelHeight)/candidate.height < maxscale*0.7) scaling = (maxscale*0.7*candidate.height)/modelHeight;
+        //if ((scaling*modelHeight)/candidate.height > maxscale*1.2) scaling = (maxscale*1.2*candidate.height)/modelHeight;
+        
+        /*var smean = [0,0];
+        smean[0] += lep[0];
+        smean[1] += lep[1];
+        smean[0] += rep[0];
+        smean[1] += rep[1];
+        smean[0] += mep[0];
+        smean[1] += mep[1];
+        smean[0] /= 3;
+        smean[1] /= 3;
+        
+        var nulep = [(lep[0]*scaling*Math.cos(-rotation)+lep[1]*scaling*Math.sin(-rotation))+translateX, (lep[0]*scaling*(-Math.sin(-rotation)) + lep[1]*scaling*Math.cos(-rotation))+translateY];
+        var nurep = [(rep[0]*scaling*Math.cos(-rotation)+rep[1]*scaling*Math.sin(-rotation))+translateX, (rep[0]*scaling*(-Math.sin(-rotation)) + rep[1]*scaling*Math.cos(-rotation))+translateY];
+        var numep = [(mep[0]*scaling*Math.cos(-rotation)+mep[1]*scaling*Math.sin(-rotation))+translateX, (mep[0]*scaling*(-Math.sin(-rotation)) + mep[1]*scaling*Math.cos(-rotation))+translateY];
+        
+        canvasContext.fillStyle = "rgb(200,10,100)";
+        canvasContext.beginPath();
+        canvasContext.arc(nulep[0], nulep[1], 3, 0, Math.PI*2, true);
+        canvasContext.closePath();
+        canvasContext.fill();
+        
+        canvasContext.beginPath();
+        canvasContext.arc(nurep[0], nurep[1], 3, 0, Math.PI*2, true);
+        canvasContext.closePath();
+        canvasContext.fill();
+        
+        canvasContext.beginPath();
+        canvasContext.arc(numep[0], numep[1], 3, 0, Math.PI*2, true);
+        canvasContext.closePath();
+        canvasContext.fill();*/
+        
+        currentParameters[0] = (scaling*Math.cos(rotation))-1;
+        currentParameters[1] = (scaling*Math.sin(rotation));
+        currentParameters[2] = translateX;
+        currentParameters[3] = translateY;
+        
+        //this.draw(document.getElementById('overlay'), currentParameters);
+        
+      } else {
+        scaling = candidate.width/modelheight;
+        var ccc = document.getElementById('overlay').getContext('2d');
+        ccc.strokeRect(candidate.x,candidate.y,candidate.width,candidate.height);
+        translateX = candidate.x-(xmin*scaling)+0.1*candidate.width;
+        translateY = candidate.y-(ymin*scaling)+0.25*candidate.height;
+        currentParameters[0] = scaling-1;
+        currentParameters[2] = translateX;
+        currentParameters[3] = translateY;
+      }
+      
+      currentPositions = calculatePositions(currentParameters, true);
+		  
+		  return true;
+		}
+		
 		/*
      *  element : canvas or video element
      *  TODO: should be able to take img element as well
@@ -418,7 +630,7 @@ var clm = {
         // TODO: check here if the previous tracked position is good enough, every 100th frame?
         facecheck_count += 1;
         if (facecheck_count % 10 == 0) {
-          if (!checkTracking(element)) {
+          if (!checkTracking2(element)) {
             first = true;
             face_diff = [];
             face_peak = [];
@@ -433,142 +645,10 @@ var clm = {
 			
 			if (first) {
 				// do viola-jones on canvas to get initial guess, if we don't have any points
-				
-				var det = this.detectPosition(element);
-				if (!det) {
-				  // if no face found, stop.
+				var gi = getInitialPosition(element);
+				if (!gi) {
 				  return false;
 				}
-				
-				// calculate model Width/height from meanshape
-				var xmin, ymin, xmax, ymax;
-        xmin = ymin = 1000000;
-        xmax = ymax = 0;
-        for (var i = 0;i < meanShape.length;i++) {
-          xmin = meanShape[i][0] < xmin ? meanShape[i][0] : xmin;
-          xmax = meanShape[i][0] > xmax ? meanShape[i][0] : xmax;
-          ymin = meanShape[i][1] < ymin ? meanShape[i][1] : ymin;
-          ymax = meanShape[i][1] > ymax ? meanShape[i][1] : ymax;
-        }
-        var modelwidth = xmax-xmin;
-        var modelheight = ymax-ymin;
-        
-        if (pModel.hints && mosseFilter && left_eye_filter && right_eye_filter && nose_filter) {
-				  var noseFilterWidth = candidate.width * 4.5/10;
-          var eyeFilterWidth = candidate.width * 6/10;
-          //var eyeFilterWidth = candidate.width * 4.5/10;
-          
-          // detect position of eyes and nose via mosse filter
-          //element.pause();
-          
-          /*var canvasContext = document.getElementById('overlay2').getContext('2d')
-          canvasContext.clearRect(0,0,320,240);
-          canvasContext.strokeRect(candidate.x, candidate.y, candidate.width, candidate.height);*/
-          
-          var nose_result = mossef_nose.track(element, Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2)), Math.round(candidate.y+candidate.height*(5/8)-(noseFilterWidth/2)), noseFilterWidth, noseFilterWidth, false);
-          var right_result = mossef_righteye.track(element, Math.round(candidate.x+(candidate.width*3/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth, false);
-          var left_result = mossef_lefteye.track(element, Math.round(candidate.x+(candidate.width/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth, false);
-          //var nose_result = mossef_nose.track(element, Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2)), Math.round(candidate.y+candidate.height*(3/4)-(noseFilterWidth/2)), noseFilterWidth, noseFilterWidth, false);
-          right_eye_position[0] = Math.round(candidate.x+(candidate.width*3/4)-(eyeFilterWidth/2))+right_result[0];
-          right_eye_position[1] = Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2))+right_result[1];
-          left_eye_position[0] = Math.round(candidate.x+(candidate.width/4)-(eyeFilterWidth/2))+left_result[0];
-          left_eye_position[1] = Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2))+left_result[1];
-          //nose_position[0] = Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2))+nose_result[0];
-          //nose_position[1] = Math.round(candidate.y+candidate.height*(3/4)-(noseFilterWidth/2))+nose_result[1];
-          nose_position[0] = Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2))+nose_result[0];
-          nose_position[1] = Math.round(candidate.y+candidate.height*(5/8)-(noseFilterWidth/2))+nose_result[1];
-          
-          /*canvasContext.strokeRect(Math.round(candidate.x+(candidate.width*3/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth);
-          canvasContext.strokeRect(Math.round(candidate.x+(candidate.width/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth);
-          //canvasContext.strokeRect(Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2)), Math.round(candidate.y+candidate.height*(3/4)-(noseFilterWidth/2)), noseFilterWidth, noseFilterWidth);
-          canvasContext.strokeRect(Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2)), Math.round(candidate.y+candidate.height*(5/8)-(noseFilterWidth/2)), noseFilterWidth, noseFilterWidth);
-          
-          canvasContext.fillStyle = "rgb(0,0,250)";
-          canvasContext.beginPath();
-          canvasContext.arc(left_eye_position[0], left_eye_position[1], 3, 0, Math.PI*2, true);
-          canvasContext.closePath();
-          canvasContext.fill();
-          
-          canvasContext.beginPath();
-          canvasContext.arc(right_eye_position[0], right_eye_position[1], 3, 0, Math.PI*2, true);
-          canvasContext.closePath();
-          canvasContext.fill();
-          
-          canvasContext.beginPath();
-          canvasContext.arc(nose_position[0], nose_position[1], 3, 0, Math.PI*2, true);
-          canvasContext.closePath();
-          canvasContext.fill();
-          
-          debugger;
-          canvasContext.clearRect(0,0,320,240);*/
-          
-          // get eye and nose positions of model
-          var lep = pModel.hints.leftEye;
-          var rep = pModel.hints.rightEye;
-          var mep = pModel.hints.nose;
-          
-          // get scaling, rotation, etc. via procrustes analysis
-          var procrustes_params = procrustes([left_eye_position, right_eye_position, nose_position], [lep, rep, mep]);
-          translateX = procrustes_params[0];
-          translateY = procrustes_params[1];
-          scaling = procrustes_params[2];
-          rotation = procrustes_params[3];
-          //debugger;
-          //element.play();
-          
-          //var maxscale = 1.10;
-          //if ((scaling*modelHeight)/candidate.height < maxscale*0.7) scaling = (maxscale*0.7*candidate.height)/modelHeight;
-          //if ((scaling*modelHeight)/candidate.height > maxscale*1.2) scaling = (maxscale*1.2*candidate.height)/modelHeight;
-          
-          /*var smean = [0,0];
-          smean[0] += lep[0];
-          smean[1] += lep[1];
-          smean[0] += rep[0];
-          smean[1] += rep[1];
-          smean[0] += mep[0];
-          smean[1] += mep[1];
-          smean[0] /= 3;
-          smean[1] /= 3;
-          
-          var nulep = [(lep[0]*scaling*Math.cos(-rotation)+lep[1]*scaling*Math.sin(-rotation))+translateX, (lep[0]*scaling*(-Math.sin(-rotation)) + lep[1]*scaling*Math.cos(-rotation))+translateY];
-          var nurep = [(rep[0]*scaling*Math.cos(-rotation)+rep[1]*scaling*Math.sin(-rotation))+translateX, (rep[0]*scaling*(-Math.sin(-rotation)) + rep[1]*scaling*Math.cos(-rotation))+translateY];
-          var numep = [(mep[0]*scaling*Math.cos(-rotation)+mep[1]*scaling*Math.sin(-rotation))+translateX, (mep[0]*scaling*(-Math.sin(-rotation)) + mep[1]*scaling*Math.cos(-rotation))+translateY];
-          
-          canvasContext.fillStyle = "rgb(200,10,100)";
-          canvasContext.beginPath();
-          canvasContext.arc(nulep[0], nulep[1], 3, 0, Math.PI*2, true);
-          canvasContext.closePath();
-          canvasContext.fill();
-          
-          canvasContext.beginPath();
-          canvasContext.arc(nurep[0], nurep[1], 3, 0, Math.PI*2, true);
-          canvasContext.closePath();
-          canvasContext.fill();
-          
-          canvasContext.beginPath();
-          canvasContext.arc(numep[0], numep[1], 3, 0, Math.PI*2, true);
-          canvasContext.closePath();
-          canvasContext.fill();*/
-          
-          currentParameters[0] = (scaling*Math.cos(rotation))-1;
-          currentParameters[1] = (scaling*Math.sin(rotation));
-          currentParameters[2] = translateX;
-          currentParameters[3] = translateY;
-          
-          //this.draw(document.getElementById('overlay'), currentParameters);
-          
-				} else {
-          scaling = candidate.width/modelheight;
-          var ccc = document.getElementById('overlay').getContext('2d');
-          ccc.strokeRect(candidate.x,candidate.y,candidate.width,candidate.height);
-          translateX = candidate.x-(xmin*scaling)+0.1*candidate.width;
-          translateY = candidate.y-(ymin*scaling)+0.25*candidate.height;
-          currentParameters[0] = scaling-1;
-          currentParameters[2] = translateX;
-          currentParameters[3] = translateY;
-        }
-        
-        currentPositions = calculatePositions(currentParameters, true);
 				
 				first = false;
 			} else {
