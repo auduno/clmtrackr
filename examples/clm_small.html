@@ -70,6 +70,9 @@
 		<script>
 		   var cc = document.getElementById('compare').getContext('2d');
 		   var skcc = document.getElementById('sketch');
+		    var overlay = document.getElementById('overlay');
+       var overlayCC = overlay.getContext('2d');
+		   
 		   var img = new Image();
 		   img.onload = function() {
 		     cc.drawImage(img,0,0,720, 576);
@@ -86,6 +89,8 @@
 		   
 		   function animate() {
          ctrack.track(document.getElementById('compare'));
+         overlayCC.clearRect(0, 0, 720, 576);
+         ctrack.draw(overlay);
          stats.update();
          requestAnimFrame(animate);
 		   }

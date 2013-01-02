@@ -81,19 +81,17 @@
 		
 		<script>
 			 var skcc = document.getElementById('sketch');
-			 
-			 var overlay = document.getElementById('overlay');
-			 overlay.style = "position:absolute";
-			 
-			 var ctrack = new clm.tracker({'constantVelocity' : true});
+			 var videoInput = document.getElementById('videoel');
+       var overlay = document.getElementById('overlay');
+       var overlayCC = overlay.getContext('2d');
+		   
+		   var ctrack = new clm.tracker({'constantVelocity' : true});
 			 ctrack.init(skcc);
 			 
 			 stats = new Stats();
 			 stats.domElement.style.position = 'absolute';
 			 stats.domElement.style.top = '0px';
 			 document.getElementById('container').appendChild( stats.domElement );
-			 
-			 var videoInput = document.getElementById('videoel');
 			 
 			 function enablestart() {
 				 var startbutton = document.getElementById('startbutton');
@@ -201,7 +199,9 @@
 			 }
 			 
 			 function animate() {
-				 ctrack.track(document.getElementById('videoel'));
+				 ctrack.track(videoInput);
+				 overlayCC.clearRect(0, 0, 720, 576);
+         ctrack.draw(overlay);
 				 stats.update();
 				 requestAnimFrame(animate);
 			 }

@@ -131,35 +131,7 @@ var clm = {
 			// load eigenvalues
 			eigenValues = pModel.shapeModel.eigenValues;
 			
-			// load patchweight matrices for comparing
-			var weight;
-			/*for (var w = 0;w < numPatches;w++) {
-				weightMatricesOld[w] = numeric.rep([patchSize, patchSize],0);
-				// insert
-				for (var i = 0;i < patchSize;i++) {
-					for (var j = 0;j < patchSize;j++) {
-						//weight = pModel.patchModel.weights[w+(((i*patchSize)+j)*numPatches)];
-						weight = pModel.patchModel.weights[w][(i*patchSize)+j];
-						// cut off all values above 1 and below -1
-						weight = weight > 1 ? 1 : weight;
-						weight = weight < -1 ? -1 : weight;
-						weightMatricesOld[w][i][j] = weight;
-					}
-				}
-			}*/
-			
-			if (patchType == "SVM") {
-        for (var w = 0;w < numPatches;w++) {
-          for (var i = 0;i < (patchSize*patchSize);i++) {
-            weight = pModel.patchModel.weights[w][i];
-            weight = weight > 1 ? 1 : weight;
-            weight = weight < -1 ? -1 : weight;
-            weights[i +(w*patchSize*patchSize)] = weight;
-          }
-        }
-      } else {
-        weights = pModel.patchModel.weights;
-      }
+      weights = pModel.patchModel.weights;
 			
 			// precalculate gaussianPriorDiagonal
 			gaussianPD = numeric.rep([numParameters+4, numParameters+4],0);
@@ -339,6 +311,9 @@ var clm = {
     }
     
     var gpopt2 = function(responseWidth, vecpos, updatePosition, vecProbs, vpsum, opj0, opj1) {
+      //for debugging
+      //var vecmatrix = [];
+      
       var pos_idx = 0;
       var vecsum = 0;
       vecpos[0] = 0;
@@ -348,11 +323,17 @@ var clm = {
         for (var l = 0;l < responseWidth;l++) {
           updatePosition[0] = opj0+l;
           vecsum = vecProbs[pos_idx]/vpsum;
+          
+          //for debugging
+          //vecmatrix[k*responseWidth + l] = vecsum;
+          
           vecpos[0] += vecsum*updatePosition[0];
           vecpos[1] += vecsum*updatePosition[1];
           pos_idx++;
         }
       }
+      // for debugging
+      //return vecmatrix;
     }
 		
 		
@@ -477,8 +458,8 @@ var clm = {
         re_diff_avg /= 5;
       }
       
-      document.getElementById('peak').innerHTML = "left eye peak :"+le_peak_avg;
-      document.getElementById('psr').innerHTML = "right eye peak :"+re_peak_avg;
+      //document.getElementById('peak').innerHTML = "left eye peak :"+le_peak_avg;
+      //document.getElementById('psr').innerHTML = "right eye peak :"+re_peak_avg;
       //document.getElementById('peak').innerHTML = "left eye diff avg :"+le_diff_avg/modelwidth;
       //document.getElementById('psr').innerHTML = "right eye diff avg :"+re_diff_avg/modelwidth;
       
@@ -722,147 +703,32 @@ var clm = {
 			  }
 			}
 			
-			/*testing of printing weights*/
+			/*print weights*/
 			/*sketchCC.clearRect(0, 0, sketchW, sketchH);
-			for (var i = 0; i < numPatches; i++) {
-			  px = patchPositions[i][0]-(patchSize/2);
-			  py = patchPositions[i][1]-(patchSize/2);
-			  var psci = sketchCC.createImageData(patchSize, patchSize);
-			  var pscidata = psci.data;
-			  for (var j = 0;j < (patchSize)*(patchSize);j++) {
-			    //var val = weightMatricesOld[i].getValueAt(j % (patchSize), (j / (patchSize)) >> 0);
-			    var val = weights[(i*patchSize*patchSize)+j];
-			    val = (val*2000)+127;
-			    val = val > 255 ? 255 : val;
-			    val = val < 0 ? 0 : val;
-			    pscidata[j*4] = val;
-			    pscidata[(j*4)+1] = val;
-			    pscidata[(j*4)+2] = val;
-			    pscidata[(j*4)+3] = 255;
-			  }
-			  sketchCC.putImageData(psci, px >> 0, py >> 0);
-			}*/
-			
-			/*testing of printing patches*/
-			/*sketchCC.clearRect(0, 0, sketchW, sketchH); 
-			for (var i = 0; i < numPatches; i++) {
-			  px = patchPositions[i][0]-(pw/2);
-			  py = patchPositions[i][1]-(pl/2);
-			  var psci = sketchCC.createImageData(pw ,pl);
-			  var pscidata = psci.data;
-			  for (var j = 0;j < (pw)*(pl);j++) {
-			    var val = patches[i][(((j / (pw)) >> 0)*(pw))+(j % (pl))];
-			    //var val = patches[i].getValueAt(j % (pw), (j / (pl)) >> 0);
-			    pscidata[j*4] = val;
-			    pscidata[(j*4)+1] = val;
-			    pscidata[(j*4)+2] = val;
-			    pscidata[(j*4)+3] = 255;
-			  }
-			  sketchCC.putImageData(psci, px >> 0, py >> 0);
-			}*/
-			//sketchCC.clearRect(0, 0, sketchW, sketchH);
-			
-			/* start webgl work here */
-			/*var patchResponse, submatrix, submsum;
+			var nuWeights;
 			for (var i = 0;i < numPatches;i++) {
-			  // calculate response map
-			  console.log("response: "+i);
-			  patchResponse = new goog.math.Matrix(searchWindow, searchWindow);
-			  for (var k = 0;k < searchWindow;k++) {
-			    for (var l = 0;l < searchWindow;l++) {
-			      // get submatrix for this patch
-			      submatrix = new goog.math.Matrix(patchSize, patchSize);
-			      goog.math.Matrix.forEach(submatrix, function(value, a, b) {
-			        submatrix.setValueAt(a,b, this.getValueAt(a+k,b+l));
-			      }, patches[i]);
-            // normalize matrix so that mean pixel value is 0 and variance of 1
-            normalizeMatrix(submatrix);
-			      // multiply by this patches svm
-			      submsum = 0;
-			      goog.math.Matrix.forEach(submatrix, function(value, a, b) {
-			        submsum += value * this.getValueAt(a,b);
-			      }, weightMatrices[i])
-			      // calculate exponential stuff
-			      //submsum = 1/(1 + Math.exp(submsum));
-			      
-			      // insert to matrix
-			      patchResponse.setValueAt(k,l,submsum);
-			    }
-			  }
-			  
-			  goog.math.Matrix.forEach(patchResponse, function(entry, a, b) {
-			    patchResponse.setValueAt(a,b, 1-(1/(1+ Math.exp(entry))));
-			  });
-			  
-			  // TODO : is this normalization correct?
-			  // try using standard deviation to figure out gain
-			  normalizeFilterMatrix(patchResponse);
-			  
-			  responses[i] = patchResponse;
-      }*/
-			/* end webgl work here */
+			  nuWeights = weights[i].map(function(x) {return x*2000+127;});
+			  drawData(sketchCC, nuWeights, patchSize, patchSize, true, patchPositions[i][0]-(patchSize/2), patchPositions[i][1]-(patchSize/2));
+			}*/
+			
+			// print patches
+			/*sketchCC.clearRect(0, 0, sketchW, sketchH);
+			for (var i = 0;i < numPatches;i++) {
+			  drawData(sketchCC, patches[i], pw, pl, true, patchPositions[i][0]-(pw/2), patchPositions[i][1]-(pl/2));
+			}*/
 			
 			if (patchType == "SVM") {
         var responses = webglFi.getResponses(patches, true);
       } else if (patchType == "MOSSE") {
         var responses = mosseCalc.getResponses(patches);
       }
-      
-      // change responses to matrix form
-      /*var respi;
-      var responseSize = searchWindow*searchWindow;
-      for (var i = 0;i < numPatches;i++) {
-        respi = new goog.math.Matrix(searchWindow, searchWindow);
-			  for (var j = 0;j < responseSize;j++) {
-			    respi.setValueAt((j / searchWindow) >> 0, j % searchWindow, responses[i][j]);
-        }
-        //responses[i] = respi.getTranspose();
-        responses[i] = respi;
-      }*/
-			
-			//testing of printing patches
-      /*var canvasppt = document.createElement('canvas')
-      canvasppt.setAttribute('width', searchWindow+"px");
-      canvasppt.setAttribute('height', (searchWindow*numPatches)+"px");
-      canvasppt.setAttribute('id', 'patchprinttest');
-      document.body.appendChild(canvasppt);
-      var pptcc = canvasppt.getContext('2d');
-			for (var i = 0; i < numPatches; i++) {
-			  var psci = pptcc.createImageData(searchWindow ,searchWindow );
-			  var pscidata = psci.data;
-			  for (var j = 0;j < (searchWindow )*(searchWindow );j++) {
-			    //var val = responses[i].getValueAt(j % searchWindow, (j / searchWindow) >> 0)*255;
-			    var val = responses[i][((j % searchWindow)*searchWindow) + ((j / searchWindow) >> 0)]*255;
-			    pscidata[j*4] = val;
-			    pscidata[(j*4)+1] = val;
-			    pscidata[(j*4)+2] = val;
-			    pscidata[(j*4)+3] = 255;
-			  }
-			  pptcc.putImageData(psci, 0, searchWindow*i);
-			}*/
-			
-			//function:
-			// input: canvas to draw on, data, width, height, transposed
 			
 			// print responses
 			/*sketchCC.clearRect(0, 0, sketchW, sketchH);
-			for (var i = 0; i < numPatches; i++) {
-			  px = patchPositions[i][0]-searchWindow/2;
-			  py = patchPositions[i][1]-searchWindow/2;
-			  var psci = sketchCC.createImageData(searchWindow,searchWindow);
-			  var pscidata = psci.data;
-			  for (var j = 0;j < (searchWindow)*(searchWindow);j++) {
-			    var val = responses[i][(j % searchWindow) + ((j / searchWindow) >> 0)*searchWindow]
-			    val = (val)*255;
-			    val = val > 255 ? 255 : val;
-			    val = val < 0 ? 0 : val;
-			    pscidata[j*4] = val;
-			    pscidata[(j*4)+1] = val;
-			    pscidata[(j*4)+2] = val;
-			    pscidata[(j*4)+3] = 255;
-			  }
-			  sketchCC.putImageData(psci, px >> 0, py >> 0);
-			  debugger;
+			var nuWeights;
+			for (var i = 0;i < numPatches;i++) {
+			  nuWeights = responses[i].map(function(x) {return x*255});
+			  drawData(sketchCC, nuWeights, searchWindow, searchWindow, false, patchPositions[i][0]-(searchWindow/2), patchPositions[i][1]-(searchWindow/2));
 			}*/
 			
 			// iterate until convergence or max 10, 20 iterations?:
@@ -875,69 +741,25 @@ var clm = {
 				// calculate jacobian
 				jac = createJacobian(currentParameters, eigenVectors);
 
-				//debugging
+				// for debugging
 				//var debugMVs = [];
 				//
 				
 				var opj0, opj1;
 				
 				for (var j = 0;j < numPatches;j++) {
-				  // for every point in each response:
-					// calculate PI x gaussian
           
           opj0 = originalPositions[j][0]-halfSearchWindow;
           opj1 = originalPositions[j][1]-halfSearchWindow;
-          
-				  /*goog.math.Matrix.forEach(responses[j], function(value, a, b) {
-				    var pos = (searchWindow*b)+a;
-				    var updatePosition = [opj0+b, opj1+a];
-				    vecProbs[pos] = value * gaussianProb(updatePosition, currentPositions[j], varianceSeq[i]);
-				  });*/
 				  
-          /*var pos_idx = 0;
-          for (var k = 0;k < searchWindow;k++) {
-            updatePosition[1] = opj1+k;
-            for (var l = 0;l < searchWindow;l++) {
-              updatePosition[0] = opj0+l;
-              
-              vecProbs[pos_idx] = responses[j][pos_idx] * gaussianProb(updatePosition, currentPositions[j], varianceSeq[i]);
-              pos_idx++;
-            }
-          }*/
-				  
-				  // sum PI x gaussians 
-				  /*var vpsum = 0;
-				  for (var k = 0;k < responsePixels;k++) {
-				    vpsum += vecProbs[k];
-				  }*/
-				  
+				  // calculate PI x gaussians
 				  var vpsum = gpopt(searchWindow, currentPositions[j], updatePosition, vecProbs, responses, opj0, opj1, j, varianceSeq[i]);
 				  
-				  //debugging
-				  //var debugMatrixMV = numeric.rep([searchWindow,searchWindow],0.0);
-				  //
-				  
-          /*var pos_idx = 0;
-				  var vecsum = 0;
-				  vecpos[0] = 0;
-				  vecpos[1] = 0;
-				  for (var k = 0;k < searchWindow;k++) {
-				    updatePosition[1] = opj1+k;
-				    for (var l = 0;l < searchWindow;l++) {
-				      
-				      updatePosition[0] = opj0+l;
-				      vecsum = vecProbs[pos_idx]/vpsum;
-				      
-				      //debugging
-				      //debugMatrixMV[k][l] = vecsum;
-				      //
-				      vecpos[0] += vecsum*updatePosition[0];
-				      vecpos[1] += vecsum*updatePosition[1];
-				      pos_idx++;
-				    }
-				  }*/
-				  
+				  // calculate meanshift-vector
 				  gpopt2(searchWindow, vecpos, updatePosition, vecProbs, vpsum, opj0, opj1);
+				  
+				  // for debugging
+				  //var debugMatrixMV = gpopt2(searchWindow, vecpos, updatePosition, vecProbs, vpsum, opj0, opj1);
 				  
 				  // evaluate here whether to increase/decrease stepSize
 				  /*if (vpsum >= prevCostFunc[j]) {
@@ -957,29 +779,17 @@ var clm = {
 				  
 				  //if (isNaN(msv[0]) || isNaN(msv[1])) debugger;
 				  
-				  //debugging
+				  //for debugging
 				  //debugMVs[j] = debugMatrixMV;
 				  //
 				}
 				
-				// plot the meanshiftvector to see if it's correct
-        /*sketchCC.clearRect(0, 0, sketchW, sketchH);
-        for (var k = 0; k < numPatches; k++) {
-          px = patchPositions[k][0]-searchWindow/2;
-          py = patchPositions[k][1]-searchWindow/2;
-          var psci = sketchCC.createImageData(searchWindow,searchWindow);
-          var pscidata = psci.data;
-          for (var j = 0;j < (searchWindow)*(searchWindow);j++) {
-            var val = debugMVs[k][(j / searchWindow) >> 0][j % searchWindow];
-            val = val*255*500;
-            val = val > 255 ? 255 : val;
-            val = val < 0 ? 0 : val;
-            pscidata[j*4] = val;
-            pscidata[(j*4)+1] = val;
-            pscidata[(j*4)+2] = val;
-            pscidata[(j*4)+3] = 255;
-          }
-          sketchCC.putImageData(psci, px >> 0, py >> 0);
+				// draw meanshiftVector
+				/*sketchCC.clearRect(0, 0, sketchW, sketchH);
+        var nuWeights;
+        for (var npidx = 0;npidx < numPatches;npidx++) {
+          nuWeights = debugMVs[npidx].map(function(x) {return x*255*500;});
+          drawData(sketchCC, nuWeights, searchWindow, searchWindow, false, patchPositions[npidx][0]-(searchWindow/2), patchPositions[npidx][1]-(searchWindow/2));
         }*/
 				
 				var meanShiftVector = numeric.rep([numPatches*2, 1],0.0);
@@ -988,17 +798,8 @@ var clm = {
 				  meanShiftVector[(k*2)+1][0] = meanshiftVectors[k][1];
 				}
 				
-				
-				//test : draw meanshiftvector diagram
-				/*var testMV = [];
-				for (var k = 0;k < numPatches;k++) {
-				  testMV[k] = []
-				  testMV[k][0] = currentPositions[k][0] + meanShiftVector.getValueAt(k*2, 0);
-				  testMV[k][1] = currentPositions[k][1] + meanShiftVector.getValueAt((k*2)+1, 0);
-				}*/
-				
 				// compute pdm parameter update
-				//var prior = gaussianPD.multiply(PDMVariance);
+				//var prior = numeric.mul(gaussianPD, PDMVariance);
 				var prior = numeric.mul(gaussianPD, varianceSeq[i]);
 				var jtj = numeric.dot(numeric.transpose(jac), jac);
 				var cpMatrix = numeric.rep([numParameters+4, 1],0.0);
@@ -1058,74 +859,8 @@ var clm = {
         previousParameters.splice(0, previousParameters.length == 3 ? 1 : 0);
 			}
 			
-      document.getElementById('overlay').getContext('2d').clearRect(0, 0, 720, 576);
-			//debugger;
-			
-			this.draw(document.getElementById('overlay'), currentParameters);
-			
 			// return new points
 			return currentPositions;
-		}
-		
-		var normalizeMatrix = function(matrix) {
-      // normalize matrix 
-      // only used in non-webGL code
-		  
-		  var entry, mean, sd, entries;
-		  
-		  var msize = matrix.getSize();
-		  var msum = 0;
-		  var msumsq = 0;
-		  for (var i = 0;i < msize.height;i++) {
-		    for (var j = 0;j < msize.width;j++) {
-		      entry = matrix.getValueAt(i,j);
-		      msum += entry;
-		      msumsq += entry * entry;
-		    }
-		  }
-		  entries = msize.height * msize.width;
-		  mean = msum / entries;
-		  sd = Math.sqrt((msumsq/entries) - (mean * mean));
-		  
-		  //var normMatrix = new goog.math.Matrix(msize.height, msize.width);
-		  for (var i = 0;i < msize.height;i++) {
-		    for (var j = 0;j < msize.width; j++) {
-		      entry = matrix.getValueAt(i,j);
-		      matrix.setValueAt(i,j, (entry-mean)/sd);
-		      //normMatrix.setValueAt(i,j, (entry-mean)/sd);
-		    }
-		  }
-		  
-		  //return normMatrix;
-		}
-		
-		var normalizeFilterMatrix = function(matrix) {
-		  // normalize filter matrix 
-      // only used in non-webGL code
-		  
-		  var entry;
-		  
-		  var msize = matrix.getSize();
-		  var max = 0;
-		  var min = 1;
-		  
-		  for (var i = 0;i < msize.height;i++) {
-		    for (var j = 0;j < msize.width;j++) {
-		      entry = matrix.getValueAt(i,j);
-		      max = entry > max ? entry : max;
-		      min = entry < min ? entry : min;
-		    }
-		  }
-		  var dist = max-min;
-		  
-		  //var normMatrix = new goog.math.Matrix(msize.height, msize.width);
-		  for (var i = 0;i < msize.height;i++) {
-		    for (var j = 0;j < msize.width; j++) {
-		      entry = matrix.getValueAt(i,j);
-		      matrix.setValueAt(i,j, (entry-min)/dist);
-		      //normMatrix.setValueAt(i,j, (entry-mean)/sd);
-		    }
-		  }
 		}
 		
 		var drawPath = function(canvasContext, path, dp) {
@@ -1284,6 +1019,25 @@ var clm = {
       
       //returns rotation, scaling, transformx and transformx
       return [translationX, translationY, scaling, rotation];
+    }
+    
+    var drawData = function(canvasContext, data, width, height, transposed, drawX, drawY) {
+      var psci = canvasContext.createImageData(width, height);
+      var pscidata = psci.data;
+      for (var j = 0;j < width*height;j++) {
+        if (!transposed) {
+          var val = data[(j%width)+((j/width) >> 0)*width];
+        } else {
+          var val = data[(j%height)*height+((j/height) >> 0)];
+        }
+        val = val > 255 ? 255 : val;
+        val = val < 0 ? 0 : val;
+        pscidata[j*4] = val;
+        pscidata[(j*4)+1] = val;
+        pscidata[(j*4)+2] = val;
+        pscidata[(j*4)+3] = 255;
+      }
+      canvasContext.putImageData(psci, drawX, drawY);
     }
 		
 		return true

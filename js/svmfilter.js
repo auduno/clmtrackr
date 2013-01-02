@@ -1,5 +1,4 @@
-// requires webgl-utils.js from html5rocks tutorial:
-//  https://github.com/html5rocks/www.html5rocks.com/blob/master/content/tutorials/webgl/webgl_fundamentals/static/webgl/resources/webgl-utils.js
+"use strict";
 
 var webglFilter = function() {
   
@@ -30,12 +29,12 @@ var webglFilter = function() {
       filterHeight = fH + 1;
       var nfsize = filterWidth * filterHeight;
       
-      for (var i = nP-1;i > -1;i--) {
-        for (var j = 0;j < fW+1;j++) {
-          filterVector.splice(((i+1)*fW*fH), 0, 0)
+      for (var i = 0;i < nP;i++) {
+        for (var j = 0;j < fW;j++) {
+          filterVector[i].splice((fW*fH)+j, 0, 0);
         }
-        for (var j = fH;j > 0;j--) {
-          filterVector.splice((i*fW*fH)+(j*fW), 0, 0)
+        for (var j = fH+1;j > 0;j--) {
+          filterVector[i].splice((j*fW), 0, 0);
         }
       }
       corrFilterWidth = filterWidth-1;
@@ -50,27 +49,6 @@ var webglFilter = function() {
     patchWidth = pW;
     patchHeight = pH;
     numPatches = nP;
-    
-    //testing of printing patches
-    
-    /*var canvasppt = document.createElement('canvas')
-    canvasppt.setAttribute('width', filterWidth+"px");
-    canvasppt.setAttribute('height', (filterHeight*numPatches)+"px");
-    canvasppt.setAttribute('id', 'patchprinttest2');
-    document.body.appendChild(canvasppt);
-    var pptcc = canvasppt.getContext('2d');
-    for (var i = 0; i < numPatches; i++) {
-      var psci = pptcc.createImageData(filterWidth, filterHeight);
-      var pscidata = psci.data;
-      for (var j = 0;j < (filterWidth)*(filterHeight);j++) {
-        var val = filterVector[(i*filterWidth*filterHeight)+j]*2000+127;
-        pscidata[j*4] = val;
-        pscidata[(j*4)+1] = val;
-        pscidata[(j*4)+2] = val;
-        pscidata[(j*4)+3] = 255;
-      }
-      pptcc.putImageData(psci, 0, filterHeight*i);
-    }*/
     
     patchResponseFS = [
       "precision mediump float;",
@@ -129,9 +107,7 @@ var webglFilter = function() {
     //create canvas
     canvas = document.createElement('canvas')
     canvas.setAttribute('width', (patchWidth-corrFilterWidth)+"px");
-    //canvas.setAttribute('width', (patchWidth-(filterWidth))+"px");
     canvas.setAttribute('height', ((patchHeight-corrFilterHeight)*numPatches)+"px");
-    //canvas.setAttribute('height', ((patchHeight-(filterHeight))*numPatches)+"px");
     canvas.setAttribute('id', 'renderCanvas');
     canvas.setAttribute('style', 'display:none;');
     document.body.appendChild(canvas);
@@ -209,12 +185,10 @@ var webglFilter = function() {
     
     // set the onepixel size for patches
     var onePixelPatchLocation = gl.getUniformLocation(patchResponseProgram, "u_onePixelPatches");
-    //gl.uniform2f(onePixelPatchLocation, 1/filterWidth, 1/(filterHeight*numBlocks));
     gl.uniform2f(onePixelPatchLocation, 1/patchWidth, 1/(patchHeight*numBlocks));
     
     // set the onepixel size for filters
     var onePixelFilterLocation = gl.getUniformLocation(patchResponseProgram, "u_onePixelFilters");
-    //gl.uniform2f(onePixelFilterLocation, 1/canvasWidth, 1/canvasHeight);
     gl.uniform2f(onePixelFilterLocation, 1/filterWidth, 1/(filterHeight*numBlocks));
     
     // set up vertices with rectangles
@@ -245,26 +219,26 @@ var webglFilter = function() {
       for (var j = 0;j < filterHeight;j++) {
         for (var k = 0;k < filterWidth;k++) {
           //set r with first filter
-          if (filterSize*i*4 < filterVector.length) {
-            filterArray[((filterSize*i) + (j*filterWidth) + k)*4] = filterVector[(filterSize*i*4) + (k*filterWidth) + j];
+          if (i*4 < filterVector.length) {
+            filterArray[((filterSize*i) + (j*filterWidth) + k)*4] = filterVector[i*4][(k*filterWidth) + j];
           } else {
             filterArray[((filterSize*i) + (j*filterWidth) + k)*4] = 0;
           }
           //set g with 2nd filter
-          if ((filterSize*i*4 + 1) < filterVector.length) {
-            filterArray[((filterSize*i) + (j*filterWidth) + k)*4 + 1] = filterVector[(filterSize*(i*4 + 1)) + (k*filterWidth) + j];
+          if ((i*4 + 1) < filterVector.length) {
+            filterArray[((filterSize*i) + (j*filterWidth) + k)*4 + 1] = filterVector[(i*4)+1][(k*filterWidth) + j];
           } else {
             filterArray[((filterSize*i) + (j*filterWidth) + k)*4 + 1] = 0;
           }
           //set b with 3rd filter
-          if ((filterSize*i*4 + 2) < filterVector.length) {
-            filterArray[((filterSize*i) + (j*filterWidth) + k)*4 + 2] = filterVector[(filterSize*(i*4 + 2)) + (k*filterWidth) + j];
+          if ((i*4 + 2) < filterVector.length) {
+            filterArray[((filterSize*i) + (j*filterWidth) + k)*4 + 2] = filterVector[(i*4)+2][(k*filterWidth) + j];
           } else {
             filterArray[((filterSize*i) + (j*filterWidth) + k)*4 + 2] = 0;
           }
           //set a with 4th filter
-          if ((filterSize*i*4 + 3) < filterVector.length) {
-            filterArray[((filterSize*i) + (j*filterWidth) + k)*4 + 3] = filterVector[(filterSize*(i*4 + 3)) + (k*filterWidth) + j];
+          if ((i*4 + 3) < filterVector.length) {
+            filterArray[((filterSize*i) + (j*filterWidth) + k)*4 + 3] = filterVector[(i*4)+3][(k*filterWidth) + j];
           } else {
             filterArray[((filterSize*i) + (j*filterWidth) + k)*4 + 3] = 0;
           }
@@ -295,12 +269,8 @@ var webglFilter = function() {
     // set this buffer as framebuffer
     fbo = gl.createFramebuffer();
     gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
-    //renderBuffer = gl.createRenderbuffer();
-    //gl.bindRenderbuffer(gl.RENDERBUFFER, renderBuffer);
     
-    //gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, patchWidth, patchHeight*numBlocks);
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, rttTexture, 0);
-    //gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, renderBuffer);
     
     gl.viewport(0, 0, patchWidth, patchHeight*numBlocks);
     
@@ -382,32 +352,6 @@ var webglFilter = function() {
     if (!first) {
       gl.useProgram(patchResponseProgram);
       
-      /*
-      // set the resolution/dimension of the canvas
-      var resolutionLocation = gl.getUniformLocation(patchResponseProgram, "u_resolution");
-      gl.uniform2f(resolutionLocation, canvasWidth, canvasHeight);
-
-      // set the patchHeight
-      var patchHeightLocation = gl.getUniformLocation(patchResponseProgram, "u_patchHeight");
-      gl.uniform1f(patchHeightLocation, 1/numBlocks);
-
-      // set the filterHeight
-      var filterHeightLocation = gl.getUniformLocation(patchResponseProgram, "u_filterHeight");
-      gl.uniform1f(filterHeightLocation, 1/numBlocks);
-
-      // set the midpoint
-      var midpointLocation = gl.getUniformLocation(patchResponseProgram, "u_midpoint");
-      gl.uniform2f(midpointLocation, 0.5, (1/(numBlocks*2.0)) );
-
-      // set the onepixel size for patches
-      var onePixelPatchLocation = gl.getUniformLocation(patchResponseProgram, "u_onePixelPatches");
-      gl.uniform2f(onePixelPatchLocation, 1/patchWidth, 1/(patchHeight*numBlocks));
-
-      // set the onepixel size for filters
-      var onePixelFilterLocation = gl.getUniformLocation(patchResponseProgram, "u_onePixelFilters");
-      gl.uniform2f(onePixelFilterLocation, 1/filterWidth, 1/(filterHeight*numBlocks));
-      */
-      
       // set up vertices with rectangles
       var positionLocation = gl.getAttribLocation(patchResponseProgram, "a_position");
       gl.bindBuffer(gl.ARRAY_BUFFER, apositionBuffer);
@@ -420,25 +364,9 @@ var webglFilter = function() {
       gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
       gl.enableVertexAttribArray(texCoordLocation);
       gl.vertexAttribPointer(texCoordLocation, 2, gl.FLOAT, false, 0, 0);
-
-      /*gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, filters);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-      gl.uniform1i(gl.getUniformLocation(patchResponseProgram, "u_filters"), 0);
-
-      gl.activeTexture(gl.TEXTURE2);
-      gl.bindTexture(gl.TEXTURE_2D, rttTexture);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);*/
       
       // set framebuffer to the original one if not already using it
       gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
-      //gl.bindRenderbuffer(gl.RENDERBUFFER, renderBuffer);
       
       gl.viewport(0, 0, patchWidth, patchHeight*numBlocks);
     }
@@ -612,7 +540,6 @@ var webglFilter = function() {
     var pixelValues = new Uint8Array(4*canvas.width*canvas.height);
     var starttime = (new Date).getTime();
     var data = gl.readPixels(0, 0, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, pixelValues);
-    //var data = gl.readPixels(0, 0, 2, 2, gl.RGBA, gl.UNSIGNED_BYTE, pixelValues);
     // return
     return pixelValues;
   }
@@ -1059,12 +986,12 @@ var createShaderFromScript = function(
 };
 
 /* export functions */
-this.setupWebGL = setupWebGL;
-this.createProgram = loadProgram;
-this.createShaderFromScriptElement = createShaderFromScript;
-this.getWebGLContext = getWebGLContext;
-this.updateCSSIfInIFrame = updateCSSIfInIFrame;
-this.loadShader = loadShader;
+window.setupWebGL = setupWebGL;
+window.createProgram = loadProgram;
+window.createShaderFromScriptElement = createShaderFromScript;
+window.getWebGLContext = getWebGLContext;
+window.updateCSSIfInIFrame = updateCSSIfInIFrame;
+window.loadShader = loadShader;
 
 /**
  * Provides requestAnimationFrame in a cross browser way.

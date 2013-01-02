@@ -1,5 +1,4 @@
-// requires mosse.js + fft.js
-// TODO
+// requires mosse.js
 
 var mosseFilterResponses = function() {
   
