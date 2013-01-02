@@ -1530,7 +1530,8 @@ var pModel = {
       1.9614695340501792, 
       1.3870967741935483, 
       0.3189964157706093
-    ], 
+    ],
+    nonRegularizedVectors : [0],
     numPtsPerSample: 71, 
     numEvalues: 8, 
     meanShape: [

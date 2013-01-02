@@ -90,6 +90,8 @@ var clm = {
 		
     var le_peaks = [];
     var re_peaks = [];
+    var le_diffs = [];
+    var re_diffs = [];
     
 		var webglFi, mosseCalc;
 		
@@ -163,7 +165,11 @@ var clm = {
 			gaussianPD = numeric.rep([numParameters+4, numParameters+4],0);
 			// set values and append manual inverse
 			for (var i = 0;i < numParameters;i++) {
-        gaussianPD[i+4][i+4] = 1/eigenValues[i];
+			  if (pModel.shapeModel.nonRegularizedVectors.indexOf(i) >= 0) {
+          gaussianPD[i+4][i+4] = 1/10000000;
+			  } else {
+          gaussianPD[i+4][i+4] = 1/eigenValues[i];
+        }
 			}
 				
 			for (var i = 0;i < numParameters+4;i++) {
@@ -450,31 +456,42 @@ var clm = {
         re_peak_avg /= re_peaks.length;
       }
       
-      /*var diffx = centerpoint[0]-(face_result[0]+centerpoint[0]-(modelwidth/2));
-      var diffy = centerpoint[1]-(face_result[1]+centerpoint[1]-(modelwidth/2));
-      var diff = Math.sqrt(diffx*diffx + diffy*diffy)/modelwidth;
-      var diff_avg = 0;
-      face_diff.push(diff);
-      if (face_diff.length > 5) {
-        face_diff.splice(0,1);
-        for (var i = 0;i < face_diff.length;i++) {
-          diff_avg += face_diff[i]; 
+      var le_diff = [(le_result[0]*(modelwidth*2/3)/16)-(modelwidth/3), (le_result[1]*(modelwidth*2/3)/16)-(modelwidth/3)];
+      var re_diff = [(re_result[0]*(modelwidth*2/3)/16)-(modelwidth/3), (re_result[1]*(modelwidth*2/3)/16)-(modelwidth/3)];
+      var le_diff = Math.sqrt(le_diff[0]*le_diff[0] + le_diff[1]*le_diff[1])/modelwidth;
+      var re_diff = Math.sqrt(re_diff[0]*re_diff[0] + re_diff[1]*re_diff[1])/modelwidth;
+      var le_diff_avg = 0;
+      var re_diff_avg = 0;
+      le_diffs.push(le_diff);
+      re_diffs.push(re_diff);
+      if (le_diffs.length > 5) {
+        le_diffs.splice(0,1);
+        re_diffs.splice(0,1);
+      }
+      if (le_diffs.length == 5) {
+        for (var i = 0;i < 5;i++) {
+          le_diff_avg += le_diffs[i]; 
+          re_diff_avg += re_diffs[i]; 
         }
-        diff_avg /= face_diff.length;
-      }*/
+        le_diff_avg /= 5;
+        re_diff_avg /= 5;
+      }
       
-      //document.getElementById('peak').innerHTML = "left eye peak :"+le_peak_avg;
-      //document.getElementById('psr').innerHTML = "right eye peak :"+re_peak_avg;
+      document.getElementById('peak').innerHTML = "left eye peak :"+le_peak_avg;
+      document.getElementById('psr').innerHTML = "right eye peak :"+re_peak_avg;
+      //document.getElementById('peak').innerHTML = "left eye diff avg :"+le_diff_avg/modelwidth;
+      //document.getElementById('psr').innerHTML = "right eye diff avg :"+re_diff_avg/modelwidth;
       
-      /*if ((face_peak.length > 5 && peak_avg < 0.10) || (face_diff.length && diff_avg > 0.4)) {
-        return false
-      } else {
-        return true
-      }*/
+      // TODO: catch when model grows too big (this won't trigger reinitialization)
+      // TODO: catch when model goes outside of frame and hangs tracking
       
       if ((le_peaks.length == 5 && le_peak_avg < 0.10) || (re_peaks.length == 5 && re_peak_avg < 0.10)) {
         return false;
       }
+      /*if (le_peaks.length == 5 && (le_diff_avg/modelwidth > 0.25 || re_diff_avg/modelwidth > 0.25)) {
+        return false;
+      }*/
+      
       return true;
 		}
 		
