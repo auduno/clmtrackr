@@ -150,6 +150,7 @@ var pModel = {
       35.7222554068031,
       29.6721718591212
     ],
+    nonRegularizedVectors : [],
     meanShape : [
       [12.910480328381142, 43.040313533009375],
       [14.187226524412734, 63.00087751420685],
@@ -222,6 +223,7 @@ var pModel = {
     ]
   },
   patchModel : {
+    patchType: "SVM",
     numPatches : 68,
     patchSize : [11, 11],
     canvasSize : [138, 138],

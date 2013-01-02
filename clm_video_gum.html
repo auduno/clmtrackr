@@ -55,18 +55,21 @@
 		</script>
 	</head>
 	<body>
-		<script src="./js/numeric-1.2.4.min.js"></script>
-		<script src="./js/fft.js"></script>
+		<script src="./js/jsfeat-min.js"></script>
+		<script src="./js/frontalface.js"></script>
+		<script src="./js/jsfeat_detect.js"></script>
+		<script src="./js/numeric-1.2.6.min.js"></script>
 		<script src="./js/mosse.js"></script>
 		<script src="./js/left_eye_filter.js"></script>
 		<script src="./js/right_eye_filter.js"></script>
 		<script src="./js/nose_filter.js"></script>
-		<script src="./js/model_ns7.js"></script>
-		<script src="./js/webgl-utils.js"></script>
+		<script src="./js/entire_face_filter.js"></script>
+		<script src="./models/model_pca_7_svm.js"></script>
 		<script src="./js/clm.js"></script>
 		<script src="./js/ccv.js"></script>
 		<script src="./js/cascade.js"></script>
-		<script src="./js/filter.js"></script>
+		<script src="./js/svmfilter.js"></script>
+		<script src="./js/mossefilter.js"></script>
 		<script src="./js/Stats.js"></script>
 		<div id="container"></div>
 		<video id="videoel" width="370" height="288" preload="auto"></video>
@@ -78,9 +81,9 @@
 		
 		<script>
 			 var skcc = document.getElementById('sketch');
-			 
+			 var videoInput = document.getElementById('videoel');
 			 var overlay = document.getElementById('overlay');
-			 overlay.style = "position:absolute";
+			 var overlayCC = overlay.getContext('2d');
 			 
 			 var ctrack = new clm.tracker({'constantVelocity' : true});
 			 ctrack.init(skcc);
@@ -89,8 +92,6 @@
 			 stats.domElement.style.position = 'absolute';
 			 stats.domElement.style.top = '0px';
 			 document.getElementById('container').appendChild( stats.domElement );
-			 
-			 var videoInput = document.getElementById('videoel');
 			 
 			 function enablestart() {
 				 var startbutton = document.getElementById('startbutton');
@@ -198,7 +199,9 @@
 			 }
 			 
 			 function animate() {
-				 ctrack.track(document.getElementById('videoel'));
+				 ctrack.track(videoInput);
+				 overlayCC.clearRect(0, 0, 720, 576);
+         ctrack.draw(overlay);
 				 stats.update();
 				 requestAnimFrame(animate);
 			 }
