@@ -6,6 +6,7 @@ var clm = {
     if (!params) params = {};
 		if (params.constantVelocity === undefined) params.constantVelocity = true;
 		if (params.searchWindow === undefined) params.searchWindow = 10;
+		if (params.useWebGL === undefined) params.useWebGL = true;
 	
 		var numPatches, patchSize, numParameters, patchType;
 		var gaussianPD;
@@ -93,7 +94,7 @@ var clm = {
     var le_diffs = [];
     var re_diffs = [];
     
-		var webglFi, mosseCalc;
+		var webglFi, svmFi, mosseCalc;
 		
 		this.init = function(canvas) {
 			// do all prep stuff
@@ -150,8 +151,15 @@ var clm = {
 			
 			// set up webgl filter calculation
 			if (patchType == "SVM") {
-			  webglFi = new webglFilter();
-        webglFi.init(weights, numPatches, searchWindow+patchSize, searchWindow+patchSize, patchSize, patchSize, true);
+        if (window.WebGLRenderingContext && params.useWebGL && (typeof(webglFilter) !== "undefined")) {
+			    webglFi = new webglFilter();
+          webglFi.init(weights, numPatches, searchWindow+patchSize, searchWindow+patchSize, patchSize, patchSize, true);
+        } else if (typeof(svmFilter) !== "undefined") {
+          svmFi = new svmFilter();
+          svmFi.init(weights, numPatches, patchSize, searchWindow);
+        } else {
+          throw "Could not initiate filters, please make sure that svmfilter.js or svmfilter_conv_js.js is loaded."
+        }
 			} else if (patchType == "MOSSE") {
 			  mosseCalc = new mosseFilterResponses();
 			  mosseCalc.init(weights, numPatches, patchSize, patchSize);
@@ -718,7 +726,13 @@ var clm = {
 			}*/
 			
 			if (patchType == "SVM") {
-        var responses = webglFi.getResponses(patches, true);
+        if (typeof(webglFi) !== "undefined") {
+          var responses = webglFi.getResponses(patches, true);
+        } else if (typeof(svmFi) !== "undefined"){
+          var responses = svmFi.getResponses(patches);
+        } else {
+          throw "SVM-filters do not seem to be initiated properly."
+        }
       } else if (patchType == "MOSSE") {
         var responses = mosseCalc.getResponses(patches);
       }
