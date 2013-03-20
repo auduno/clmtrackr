@@ -6,12 +6,10 @@ var webglFilter = function() {
   var filterWidth, filterHeight, patchWidth, patchHeight, numPatches, canvasWidth, canvasHeight;
   var corrFilterWidth, corrFilterHeight;
   var patchResponseProgram, patchDrawProgram;
-  var initiated;
-  var fbo, renderBuffer, numBlocks, patchTex;
+  var fbo, numBlocks, patchTex;
   var first = true;
   var drawRectBuffer, drawLayerBuffer, drawImageBuffer, rttTexture, filters;
   var texCoordBuffer, texCoordLocation, apositionBuffer;
-  
   var newCanvasWidth, newCanvasBlockHeight, newCanvasHeight;
   var drawOutRectangles, drawOutImages, drawOutLayer;
   
@@ -536,9 +534,7 @@ var webglFilter = function() {
   
   var getOutput = function() {
     // get data
-    
     var pixelValues = new Uint8Array(4*canvas.width*canvas.height);
-    var starttime = (new Date).getTime();
     var data = gl.readPixels(0, 0, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, pixelValues);
     // return
     return pixelValues;
@@ -872,11 +868,6 @@ var getWebGLContext = function(canvas) {
     // make the canvas backing store the size it's displayed.
     canvas.width = canvas.clientWidth;
     canvas.height = canvas.clientHeight;
-  } else {
-    var title = document.getElementsByTagName("title")[0].innerText;
-    var h1 = document.createElement("h1");
-    h1.innerText = title;
-    document.body.insertBefore(h1, document.body.children[0]);
   }
 
   var gl = setupWebGL(canvas);
