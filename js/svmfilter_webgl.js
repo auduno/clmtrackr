@@ -1,7 +1,6 @@
 "use strict";
 
 var webglFilter = function() {
-  
   var gl, canvas;
   var filterWidth, filterHeight, patchWidth, patchHeight, numPatches, canvasWidth, canvasHeight;
   var corrFilterWidth, corrFilterHeight;
@@ -826,7 +825,7 @@ var webglFilter = function() {
 
     var context = create3DContext(canvas, opt_attribs);
     if (!context) {
-      showLink(OTHER_PROBLEM);
+      //showLink(OTHER_PROBLEM);
       return null;
     }
     return context;

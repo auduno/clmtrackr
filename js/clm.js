@@ -151,7 +151,16 @@ var clm = {
 			
 			// set up webgl filter calculation
 			if (patchType == "SVM") {
-        if (window.WebGLRenderingContext && params.useWebGL && (typeof(webglFilter) !== "undefined")) {
+			  var webGLContext;
+			  var webGLTestCanvas = document.createElement('canvas');
+			  if (window.WebGLRenderingContext) {
+			    webGLContext = webGLTestCanvas.getContext('webgl') || webGLTestCanvas.getContext('experimental-webgl');
+			    if (!webGLContext || !webGLContext.getExtension('OES_texture_float')) {
+			      webGLContext = null;
+			    }
+			  } 
+			  
+        if (webGLContext && params.useWebGL && (typeof(webglFilter) !== "undefined")) {
 			    webglFi = new webglFilter();
           webglFi.init(weights, numPatches, searchWindow+patchSize, searchWindow+patchSize, patchSize, patchSize, true);
         } else if (typeof(svmFilter) !== "undefined") {
