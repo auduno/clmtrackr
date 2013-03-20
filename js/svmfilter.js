@@ -220,25 +220,25 @@ var webglFilter = function() {
         for (var k = 0;k < filterWidth;k++) {
           //set r with first filter
           if (i*4 < filterVector.length) {
-            filterArray[((filterSize*i) + (j*filterWidth) + k)*4] = filterVector[i*4][(k*filterWidth) + j];
+            filterArray[((filterSize*i) + (j*filterWidth) + k)*4] = filterVector[i*4][(j*filterWidth) + k];
           } else {
             filterArray[((filterSize*i) + (j*filterWidth) + k)*4] = 0;
           }
           //set g with 2nd filter
           if ((i*4 + 1) < filterVector.length) {
-            filterArray[((filterSize*i) + (j*filterWidth) + k)*4 + 1] = filterVector[(i*4)+1][(k*filterWidth) + j];
+            filterArray[((filterSize*i) + (j*filterWidth) + k)*4 + 1] = filterVector[(i*4)+1][(j*filterWidth) + k];
           } else {
             filterArray[((filterSize*i) + (j*filterWidth) + k)*4 + 1] = 0;
           }
           //set b with 3rd filter
           if ((i*4 + 2) < filterVector.length) {
-            filterArray[((filterSize*i) + (j*filterWidth) + k)*4 + 2] = filterVector[(i*4)+2][(k*filterWidth) + j];
+            filterArray[((filterSize*i) + (j*filterWidth) + k)*4 + 2] = filterVector[(i*4)+2][(j*filterWidth) + k];
           } else {
             filterArray[((filterSize*i) + (j*filterWidth) + k)*4 + 2] = 0;
           }
           //set a with 4th filter
           if ((i*4 + 3) < filterVector.length) {
-            filterArray[((filterSize*i) + (j*filterWidth) + k)*4 + 3] = filterVector[(i*4)+3][(k*filterWidth) + j];
+            filterArray[((filterSize*i) + (j*filterWidth) + k)*4 + 3] = filterVector[(i*4)+3][(j*filterWidth) + k];
           } else {
             filterArray[((filterSize*i) + (j*filterWidth) + k)*4 + 3] = 0;
           }

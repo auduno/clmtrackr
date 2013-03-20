@@ -708,13 +708,13 @@ var clm = {
 			var nuWeights;
 			for (var i = 0;i < numPatches;i++) {
 			  nuWeights = weights[i].map(function(x) {return x*2000+127;});
-			  drawData(sketchCC, nuWeights, patchSize, patchSize, true, patchPositions[i][0]-(patchSize/2), patchPositions[i][1]-(patchSize/2));
+			  drawData(sketchCC, nuWeights, patchSize, patchSize, false, patchPositions[i][0]-(patchSize/2), patchPositions[i][1]-(patchSize/2));
 			}*/
 			
 			// print patches
 			/*sketchCC.clearRect(0, 0, sketchW, sketchH);
 			for (var i = 0;i < numPatches;i++) {
-			  drawData(sketchCC, patches[i], pw, pl, true, patchPositions[i][0]-(pw/2), patchPositions[i][1]-(pl/2));
+			  drawData(sketchCC, patches[i], pw, pl, false, patchPositions[i][0]-(pw/2), patchPositions[i][1]-(pl/2));
 			}*/
 			
 			if (patchType == "SVM") {
