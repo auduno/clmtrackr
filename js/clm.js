@@ -7,6 +7,7 @@ var clm = {
 		if (params.constantVelocity === undefined) params.constantVelocity = true;
 		if (params.searchWindow === undefined) params.searchWindow = 10;
 		if (params.useWebGL === undefined) params.useWebGL = true;
+		if (params.scoreThreshold === undefined) params.scoreThreshold = 0.4;
 		
 		var numPatches, patchSize, numParameters, patchType;
 		var gaussianPD;
@@ -74,25 +75,15 @@ var clm = {
 			//var mossef_nose = new mosseFilter({drawResponse : document.getElementById('overlay2')});
 			var mossef_nose = new mosseFilter();
 			mossef_nose.load(nose_filter);
-			var mossef_face = new mosseFilter();
-			mossef_face.load(face_filter);
 			
 			var right_eye_position = [0.0,0.0];
 			var left_eye_position = [0.0,0.0];
 			var nose_position = [0.0,0.0];
-			var face_position = [0.0,0.0];
 			var lep, rep, mep;
 		} else {
 			console.log("MOSSE filters not found, using rough approximation for initialization.");
 		}
 		var facecheck_count = 0;
-		var face_peak = [];
-		var face_diff = [];
-		
-		var le_peaks = [];
-		var re_peaks = [];
-		var le_diffs = [];
-		var re_diffs = [];
 		
 		var webglFi, svmFi, mosseCalc;
 
@@ -106,6 +97,7 @@ var clm = {
 		var msmodelwidth, msmodelheight;
 		var scoringWeights, scoringBias;
 		var scoringHistory = [];
+		var meanscore = 0;
 			
 		this.init = function(canvas) {
 			// do all prep stuff
@@ -179,7 +171,6 @@ var clm = {
 				currentParameters[i] = 0;
 			}
 			
-			// set up webgl filter calculation
 			if (patchType == "SVM") {
 				var webGLContext;
 				var webGLTestCanvas = document.createElement('canvas');
@@ -194,6 +185,7 @@ var clm = {
 					webglFi = new webglFilter();
 					webglFi.init(weights, numPatches, searchWindow+patchSize, searchWindow+patchSize, patchSize, patchSize, true);
 				} else if (typeof(svmFilter) !== "undefined") {
+					// use fft convolution if no webGL is available
 					svmFi = new svmFilter();
 					svmFi.init(weights, numPatches, patchSize, searchWindow);
 				} else {
@@ -383,146 +375,7 @@ var clm = {
 			//return vecmatrix;
 		}
 		
-		var checkTracking = function(element) {
-			// uses mosse face filter and checks whether peak is too low value or difference between peak_pos and midpoint is too far
-		
-			//get centerpoint and approximate width
-			var centerpoint = [];
-			centerpoint[0] = currentPositions[62][0];
-			centerpoint[1] = currentPositions[62][1];
-			//get xmin and xmax
-			var xmin = 10000000;
-			var xmax = 0;
-			for (var i = 0;i < currentPositions.length;i++) {
-				if (currentPositions[i][0] < xmin) {
-					xmin = currentPositions[i][0];
-				}
-				if (currentPositions[i][0] > xmax) {
-					xmax = currentPositions[i][0];
-				}
-			}
-			var modelwidth = xmax-xmin
-			var face_result = mossef_face.track(element, Math.round(centerpoint[0]-(modelwidth/2)), Math.round(centerpoint[1]-(modelwidth/2)), modelwidth, modelwidth, false, false, true);
-			var peak = mossef_face.peak_prev;
-			var psr = mossef_face.psr_prev;
-			// TODO : check if peak is within center of model?
-			// or check if peak/sidelobe is over some threshold
-			// else, set first = true
-			
-			var peak_avg = 0;
-			face_peak.push(peak);
-			if (face_peak.length > 5) {
-				face_peak.splice(0,1);
-				for (var i = 0;i < face_peak.length;i++) {
-					peak_avg += face_peak[i]; 
-				}
-				peak_avg /= face_peak.length;
-			}
-			var diffx = centerpoint[0]-(face_result[0]+centerpoint[0]-(modelwidth/2));
-			var diffy = centerpoint[1]-(face_result[1]+centerpoint[1]-(modelwidth/2));
-			var diff = Math.sqrt(diffx*diffx + diffy*diffy)/modelwidth;
-			var diff_avg = 0;
-			face_diff.push(diff);
-			if (face_diff.length > 5) {
-				face_diff.splice(0,1);
-				for (var i = 0;i < face_diff.length;i++) {
-					diff_avg += face_diff[i]; 
-				}
-				diff_avg /= face_diff.length;
-			}
-			
-			//document.getElementById('peak').innerHTML = "peak average :"+peak_avg;
-			//document.getElementById('psr').innerHTML = "diff :"+diff_avg;
-			
-			if ((face_peak.length > 5 && peak_avg < 0.10) || (face_diff.length && diff_avg > 0.4)) {
-				return false
-			} else {
-				return true
-			} 
-		}
-		
-		var checkTracking2 = function(element) {
-			// uses eye filters and checks whether peak is too low value
-			
-			//get centerpoint and approximate width
-			var centerpoint = [];
-			centerpoint[0] = currentPositions[62][0];
-			centerpoint[1] = currentPositions[62][1];
-			//get xmin and xmax
-			var xmin = 10000000;
-			var xmax = 0;
-			for (var i = 0;i < currentPositions.length;i++) {
-				if (currentPositions[i][0] < xmin) {
-					xmin = currentPositions[i][0];
-				}
-				if (currentPositions[i][0] > xmax) {
-					xmax = currentPositions[i][0];
-				}
-			}
-			var modelwidth = xmax-xmin;
-			
-			var le_result = mossef_lefteye.track(element, Math.round(currentPositions[27][0]-(modelwidth/3)), Math.round(currentPositions[27][1]-(modelwidth/3)), modelwidth*2/3, modelwidth*2/3, false, false, true);
-			var re_result = mossef_righteye.track(element, Math.round(currentPositions[32][0]-(modelwidth/3)), Math.round(currentPositions[32][1]-(modelwidth/3)), modelwidth*2/3, modelwidth*2/3, false, false, true);
-			var le_peak = mossef_lefteye.peak_prev;
-			var re_peak = mossef_righteye.peak_prev;
-			
-			var le_peak_avg = 0;
-			var re_peak_avg = 0;
-			le_peaks.push(le_peak);
-			re_peaks.push(re_peak);
-			if (le_peaks.length > 5) {
-				le_peaks.splice(0,1);
-				re_peaks.splice(0,1);
-			}
-			if (le_peaks.length == 5) {
-				for (var i = 0;i < le_peaks.length;i++) {
-					le_peak_avg += le_peaks[i]; 
-					re_peak_avg += re_peaks[i]; 
-				}
-				le_peak_avg /= le_peaks.length;
-				re_peak_avg /= re_peaks.length;
-			}
-			
-			var le_diff = [(le_result[0]*(modelwidth*2/3)/16)-(modelwidth/3), (le_result[1]*(modelwidth*2/3)/16)-(modelwidth/3)];
-			var re_diff = [(re_result[0]*(modelwidth*2/3)/16)-(modelwidth/3), (re_result[1]*(modelwidth*2/3)/16)-(modelwidth/3)];
-			var le_diff = Math.sqrt(le_diff[0]*le_diff[0] + le_diff[1]*le_diff[1])/modelwidth;
-			var re_diff = Math.sqrt(re_diff[0]*re_diff[0] + re_diff[1]*re_diff[1])/modelwidth;
-			var le_diff_avg = 0;
-			var re_diff_avg = 0;
-			le_diffs.push(le_diff);
-			re_diffs.push(re_diff);
-			if (le_diffs.length > 5) {
-				le_diffs.splice(0,1);
-				re_diffs.splice(0,1);
-			}
-			if (le_diffs.length == 5) {
-				for (var i = 0;i < 5;i++) {
-					le_diff_avg += le_diffs[i]; 
-					re_diff_avg += re_diffs[i]; 
-				}
-				le_diff_avg /= 5;
-				re_diff_avg /= 5;
-			}
-			
-			//document.getElementById('peak').innerHTML = "left eye peak :"+le_peak_avg;
-			//document.getElementById('psr').innerHTML = "right eye peak :"+re_peak_avg;
-			//document.getElementById('peak').innerHTML = "left eye diff avg :"+le_diff_avg/modelwidth;
-			//document.getElementById('psr').innerHTML = "right eye diff avg :"+re_diff_avg/modelwidth;
-			
-			// TODO: catch when model grows too big (this won't trigger reinitialization)
-			// TODO: catch when model goes outside of frame and hangs tracking
-			
-			if ((le_peaks.length == 5 && le_peak_avg < 0.10) || (re_peaks.length == 5 && re_peak_avg < 0.10)) {
-				return false;
-			}
-			/*if (le_peaks.length == 5 && (le_diff_avg/modelwidth > 0.25 || re_diff_avg/modelwidth > 0.25)) {
-				return false;
-			}*/
-			
-			return true;
-		}
-		
-		var checkTracking3 = function() {			
+		var checkTracking = function() {			
 			scoringContext.drawImage(sketchCanvas, msxmin, msymin, msmodelwidth, msmodelheight, 0, 0, 20, 22);
 			// getImageData of canvas
 			var imgData = scoringContext.getImageData(0,0,20,22);
@@ -562,33 +415,29 @@ var clm = {
 				scoringContext.putImageData(newim,0,0);
 
 				for (var i = 0;i < 20*22;i++) {
-					//score += ((scoringData[i]-scmin)/(scmax-scmin))*scoringWeights[(i % 20)*22 + ((i / 20) >> 0)];
 					score += (scoringData[i])*-scoringWeights[i];
 				}
-				/*for (var i = 0;i < 22;i++) {
-					for (var j = 0;j < 20;j++) {
-					  score += ((scoringData[(i*20) + j]-scmin)/(scmax-scmin))*255*scoringWeights[(j*22) + i];
-					}
-				}*/
 				score += scoringBias;
 
 				scoringHistory.splice(0, scoringHistory.length == 5 ? 1 : 0);
 				scoringHistory.push(score);
 
 				if (scoringHistory.length > 4) {
-					// get average over three last times
+					// get average
 					meanscore = 0;
 					for (var i = 0;i < 5;i++) {
 						meanscore += scoringHistory[i];
 					}
 					meanscore /= 5;
-					// print to some documentELement temporarily
-					document.getElementById('psr').innerHTML = "score :" + meanscore.toFixed(4);
-					// if below 0.2, then reset (return false)
-					if (meanscore < 0.3) return false;
+					// if below threshold, then reset (return false)
+					if (meanscore < params.scoreThreshold) return false;
 				}
 			}
 			return true;
+		}
+
+		this.getScore = function() {
+			return meanscore;
 		}
 		
 		var getInitialPosition = function(element) {
@@ -728,25 +577,6 @@ var clm = {
 			var croppedPatches = [];
 			var ptch, px, py;
 			
-			if (!first) {
-				// TODO: check here if the previous tracked position is good enough, every 100th frame?
-				facecheck_count += 1;
-				/*if (facecheck_count % 10 == 0) {
-					if (!checkTracking2(element)) {
-						first = true;
-						face_diff = [];
-						face_peak = [];
-						le_peaks = [];
-						re_peaks = [];
-						for (var i = 0;i < currentParameters.length;i++) {
-							currentParameters[i] = 0;
-							previousParameters = [];
-						}
-					}
-				}*/
-			}
-
-			
 			if (first) {
 				// do viola-jones on canvas to get initial guess, if we don't have any points
 				debugger;
@@ -757,8 +587,9 @@ var clm = {
 				
 				first = false;
 			} else {
-				// TODO : do cross-correlation/correlation-filter or similar to find translation of face
+				facecheck_count += 1;
 				
+				// TODO : do cross-correlation/correlation-filter or similar to find translation of face
 				if (params.constantVelocity) {
 					// calculate where to get patches via constant velocity prediction
 					if (previousParameters.length >= 2) {
@@ -793,19 +624,14 @@ var clm = {
 			
 			// check whether tracking is ok
 			if (scoringWeights && (facecheck_count % 10 == 0)) {
-				if (!checkTracking3()) {
+				if (!checkTracking()) {
 					first = true;
-					face_diff = [];
-					face_peak = [];
-					le_peaks = [];
-					re_peaks = [];
 					scoringHistory = [];
 					for (var i = 0;i < currentParameters.length;i++) {
 						currentParameters[i] = 0;
 						previousParameters = [];
 					}
-					// force restart
-					return currentPositions
+					return false;
 				}
 			}
 
