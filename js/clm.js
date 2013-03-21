@@ -11,7 +11,7 @@ var clm = {
 		var numPatches, patchSize, numParameters, patchType;
 		var gaussianPD;
 		var eigenVectors, eigenValues;
-		var sketchCC, sketchW, sketchH;
+		var sketchCC, sketchW, sketchH, sketchCanvas;
 		var candidate;
 		
 		var currentParameters = [];
@@ -95,10 +95,22 @@ var clm = {
 		var re_diffs = [];
 		
 		var webglFi, svmFi, mosseCalc;
+
+		var scoringCanvas = document.createElement('canvas');
+		//document.body.appendChild(scoringCanvas);
+		// TODO : scoringcanvas width & height should be from model
+		scoringCanvas.width = 20;
+		scoringCanvas.height = 22;
+		var scoringContext = scoringCanvas.getContext('2d');
+		var msxmin, msymin, msxmax, msymax;
+		var msmodelwidth, msmodelheight;
+		var scoringWeights, scoringBias;
+		var scoringHistory = [];
 			
 		this.init = function(canvas) {
 			// do all prep stuff
 			
+			sketchCanvas = canvas;
 			sketchCC = canvas.getContext('2d');
 			sketchW = canvas.width;
 			sketchH = canvas.height;
@@ -127,6 +139,24 @@ var clm = {
 			// load mean shape
 			for (var i = 0; i < numPatches;i++) {
 				meanShape[i] = [pModel.shapeModel.meanShape[i][0], pModel.shapeModel.meanShape[i][1]];
+			}
+
+			// get max and mins, width and height of meanshape
+			msxmax = msymax = 0;
+			msxmin = msymin = 1000000;
+			for (var i = 0;i < numPatches;i++) {
+				if (meanShape[i][0] < msxmin) msxmin = meanShape[i][0];
+				if (meanShape[i][1] < msymin) msymin = meanShape[i][1];
+				if (meanShape[i][0] > msxmax) msxmax = meanShape[i][0];
+				if (meanShape[i][1] > msymax) msymax = meanShape[i][1];
+			}
+			msmodelwidth = msxmax-msxmin;
+			msmodelheight = msymax-msymin;
+			
+			// get scoringweights if they exist
+			if (pModel.scoring) {
+				scoringWeights = new Float64Array(pModel.scoring.coef);
+				scoringBias = pModel.scoring.bias;
 			}
 			
 			// load eigenvalues
@@ -492,9 +522,73 @@ var clm = {
 			return true;
 		}
 		
-		var checkTracking3 = function() {
-			// get average over three last times
-			// if below 0.2, then reset (return false)
+		var checkTracking3 = function() {			
+			scoringContext.drawImage(sketchCanvas, msxmin, msymin, msmodelwidth, msmodelheight, 0, 0, 20, 22);
+			// getImageData of canvas
+			var imgData = scoringContext.getImageData(0,0,20,22);
+			// convert data to grayscale
+			var scoringData = new Array(20*22);
+			var scdata = imgData.data;
+			var scmax = 0;
+			var scmin = 255;
+			for (var i = 0;i < 20*22;i++) {
+			  scoringData[i] = scdata[i*4]*0.3 + scdata[(i*4)+1]*0.59 + scdata[(i*4)+2]*0.11;
+			  if (scoringData[i] > scmax) scmax = scoringData[i];
+			  if (scoringData[i] < scmin) scmin = scoringData[i];
+			}
+			
+			if (scmax > 0) {
+				// normalize & multiply by svmFilter
+				var score = 0;
+				var newim = scoringContext.createImageData(20,22);
+				var newimdata = newim.data;
+				var scdaata = new Array(20*22);
+				var scdamin = 10000000;
+				var scdamax = -10000000;
+				for (var i = 0;i < 20*22;i++) {
+					scoringData[i] = (scoringData[i]-scmin)/(scmax-scmin);
+					scdaata[i] = scoringData[i]*scoringWeights[i];
+					if (scdaata[scdamin] < i) scdamin = scdaata[i];
+					if (scdaata[i] > scdamax) scdamax = scdaata[i];
+				}
+
+				for (var i = 0;i < 20*22;i++) {
+					var nid = 255*((scdaata[i]-scdamin)/(scdamax-scdamin));
+					newimdata[i*4] = nid;
+					newimdata[(i*4)+1] = nid;
+					newimdata[(i*4)+2] = nid;
+					newimdata[(i*4)+3] = 255;
+				}
+				scoringContext.putImageData(newim,0,0);
+
+				for (var i = 0;i < 20*22;i++) {
+					//score += ((scoringData[i]-scmin)/(scmax-scmin))*scoringWeights[(i % 20)*22 + ((i / 20) >> 0)];
+					score += (scoringData[i])*-scoringWeights[i];
+				}
+				/*for (var i = 0;i < 22;i++) {
+					for (var j = 0;j < 20;j++) {
+					  score += ((scoringData[(i*20) + j]-scmin)/(scmax-scmin))*255*scoringWeights[(j*22) + i];
+					}
+				}*/
+				score += scoringBias;
+
+				scoringHistory.splice(0, scoringHistory.length == 5 ? 1 : 0);
+				scoringHistory.push(score);
+
+				if (scoringHistory.length > 4) {
+					// get average over three last times
+					meanscore = 0;
+					for (var i = 0;i < 5;i++) {
+						meanscore += scoringHistory[i];
+					}
+					meanscore /= 5;
+					// print to some documentELement temporarily
+					document.getElementById('psr').innerHTML = "score :" + meanscore.toFixed(4);
+					// if below 0.2, then reset (return false)
+					if (meanscore < 0.3) return false;
+				}
+			}
+			return true;
 		}
 		
 		var getInitialPosition = function(element) {
@@ -503,19 +597,6 @@ var clm = {
 			// if no face found, stop.
 			return false;
 			}
-			
-			// calculate model Width/height from meanshape
-			var xmin, ymin, xmax, ymax;
-			xmin = ymin = 1000000;
-			xmax = ymax = 0;
-			for (var i = 0;i < meanShape.length;i++) {
-				xmin = meanShape[i][0] < xmin ? meanShape[i][0] : xmin;
-				xmax = meanShape[i][0] > xmax ? meanShape[i][0] : xmax;
-				ymin = meanShape[i][1] < ymin ? meanShape[i][1] : ymin;
-				ymax = meanShape[i][1] > ymax ? meanShape[i][1] : ymax;
-			}
-			var modelwidth = xmax-xmin;
-			var modelheight = ymax-ymin;
 			
 			if (pModel.hints && mosseFilter && left_eye_filter && right_eye_filter && nose_filter) {
 				var noseFilterWidth = candidate.width * 4.5/10;
@@ -650,7 +731,7 @@ var clm = {
 			if (!first) {
 				// TODO: check here if the previous tracked position is good enough, every 100th frame?
 				facecheck_count += 1;
-				if (facecheck_count % 10 == 0) {
+				/*if (facecheck_count % 10 == 0) {
 					if (!checkTracking2(element)) {
 						first = true;
 						face_diff = [];
@@ -662,12 +743,13 @@ var clm = {
 							previousParameters = [];
 						}
 					}
-				}
+				}*/
 			}
 
 			
 			if (first) {
 				// do viola-jones on canvas to get initial guess, if we don't have any points
+				debugger;
 				var gi = getInitialPosition(element);
 				if (!gi) {
 					return false;
@@ -709,6 +791,25 @@ var clm = {
 			//	get cropped images around new points based on model parameters (not scaled and translated)
 			var patchPositions = calculatePositions(currentParameters, false);
 			
+			// check whether tracking is ok
+			if (scoringWeights && (facecheck_count % 10 == 0)) {
+				if (!checkTracking3()) {
+					first = true;
+					face_diff = [];
+					face_peak = [];
+					le_peaks = [];
+					re_peaks = [];
+					scoringHistory = [];
+					for (var i = 0;i < currentParameters.length;i++) {
+						currentParameters[i] = 0;
+						previousParameters = [];
+					}
+					// force restart
+					return currentPositions
+				}
+			}
+
+
 			var pdata, pmatrix, grayscaleColor;
 			for (var i = 0; i < numPatches; i++) {
 				px = patchPositions[i][0]-(pw/2);
