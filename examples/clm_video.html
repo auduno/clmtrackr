@@ -56,8 +56,7 @@
 		<script src="./ext_js/left_eye_filter.js"></script>
 		<script src="./ext_js/right_eye_filter.js"></script>
 		<script src="./ext_js/nose_filter.js"></script>
-		<script src="./ext_js/entire_face_filter.js"></script>
-		<script src="../models/model_pca_7_svm.js"></script>
+		<script src="../models/model_pca_20_svm.js"></script>
 		<script src="../js/clm.js"></script>
 		<script src="./ext_js/ccv.js"></script>
 		<script src="./ext_js/cascade.js"></script>
@@ -81,8 +80,9 @@
        var vid = document.getElementById('videoel');
        var overlay = document.getElementById('overlay');
        var overlayCC = overlay.getContext('2d');
+       var psrElement = document.getElementById('psr');
 		   
-		   var ctrack = new clm.tracker({'constantVelocity' : true});
+		   var ctrack = new clm.tracker({'constantVelocity' : true, 'useWebGL' : true});
 		   ctrack.init(skcc);
 		   
 		   stats = new Stats();
@@ -106,13 +106,15 @@
          animate();
 		   }
 		   
-		   function animate() {
-         ctrack.track(vid);
-         overlayCC.clearRect(0, 0, 720, 576);
-         ctrack.draw(overlay);
-         stats.update();
-         requestAnimFrame(animate);
-		   }
+		function animate() {
+			if (ctrack.track(vid)) {
+				psrElement.innerHTML = "score :" + ctrack.getScore().toFixed(4);
+				overlayCC.clearRect(0, 0, 720, 576);
+				ctrack.draw(overlay);
+			}
+			stats.update();
+			requestAnimFrame(animate);
+		}
 		</script>
 	</body>
 </html>
