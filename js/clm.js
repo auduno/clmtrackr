@@ -27,6 +27,8 @@ var clm = {
 		var responses = [];
 		var meanShape = [];
 		
+		var movementSums = [];
+		
 		/*
 		It's possible to experiment with the sequence of variances used for the finding the maximum in the KDE.
 		This sequence is pretty arbitrary, but was found to be okay using some manual testing.
@@ -813,8 +815,30 @@ var clm = {
 				previousParameters.splice(0, previousParameters.length == 3 ? 1 : 0);
 			}
 			
+			// get the sum of the movements, for checking convergence
+			var movementSum = 0;
+			var mssq_x, mssq_y;
+			for (var i = 0;i < originalPositions.length;i++) {
+			  mssq_x = (originalPositions[i][0]-oldPositions[i][0]);
+			  mssq_y = (originalPositions[i][1]-oldPositions[i][1]);
+			  movementSum += ((mssq_x*mssq_x) + (mssq_y*mssq_y));
+			}
+			movementSums.splice(0, movementSums.length == 10 ? 1 : 0);
+			movementSums.push(movementSum);
+			
 			// return new points
 			return currentPositions;
+		}
+		
+		this.getMovementSum = function() {
+		  if (movementSums.length < 10) return 999999;
+		  //calc average
+		  var msavg = 0;
+		  for (var i = 0;i < movementSums.length;i++) {
+		    msavg += movementSums[i];
+		  }
+		  msavg /= movementSums.length
+		  return msavg;
 		}
 		
 		var drawPath = function(canvasContext, path, dp) {
