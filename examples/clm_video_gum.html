@@ -76,18 +76,16 @@
 		<video id="videoel" width="370" height="288" preload="auto"></video>
 		<canvas id="overlay" width="370" height="288"></canvas>
 		<canvas id="filter"></canvas>
-		<canvas id="sketch" width="138" height="138"></canvas>
 		<input type="button" value="wait, loading video" disabled="disabled" onclick="start()" id="startbutton"></input>
 		<p id='gUMMessage'></p>
 		
 		<script>
-			 var skcc = document.getElementById('sketch');
 			 var videoInput = document.getElementById('videoel');
        var overlay = document.getElementById('overlay');
        var overlayCC = overlay.getContext('2d');
 		   
 		   var ctrack = new clm.tracker({'constantVelocity' : true});
-			 ctrack.init(skcc);
+			 ctrack.init(pModel);
 			 
 			 stats = new Stats();
 			 stats.domElement.style.position = 'absolute';

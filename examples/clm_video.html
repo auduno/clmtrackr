@@ -69,21 +69,20 @@
       <source src="./media/franck.ogv" type="video/ogg"/>
 		</video>
 		<canvas id="overlay" width="370" height="288"></canvas>
-		<canvas id="overlay2" width="370" height="288"></canvas>
-		<canvas id="filter"></canvas>
-		<canvas id="sketch" width="138" height="138"></canvas>
+		<!--<canvas id="overlay2" width="370" height="288"></canvas>-->
+		<!--<canvas id="filter"></canvas>-->
 		<input type="button" value="wait, loading video" disabled="disabled" onclick="start()" id="startbutton"></input>
 		<p id="peak"></p>
 		<p id="psr"></p>
 		<script>
-		   var skcc = document.getElementById('sketch');
        var vid = document.getElementById('videoel');
        var overlay = document.getElementById('overlay');
        var overlayCC = overlay.getContext('2d');
        var psrElement = document.getElementById('psr');
+       var peakElement = document.getElementById('peak');
 		   
 		   var ctrack = new clm.tracker({'constantVelocity' : true, 'useWebGL' : true});
-		   ctrack.init(skcc);
+		   ctrack.init(pModel);
 		   
 		   stats = new Stats();
 			 stats.domElement.style.position = 'absolute';
@@ -107,13 +106,13 @@
 		   }
 		   
 		function animate() {
+			requestAnimFrame(animate);
 			if (ctrack.track(vid)) {
 				psrElement.innerHTML = "score :" + ctrack.getScore().toFixed(4);
 				overlayCC.clearRect(0, 0, 720, 576);
 				ctrack.draw(overlay);
 			}
 			stats.update();
-			requestAnimFrame(animate);
 		}
 		</script>
 	</body>

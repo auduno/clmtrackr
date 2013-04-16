@@ -1,3 +1,4 @@
+"use strict";
 //requires: jsfeat, numeric.js
 
 var clm = {
@@ -14,14 +15,11 @@ var clm = {
 		var eigenVectors, eigenValues;
 		var sketchCC, sketchW, sketchH, sketchCanvas;
 		var candidate;
+		var weights, model;
 		
 		var currentParameters = [];
 		var currentPositions = [];
 		var previousParameters = [];
-		
-		var weightMatrices = [];
-		var weightMatricesOld = [];
-		var weights = [];
 		
 		var patches = [];
 		var responses = [];
@@ -34,7 +32,6 @@ var clm = {
 		This sequence is pretty arbitrary, but was found to be okay using some manual testing.
 		In Saragih's paper he used the sequence [20,10,5,1], this was however found to be slower and equally precise.
 		*/
-		//var varianceSeq = [10,7,5];
 		var varianceSeq = [3,1.5,0.75];
 		
 		/*
@@ -56,8 +53,8 @@ var clm = {
 		
 		var searchWindow;
 		var modelWidth, modelHeight;
-		
 		var halfSearchWindow, vecProbs, responsePixels;
+		
 		if(typeof Float64Array !== 'undefined') {
 			var updatePosition = new Float64Array(2);
 			var vecpos = new Float64Array(2);
@@ -66,73 +63,79 @@ var clm = {
 			var vecpos = new Array(2);
 		}
 		var pw, pl, pdataLength;
-			
-		if (pModel.hints && mosseFilter && left_eye_filter && right_eye_filter && nose_filter) {
-			//var mossef_lefteye = new mosseFilter({drawResponse : document.getElementById('overlay2')});
-			var mossef_lefteye = new mosseFilter();
-			mossef_lefteye.load(left_eye_filter);
-			//var mossef_righteye = new mosseFilter({drawResponse : document.getElementById('overlay2')});
-			var mossef_righteye = new mosseFilter();
-			mossef_righteye.load(right_eye_filter);
-			//var mossef_nose = new mosseFilter({drawResponse : document.getElementById('overlay2')});
-			var mossef_nose = new mosseFilter();
-			mossef_nose.load(nose_filter);
-			
-			var right_eye_position = [0.0,0.0];
-			var left_eye_position = [0.0,0.0];
-			var nose_position = [0.0,0.0];
-			var lep, rep, mep;
-		} else {
-			console.log("MOSSE filters not found, using rough approximation for initialization.");
-		}
+		
 		var facecheck_count = 0;
 		
 		var webglFi, svmFi, mosseCalc;
 
 		var scoringCanvas = document.createElement('canvas');
 		//document.body.appendChild(scoringCanvas);
-		// TODO : scoringcanvas width & height should be from model
-		scoringCanvas.width = 20;
-		scoringCanvas.height = 22;
 		var scoringContext = scoringCanvas.getContext('2d');
 		var msxmin, msymin, msxmax, msymax;
 		var msmodelwidth, msmodelheight;
 		var scoringWeights, scoringBias;
 		var scoringHistory = [];
 		var meanscore = 0;
+
+		var mossef_lefteye, mossef_righteye, mossef_nose;
+		var right_eye_position = [0.0,0.0];
+		var left_eye_position = [0.0,0.0];
+		var nose_position = [0.0,0.0];
+		var lep, rep, mep;
+		
+		/*
+		 *	load model data, initialize filters, etc.
+		 *
+		 *	@param	<Object>	pdm model object
+		 */
+		this.init = function(pdmmodel) {
 			
-		this.init = function(canvas) {
-			// do all prep stuff
-			
-			sketchCanvas = canvas;
-			sketchCC = canvas.getContext('2d');
-			sketchW = canvas.width;
-			sketchH = canvas.height;
+			model = pdmmodel;
 			
 			// load from model
-			patchType = pModel.patchModel.patchType;
-			numPatches = pModel.patchModel.numPatches;
-			patchSize = pModel.patchModel.patchSize[0];
+			patchType = model.patchModel.patchType;
+			numPatches = model.patchModel.numPatches;
+			patchSize = model.patchModel.patchSize[0];
 			if (patchType == "MOSSE") {
 				searchWindow = patchSize;
 			} else {
 				searchWindow = params.searchWindow;
 			}
-			numParameters = pModel.shapeModel.numEvalues;
-			modelWidth = pModel.patchModel.canvasSize[0];
-			modelHeight = pModel.patchModel.canvasSize[1];
+			numParameters = model.shapeModel.numEvalues;
+			modelWidth = model.patchModel.canvasSize[0];
+			modelHeight = model.patchModel.canvasSize[1];
+      
+      		// set up canvas to work on
+			sketchCanvas = document.createElement('canvas');
+			sketchCC = sketchCanvas.getContext('2d');
+			sketchW = sketchCanvas.width = modelWidth + searchWindow + patchSize-1;
+			sketchH = sketchCanvas.height = modelHeight + searchWindow + patchSize-1;
 			
+			if (model.hints && mosseFilter && left_eye_filter && right_eye_filter && nose_filter) {
+				//var mossef_lefteye = new mosseFilter({drawResponse : document.getElementById('overlay2')});
+				mossef_lefteye = new mosseFilter();
+				mossef_lefteye.load(left_eye_filter);
+				//var mossef_righteye = new mosseFilter({drawResponse : document.getElementById('overlay2')});
+				mossef_righteye = new mosseFilter();
+				mossef_righteye.load(right_eye_filter);
+				//var mossef_nose = new mosseFilter({drawResponse : document.getElementById('overlay2')});
+				mossef_nose = new mosseFilter();
+				mossef_nose.load(nose_filter);
+			} else {
+				console.log("MOSSE filters not found, using rough approximation for initialization.");
+			}
+
 			// load eigenvectors
 			eigenVectors = numeric.rep([numPatches*2,numParameters],0.0);
 			for (var i = 0;i < numPatches*2;i++) {
 				for (var j = 0;j < numParameters;j++) {
-					eigenVectors[i][j] = pModel.shapeModel.eigenVectors[i][j];
+					eigenVectors[i][j] = model.shapeModel.eigenVectors[i][j];
 				}
 			}
 			
 			// load mean shape
 			for (var i = 0; i < numPatches;i++) {
-				meanShape[i] = [pModel.shapeModel.meanShape[i][0], pModel.shapeModel.meanShape[i][1]];
+				meanShape[i] = [model.shapeModel.meanShape[i][0], model.shapeModel.meanShape[i][1]];
 			}
 
 			// get max and mins, width and height of meanshape
@@ -148,21 +151,23 @@ var clm = {
 			msmodelheight = msymax-msymin;
 			
 			// get scoringweights if they exist
-			if (pModel.scoring) {
-				scoringWeights = new Float64Array(pModel.scoring.coef);
-				scoringBias = pModel.scoring.bias;
+			if (model.scoring) {
+				scoringWeights = new Float64Array(model.scoring.coef);
+				scoringBias = model.scoring.bias;
+				scoringCanvas.width = model.scoring.size[0];
+				scoringCanvas.height = model.scoring.size[1];
 			}
 			
 			// load eigenvalues
-			eigenValues = pModel.shapeModel.eigenValues;
+			eigenValues = model.shapeModel.eigenValues;
 			
-			weights = pModel.patchModel.weights;
+			weights = model.patchModel.weights;
 			
 			// precalculate gaussianPriorDiagonal
 			gaussianPD = numeric.rep([numParameters+4, numParameters+4],0);
 			// set values and append manual inverse
 			for (var i = 0;i < numParameters;i++) {
-				if (pModel.shapeModel.nonRegularizedVectors.indexOf(i) >= 0) {
+				if (model.shapeModel.nonRegularizedVectors.indexOf(i) >= 0) {
 					gaussianPD[i+4][i+4] = 1/10000000;
 				} else {
 					gaussianPD[i+4][i+4] = 1/eigenValues[i];
@@ -224,8 +229,9 @@ var clm = {
 			}
 		}
 		
+
+		// generates the jacobian matrix used for optimization calculations
 		var createJacobian = function(parameters, eigenVectors) {
-			// generates the jacobian matrix
 			
 			var jacobian = numeric.rep([2*numPatches, numParameters+4],0.0);
 			var j0,j1;
@@ -266,6 +272,7 @@ var clm = {
 			return jacobian;
 		}
 		
+      	// calculate positions from parameters
 		var calculatePositions = function(parameters, useTransforms) {
 			var x, y, a, b;
 			var numParameters = parameters.length;
@@ -274,8 +281,8 @@ var clm = {
 				x = meanShape[i][0];
 				y = meanShape[i][1];
 				for (var j = 0;j < numParameters-4;j++) {
-					x += pModel.shapeModel.eigenVectors[(i*2)][j]*parameters[j+4];
-					y += pModel.shapeModel.eigenVectors[(i*2)+1][j]*parameters[j+4];
+					x += model.shapeModel.eigenVectors[(i*2)][j]*parameters[j+4];
+					y += model.shapeModel.eigenVectors[(i*2)+1][j]*parameters[j+4];
 				}
 				if (useTransforms) {
 					a = parameters[0]*x - parameters[1]*y + parameters[2];
@@ -289,10 +296,14 @@ var clm = {
 			return positions;
 		}
 		
+		/*
+		 *	calculate positions based on parameters
+		 */
 		this.calculatePositions = function(parameters) {
 			return calculatePositions(parameters, true);
 		}
 		
+		// detect position of face on canvas/video element
 		var detectPosition = function(el) {
 			var canvas = document.createElement('canvas');
 			canvas.width = el.width;
@@ -322,14 +333,21 @@ var clm = {
 			return candidate;
 		}
 		
+		/*
+		 *	get coordinates of current model fit
+		 */
 		this.getCurrentPosition = function() {
 			return currentPositions;
 		}
 		
+		/*
+		 *	get parameters of current model fit
+		 */
 		this.getCurrentParameters = function() {
 			return currentParameters;
 		}
 		
+		// part one of meanshift calculation
 		var gpopt = function(responseWidth, currentPositionsj, updatePosition, vecProbs, responses, opj0, opj1, j, variance) {
 			var pos_idx = 0;
 			var vpsum = 0;
@@ -350,7 +368,8 @@ var clm = {
 			
 			return vpsum;
 		}
-	
+		
+		// part two of meanshift calculation
 		var gpopt2 = function(responseWidth, vecpos, updatePosition, vecProbs, vpsum, opj0, opj1) {
 			//for debugging
 			//var vecmatrix = [];
@@ -377,6 +396,7 @@ var clm = {
 			//return vecmatrix;
 		}
 		
+		// calculate score of current fit
 		var checkTracking = function() {			
 			scoringContext.drawImage(sketchCanvas, msxmin, msymin, msmodelwidth, msmodelheight, 0, 0, 20, 22);
 			// getImageData of canvas
@@ -438,18 +458,24 @@ var clm = {
 			return true;
 		}
 
+		/*
+		 * 	get the score of the current model fit
+		 *	(based on svm of face according to current model)
+		 */
 		this.getScore = function() {
 			return meanscore;
 		}
 		
+		// get initial starting point for model
 		var getInitialPosition = function(element) {
+      		var translateX, translateY, scaling, rotation;
 			var det = detectPosition(element);
 			if (!det) {
 			// if no face found, stop.
 			return false;
 			}
 			
-			if (pModel.hints && mosseFilter && left_eye_filter && right_eye_filter && nose_filter) {
+			if (model.hints && mosseFilter && left_eye_filter && right_eye_filter && nose_filter) {
 				var noseFilterWidth = candidate.width * 4.5/10;
 				var eyeFilterWidth = candidate.width * 6/10;
 				//var eyeFilterWidth = candidate.width * 4.5/10;
@@ -499,9 +525,9 @@ var clm = {
 				canvasContext.clearRect(0,0,320,240);*/
 				
 				// get eye and nose positions of model
-				var lep = pModel.hints.leftEye;
-				var rep = pModel.hints.rightEye;
-				var mep = pModel.hints.nose;
+				var lep = model.hints.leftEye;
+				var rep = model.hints.rightEye;
+				var mep = model.hints.nose;
 				
 				// get scaling, rotation, etc. via procrustes analysis
 				var procrustes_params = procrustes([left_eye_position, right_eye_position, nose_position], [lep, rep, mep]);
@@ -509,7 +535,7 @@ var clm = {
 				translateY = procrustes_params[1];
 				scaling = procrustes_params[2];
 				rotation = procrustes_params[3];
-				//debugger;
+				
 				//element.play();
 				
 				//var maxscale = 1.10;
@@ -555,8 +581,8 @@ var clm = {
 				
 			} else {
 				scaling = candidate.width/modelheight;
-				var ccc = document.getElementById('overlay').getContext('2d');
-				ccc.strokeRect(candidate.x,candidate.y,candidate.width,candidate.height);
+				//var ccc = document.getElementById('overlay').getContext('2d');
+				//ccc.strokeRect(candidate.x,candidate.y,candidate.width,candidate.height);
 				translateX = candidate.x-(xmin*scaling)+0.1*candidate.width;
 				translateY = candidate.y-(ymin*scaling)+0.25*candidate.height;
 				currentParameters[0] = scaling-1;
@@ -566,7 +592,7 @@ var clm = {
 		
 			currentPositions = calculatePositions(currentParameters, true);
 			
-			return true;
+			return [scaling, rotation, translateX, translateY];
 		}
 		
 		/*
@@ -581,11 +607,14 @@ var clm = {
 			
 			if (first) {
 				// do viola-jones on canvas to get initial guess, if we don't have any points
-				debugger;
 				var gi = getInitialPosition(element);
 				if (!gi) {
 					return false;
 				}
+				scaling = gi[0];
+				rotation = gi[1];
+				translateX = gi[2];
+				translateY = gi[3];
 				
 				first = false;
 			} else {
@@ -830,6 +859,10 @@ var clm = {
 			return currentPositions;
 		}
 		
+		/*
+		 *	Get the average of recent model movements
+		 *	Used for checking whether model fit has converged
+		 */
 		this.getMovementSum = function() {
 		  if (movementSums.length < 10) return 999999;
 		  //calc average
@@ -841,6 +874,7 @@ var clm = {
 		  return msavg;
 		}
 		
+		// draw a parametrized line on a canvas
 		var drawPath = function(canvasContext, path, dp) {
 			canvasContext.beginPath();
 			var i, x, y, a, b;
@@ -849,8 +883,8 @@ var clm = {
 				x = meanShape[i/2][0];
 				y = meanShape[i/2][1];
 				for (var j = 0;j < numParameters;j++) {
-					x += pModel.shapeModel.eigenVectors[i][j]*dp[j+4];
-					y += pModel.shapeModel.eigenVectors[i+1][j]*dp[j+4];
+					x += model.shapeModel.eigenVectors[i][j]*dp[j+4];
+					y += model.shapeModel.eigenVectors[i+1][j]*dp[j+4];
 				}
 				a = dp[0]*x - dp[1]*y + dp[2];
 				b = dp[0]*y + dp[1]*x + dp[3];
@@ -868,14 +902,15 @@ var clm = {
 			canvasContext.stroke();
 		}
 		
+		// draw a point on a canvas
 		function drawPoint(canvasContext, point, dp) {
 			var i, x, y, a, b;
 			i = point*2;
 			x = meanShape[i/2][0];
 			y = meanShape[i/2][1];
 			for (var j = 0;j < numParameters;j++) {
-				x += pModel.shapeModel.eigenVectors[i][j]*dp[j+4];
-				y += pModel.shapeModel.eigenVectors[i+1][j]*dp[j+4];
+				x += model.shapeModel.eigenVectors[i][j]*dp[j+4];
+				y += model.shapeModel.eigenVectors[i+1][j]*dp[j+4];
 			}
 			a = dp[0]*x - dp[1]*y + dp[2];
 			b = dp[0]*y + dp[1]*x + dp[3];
@@ -887,6 +922,11 @@ var clm = {
 			canvasContext.fill();
 		}
 		
+
+		
+		/*
+		 *	draw model on given canvas
+		 */
 		this.draw = function(canvas, pv) {
 			// if no previous points, just draw in the middle of canvas
 			
@@ -901,9 +941,8 @@ var clm = {
 			cc.fillStyle = "rgb(200,200,200)";
 			cc.strokeStyle = "rgb(130,255,50)";
 			//cc.lineWidth = 1;
-			cc.save();
 			
-			var paths = pModel.path.normal;
+			var paths = model.path.normal;
 			for (var i = 0;i < paths.length;i++) {
 				if (typeof(paths[i]) == 'number') {
 					drawPoint(cc, paths[i], params);
@@ -911,10 +950,9 @@ var clm = {
 					drawPath(cc, paths[i], params);
 				}
 			}
-			
-			cc.restore()
 		}
 		
+		// procrustes analysis
 		function procrustes(template, shape) {
 			// assume template and shape is a vector of x,y-coordinates
 			//i.e. template = [[x1,y1], [x2,y2], [x3,y3]];
@@ -999,6 +1037,7 @@ var clm = {
 			return [translationX, translationY, scaling, rotation];
 		}
 		
+		// function to draw pixeldata on some canvas, only used for debugging
 		var drawData = function(canvasContext, data, width, height, transposed, drawX, drawY) {
 			var psci = canvasContext.createImageData(width, height);
 			var pscidata = psci.data;

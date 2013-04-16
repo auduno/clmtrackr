@@ -512,23 +512,3 @@ var svmFilter = function() {
     }
   }
 }
-
-// TODO : remove this function when done debugging
-var drawData = function(canvasContext, data, width, height, transposed, drawX, drawY) {
-  var psci = canvasContext.createImageData(width, height);
-  var pscidata = psci.data;
-  for (var j = 0;j < width*height;j++) {
-    if (!transposed) {
-      var val = data[(j%width)+((j/width) >> 0)*width];
-    } else {
-      var val = data[(j%height)*height+((j/height) >> 0)];
-    }
-    val = val > 255 ? 255 : val;
-    val = val < 0 ? 0 : val;
-    pscidata[j*4] = val;
-    pscidata[(j*4)+1] = val;
-    pscidata[(j*4)+2] = val;
-    pscidata[(j*4)+3] = 255;
-  }
-  canvasContext.putImageData(psci, drawX, drawY);
-}
