@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<title>Face mask</title>
+		<meta charset="utf-8">
+		<style>
+			@import url(https://fonts.googleapis.com/css?family=Lato:300italic,700italic,300,700);
+
+			body {
+				font-family: 'Lato';
+				background-color: #f0f0f0;
+				margin: 0px auto;
+				max-width: 1150px;
+				overflow: hidden;
+			}
+			
+			#overlay, #webgl {
+				position: absolute;
+				top: 0px;
+				left: 0px;
+				-o-transform : scaleX(-1);
+				-webkit-transform : scaleX(-1);
+				transform : scaleX(-1);
+				-ms-filter : fliph; /*IE*/
+				filter : fliph; /*IE*/
+			}
+
+			#videoel {
+				-o-transform : scaleX(-1);
+				-webkit-transform : scaleX(-1);
+				transform : scaleX(-1);
+				-ms-filter : fliph; /*IE*/
+				filter : fliph; /*IE*/
+			}
+
+			#container {
+				position : relative;
+				width : 370px;
+				/*margin : 0px auto;*/
+			}
+			
+			#content {
+				margin-top : 70px;
+				margin-left : 100px;
+				margin-right : 100px;
+				max-width: 950px;
+			}
+			 
+			#sketch {
+				display: none;
+			}
+			
+			#filter {
+				display: none;
+			}
+
+			h2 {
+				font-weight : 400;
+			}
+
+			#bieber {
+				display: none;
+			}
+
+			.nogum {
+						display : none;
+			}
+			
+			.btn {
+						font-family: 'Lato';
+						font-size: 16px;
+			}
+
+			.hide {
+				display : none;
+			}
+
+			.nohide {
+				display : block;
+			}
+		</style>
+		<script type="text/javascript">
+
+			var _gaq = _gaq || [];
+			_gaq.push(['_setAccount', 'UA-32642923-1']);
+			_gaq.push(['_trackPageview']);
+
+			(function() {
+				var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+				ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+				var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+			})();
+
+		</script>
+	</head>
+	<body>
+		<script src="./ext_js/dat.gui.min.js"></script>
+		
+		<script src="./ext_js/utils.js"></script>
+		<script src="./ext_js/jsfeat-min.js"></script>
+		<script src="./ext_js/frontalface.js"></script>
+		<script src="./ext_js/jsfeat_detect.js"></script>
+		<script src="./ext_js/numeric-1.2.6.min.js"></script>
+		<script src="./ext_js/mosse.js"></script>
+		<script src="./ext_js/left_eye_filter.js"></script>
+		<script src="./ext_js/right_eye_filter.js"></script>
+		<script src="./ext_js/nose_filter.js"></script>
+		<script src="../models/model_pca_20_svm.js"></script>
+		<script src="../js/clm.js"></script>
+		<script src="./ext_js/ccv.js"></script>
+		<script src="./ext_js/cascade.js"></script>
+		<script src="../js/svmfilter_webgl.js"></script>
+		<script src="../js/svmfilter_fft.js"></script>
+		<script src="../js/mossefilter.js"></script>
+		<script src="./ext_js/Stats.js"></script>
+		<script src="./ext_js/face_deformer2.js"></script>
+		<div id="content">
+			<h2>Face mask</h2>
+			<div id="container">
+				<video id="videoel" width="500" height="375" preload="auto">
+					<source src="./media/Capture_1_092.ogv" type="video/ogg"/>
+					<!--<source src="./media/franck.ogv" type="video/ogg"/>-->
+				</video>
+				<canvas id="overlay" width="500" height="375"></canvas>
+				<canvas id="webgl" width="500" height="375"></canvas>
+			</div>
+			<br/>
+			<input class="btn" type="button" value="wait, loading video" disabled="disabled" onclick="start()" id="startbutton"></input>
+			<select name="mask">
+				<option value="none">None</option>
+				<option value="monalisa">Mona Lisa</option>
+			</select>
+			<div id="text">
+				<p>This is an example of face masking using the javascript library <a href="https://github.com/auduno/clmtrackr"><em>clmtrackr</em></a>.</p>
+				<p>Note that this example needs support for WebGL, and works best in Google Chrome.</p>
+				<div id="gum" class="nohide">
+					<p>To try it out:
+						<ol>
+							<li>allow the page to use your webcamera</li>
+							<li>make sure that your face is clearly visible in the video, and click start</li>
+							<li>keep your face still, and wait till model fits your face and mask is applied</li>
+							<li>try out different masks from the dropdown</li>
+						<ol>
+					</p>
+				</div>
+				<div id="nogum" class="hide">
+					<p>
+						There was some problem trying to capture your webcamera, please check that your browser supports WebRTC. Instead we'll use a static image. To try it out:
+						<ol>
+							<li>click start</li>
+							<li>wait till the model fits the face</li>
+							<li>choose a preset or fiddle with the parameters on the right hand side, to deform the captured face</li>
+						</ol>
+					</p>
+				</div>
+			</div>
+			<img id="bieber" src="./media/bieber_small.jpg"></img>
+			<script>
+				//var skcc = document.getElementById('sketch');
+				var vid = document.getElementById('videoel');
+				var overlay = document.getElementById('overlay');
+				var overlayCC = overlay.getContext('2d');
+				
+				var ctrack = new clm.tracker({constantVelocity : true});
+				ctrack.init(pModel);
+				
+				stats = new Stats();
+				stats.domElement.style.position = 'absolute';
+				stats.domElement.style.top = '0px';
+				document.getElementById('container').appendChild( stats.domElement );
+				
+				function enablestart() {
+					var startbutton = document.getElementById('startbutton');
+					startbutton.value = "start";
+					startbutton.disabled = null;
+				}
+				
+				vid.addEventListener('canplay', enablestart, false);
+
+				function start() {
+					//start video
+					vid.play();
+					
+					//start tracking
+					animate();
+				}
+
+				var positions;
+				var fd = new faceDeformer();
+				fd.init(document.getElementById('webgl'));
+				 
+				var bieberpos = [[115.9752686028232,328.6220466908972],[119.22873121946967,374.40858852922236],[131.1565130945076,417.23833371292824],[147.46691862513703,458.8532123608701],[169.12631494681284,491.1972025630235],[195.43904217855416,516.328978933631],[225.12865446493407,535.9062523012337],[262.04556382915666,540.3069324850155],[300.94141109040174,527.8502399147961],[332.9603108915372,502.45220152142446],[358.8360460728861,471.19379837598467],[376.30594053223126,432.7368076223554],[382.67017562895774,386.092455079847],[382.9572691840467,340.6309871594118],[373.9218117623584,294.7317621266673],[336.1771287095879,277.33615469931993],[309.0591744841313,265.48318334798023],[280.18008080721654,270.41133608650136],[256.43572723795205,288.00624486316775],[132.78340927208725,302.3508622540975],[152.12755213329575,285.64501141366554],[179.00521938859092,283.71128940592473],[205.2906738672715,295.0025921899086],[153.280095626718,326.6176205427562],[173.66825536827957,312.37635516179034],[200.5039461913669,321.80135395397144],[176.4252911165302,331.5053440165448],[175.60476729990694,320.7103852530686],[320.09549369069657,304.98353187039095],[293.8708067688545,296.76097677136033],[271.58562891677826,313.04623730551765],[297.0041924786207,316.0129930023768],[295.5198902690135,305.2334114426537],[219.39189145138596,322.52490657195426],[213.12903160458814,372.68944673895106],[204.25378527943315,395.19379951207986],[216.42423446106187,407.4119870829318],[242.53049164091706,409.5633258220383],[271.44166574243314,400.8594406366267],[281.0747413420262,385.33753840829905],[264.93761588662034,366.0082686027026],[248.4222279939238,318.65718124206103],[221.19696050353386,400.1917656470539],[261.194844263039,394.3039377608819],[205.58562543311808,454.0404194376248],[219.45570688767742,443.2933320382955],[235.11772368281123,437.7856722052561],[247.04484871943168,439.0481001020766],[258.89570167366736,434.78235106489905],[278.09912572601576,436.0808959514672],[299.3034775622639,442.54677422653293],[287.1187997918484,455.81576684891434],[271.34249957002703,465.51172329290904],[251.61268198682447,470.44097715445434],[232.73570674290363,470.1580146696677],[218.10425477812518,464.10041259051224],[228.1409097022435,453.68187695329203],[249.6936987242403,453.78342049724876],[272.6989984571775,448.2156278276872],[272.0110524437053,444.79167221837804],[248.77651531852348,448.8688363646738],[227.509537176152,450.245536680183],[237.9908602824163,390.1923398762123],[160.91646595859757,317.33744947123716],[188.7840782811474,313.8256705835899],[189.05067958859877,327.25046064429824],[163.55409188544704,330.4344482791597],[308.5376365048648,298.0766114500345],[279.84528286898836,302.2825309865559],[283.62066631586,315.20905218987537],[309.749050119264,311.6663773937525]];
+				 
+				function animate() {
+					// track in video
+					positions = ctrack.track(vid);
+					overlayCC.clearRect(0, 0, 500, 375);
+					ctrack.draw(overlay);
+					stats.update();
+					var pn = ctrack.getMovementSum();
+					if (pn < 0.4) {
+					//if (pn < 0.09) {
+						requestAnimFrame(animate2);
+					} else {
+						requestAnimFrame(animate);
+					}
+				}
+				 
+				function animate2() {
+					// draw face deformation model
+					positions = ctrack.track(vid);
+					overlayCC.clearRect(0, 0, 500, 375);
+					//ctrack.draw(overlay);
+					//fd.load(vid, undefined, positions, pModel.path.vertices)
+					fd.load(document.getElementById("bieber"), undefined, bieberpos, pModel.path.vertices, 500, 375)
+					//var elem = vid;
+					//elem.parentNode.removeChild(elem);
+					fd.draw(positions);
+					stats.update();
+					requestAnimFrame(animate2b);
+				}
+
+				function animate2b() {
+					// draw face deformation model
+					positions = ctrack.track(vid);
+					if (positions) {
+						overlayCC.clearRect(0, 0, 500, 375);
+						fd.draw(positions);
+					}
+					stats.update();
+					requestAnimFrame(animate2b);
+				}
+				
+				var calculatePositions = function(parameters) {
+					var x, y, a, b;
+					var numParameters = parameters.length;
+					var positions = [];
+					for (var i = 0;i < pModel.shapeModel.meanShape.length;i++) {
+						x = pModel.shapeModel.meanShape[i][0];
+						y = pModel.shapeModel.meanShape[i][1];
+						for (var j = 0;j < numParameters-4;j++) {
+							x += pModel.shapeModel.eigenVectors[(i*2)][j]*parameters[j+4];
+							y += pModel.shapeModel.eigenVectors[(i*2)+1][j]*parameters[j+4];
+						}
+						a = parameters[0]*x - parameters[1]*y + parameters[2];
+						b = parameters[0]*y + parameters[1]*x + parameters[3];
+						x += a;
+						y += b;
+						positions[i] = [x,y];
+					}
+					
+					return positions;
+				}
+			</script>
+		</div>
+	</body>
+</html>

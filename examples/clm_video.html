@@ -1,14 +1,20 @@
 <!doctype html>
 <html lang="en">
 	<head>
-		<title>Constrained Local Models</title>
+		<title>Face tracker</title>
 		<meta charset="utf-8">
+    <link href="./styles/bootstrap.min.css" rel="stylesheet" type="text/css">
 		<style>
+		  @import url(https://fonts.googleapis.com/css?family=Lato:300italic,700italic,300,700);
+		  
 			body {
-				font-family: Monospace;
+				/*font-family: Monospace;*/
+				font-family: 'Lato';
 				background-color: #f0f0f0;
-				margin: 0px;
+				margin: 0px auto;
+				max-width: 1150px;
 				overflow: hidden;
+				/*text-align : center;*/
 			}
 			
 			#overlay {
@@ -24,12 +30,38 @@
 			  left: 0px;
 			}
 			
+			#container {
+			  position : relative;
+			  width : 370px;
+			  /*margin : 0px auto;*/
+			}
+			
+			#content {
+			  margin-top : 70px;
+        margin-left : 100px;
+        margin-right : 100px;
+        max-width: 950px;
+			}
+			
 			#sketch {
 			  display: none;
 			}
 			
 			#filter {
 			  display: none;
+			}
+			
+			h2 {
+        font-weight : 400;
+			}
+			
+			.nogum {
+        display : none;
+			}
+			
+			.btn {
+        font-family: 'Lato';
+        font-size: 16px;
 			}
 		</style>
 		<script type="text/javascript">
@@ -64,56 +96,85 @@
 		<script src="../js/svmfilter_fft.js"></script>
 		<script src="../js/mossefilter.js"></script>
 		<script src="./ext_js/Stats.js"></script>
-		<div id="container"></div>
-		<video id="videoel" width="370" height="288" preload="auto">
-      <source src="./media/franck.ogv" type="video/ogg"/>
-		</video>
-		<canvas id="overlay" width="370" height="288"></canvas>
-		<!--<canvas id="overlay2" width="370" height="288"></canvas>-->
-		<!--<canvas id="filter"></canvas>-->
-		<input type="button" value="wait, loading video" disabled="disabled" onclick="start()" id="startbutton"></input>
-		<p id="peak"></p>
-		<p id="psr"></p>
-		<script>
-       var vid = document.getElementById('videoel');
-       var overlay = document.getElementById('overlay');
-       var overlayCC = overlay.getContext('2d');
-       var psrElement = document.getElementById('psr');
-       var peakElement = document.getElementById('peak');
-		   
-		   var ctrack = new clm.tracker({'constantVelocity' : true, 'useWebGL' : true});
-		   ctrack.init(pModel);
-		   
-		   stats = new Stats();
-			 stats.domElement.style.position = 'absolute';
-			 stats.domElement.style.top = '0px';
-			 document.getElementById('container').appendChild( stats.domElement );
-       
-       function enablestart() {
-         var startbutton = document.getElementById('startbutton');
-         startbutton.value = "start";
-         startbutton.disabled = null;
-       }
-       
-       vid.addEventListener('canplay', enablestart, false);
-		   
-		   function start() {
-         //start video
-         vid.play();
+		<div id="content">
+      <h2>Facetracking example</h2>
+      <div id="container">
+        <video id="videoel" width="370" height="288" preload="auto">
+        <!--<video id="videoel" width="320" height="240" preload="auto">-->
+          <source src="./media/franck.ogv" type="video/ogg"/>
+        </video>
+        <canvas id="overlay" width="370" height="288"></canvas>
+      </div>
+      <br/>
+      <!--<canvas id="overlay2" width="370" height="288"></canvas>-->
+      <!--<canvas id="filter"></canvas>-->
+      <input class="btn" type="button" value="wait, loading video" disabled="disabled" onclick="start()" id="startbutton"></input>
+      <!--<p id="peak"></p>
+      <p id="psr"></p>-->
+      <div id="text">
+        <p>This is an example of face tracking using the javascript library <a href="https://github.com/auduno/clmtrackr"><em>clmtrackr</em></a>. The fitting method is generally called "Non-rigid/deformable face tracking/alignment using constrained local models".</p>
+        <p>Note that this example works best in Google Chrome, with a computer that supports WebGL and floating point textures. It should however work in any modern browser.</p>
+        <div class="gum">
+          <p>To try it out:
+            <ol>
+              <li>allow the page to use your webcamera</li>
+              <li>make sure that your face is clearly visible in the video, and click start</li>
+              <li>see the model fitted to your face</li>
+            <ol>
+          </p>
+        </div>
+        <div class="nogum">
+          <p>
+            Your browser does not support webRTC, or has no camera. This example will use a standalone video. To try it out:
+            <ol>
+              <li>click start</li>
+              <li>see the model fitted to the face</li>
+            </ol>
+          </p>
+        </div>
+      </div>
+      <a href="https://github.com/auduno/clmtrackr"><img style="position: absolute; top: 0; left: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_left_green_007200.png" alt="Fork me on GitHub"></a>
+      <script>
+         var vid = document.getElementById('videoel');
+         var overlay = document.getElementById('overlay');
+         var overlayCC = overlay.getContext('2d');
+         var psrElement = document.getElementById('psr');
+         var peakElement = document.getElementById('peak');
          
-         //start tracking
-         animate();
-		   }
-		   
-		function animate() {
-			requestAnimFrame(animate);
-			if (ctrack.track(vid)) {
-				psrElement.innerHTML = "score :" + ctrack.getScore().toFixed(4);
-				overlayCC.clearRect(0, 0, 720, 576);
-				ctrack.draw(overlay);
-			}
-			stats.update();
-		}
-		</script>
+         var ctrack = new clm.tracker({'constantVelocity' : true, 'useWebGL' : true});
+         ctrack.init(pModel);
+         
+         stats = new Stats();
+         stats.domElement.style.position = 'absolute';
+         stats.domElement.style.top = '0px';
+         document.getElementById('container').appendChild( stats.domElement );
+         
+         function enablestart() {
+           var startbutton = document.getElementById('startbutton');
+           startbutton.value = "start";
+           startbutton.disabled = null;
+         }
+         
+         vid.addEventListener('canplay', enablestart, false);
+         
+         function start() {
+           //start video
+           vid.play();
+           
+           //start tracking
+           animate();
+         }
+         
+      function animate() {
+        requestAnimFrame(animate);
+        if (ctrack.track(vid)) {
+          //psrElement.innerHTML = "score :" + ctrack.getScore().toFixed(4);
+          overlayCC.clearRect(0, 0, 720, 576);
+          ctrack.draw(overlay);
+        }
+        stats.update();
+      }
+      </script>
+    </div>
 	</body>
 </html>

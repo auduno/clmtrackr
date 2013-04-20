@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<title>Constrained Local Models</title>
+		<meta charset="utf-8">
+		<style>
+			body {
+				font-family: Monospace;
+				background-color: #f0f0f0;
+				margin: 0px;
+				overflow: hidden;
+			}
+			
+			#overlay {
+			  position: absolute;
+			  top: 0px;
+			  left: 0px;
+			}
+			
+			#sketch {
+			  display: none;
+			}
+			
+			#filter {
+			  display: none;
+			}
+		</style>
+		<script type="text/javascript">
+
+      var _gaq = _gaq || [];
+      _gaq.push(['_setAccount', 'UA-32642923-1']);
+      _gaq.push(['_trackPageview']);
+
+      (function() {
+        var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+        ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+        var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+      })();
+
+    </script>
+	</head>
+	<body>
+	  <script src="./ext_js/dat.gui.min.js"></script>
+	  
+	  <script src="./ext_js/utils.js"></script>
+	  <script src="./ext_js/jsfeat-min.js"></script>
+		<script src="./ext_js/frontalface.js"></script>
+		<script src="./ext_js/jsfeat_detect.js"></script>
+		<script src="./ext_js/numeric-1.2.6.min.js"></script>
+		<script src="./ext_js/mosse.js"></script>
+		<script src="./ext_js/left_eye_filter.js"></script>
+		<script src="./ext_js/right_eye_filter.js"></script>
+		<script src="./ext_js/nose_filter.js"></script>
+		<script src="../models/model_pca_20_svm.js"></script>
+		<!--<script src="../models/model_spca_20_svm.js"></script>-->
+		<script src="../js/clm.js"></script>
+		<script src="./ext_js/ccv.js"></script>
+		<script src="./ext_js/cascade.js"></script>
+		<script src="../js/svmfilter_webgl.js"></script>
+		<script src="../js/svmfilter_fft.js"></script>
+		<script src="../js/mossefilter.js"></script>
+		<script src="./ext_js/Stats.js"></script>
+		<script src="./ext_js/face_deformer2.js"></script>
+		<div id="container"></div>
+    <video id="videoel" width="500" height="375" preload="auto">
+      <source src="./media/Capture_1_092.ogv" type="video/ogg"/>
+      <!--<source src="./media/franck.ogv" type="video/ogg"/>-->
+    </video>
+		<canvas id="compare" width="500" height="375"></canvas>
+		<canvas id="overlay" width="500" height="375"></canvas>
+		<!--<canvas id="filter"></canvas>-->
+    <!--<canvas id="sketch" width="138" height="138"></canvas>-->
+		<input class="btn" type="button" value="wait, loading video" disabled="disabled" onclick="start()" id="startbutton"></input>
+		<p id="peak"></p>
+		<p id="psr"></p>
+    <p id="score"></p>
+		<canvas id="webgl" width="500" height="375"></canvas>
+		<script>
+		   //var skcc = document.getElementById('sketch');
+       var vid = document.getElementById('videoel');
+		   var overlay = document.getElementById('overlay');
+       var overlayCC = overlay.getContext('2d');
+		   
+		   var ctrack = new clm.tracker({constantVelocity : true});
+		   ctrack.init(pModel);
+		   
+		   stats = new Stats();
+			 stats.domElement.style.position = 'absolute';
+			 stats.domElement.style.top = '0px';
+			 document.getElementById('container').appendChild( stats.domElement );
+		   
+       function enablestart() {
+         var startbutton = document.getElementById('startbutton');
+         startbutton.value = "start";
+         startbutton.disabled = null;
+       }
+       
+       vid.addEventListener('canplay', enablestart, false);
+
+       function start() {
+         //start video
+         vid.play();
+         
+         //start tracking
+         animate();
+       }
+
+		   var positions;
+		   var fd = new faceDeformer();
+		   fd.init(document.getElementById('webgl'));
+		   
+		   // start tracking when camera is ready
+		   // button to reinitialize tracking
+		   // button to say tracking is ok
+	   // when tracking is ok
+          // stop tracking
+          // remove video canvas
+          // set up webglcanvas with facemodel
+          // set up controls
+		   
+		   function animate() {
+         // track in video
+         positions = ctrack.track(vid);
+         overlayCC.clearRect(0, 0, 720, 576);
+         ctrack.draw(overlay);
+         stats.update();
+         var pn = ctrack.getMovementSum();
+         if (pn < 0.4) {
+         //if (pn < 0.09) {
+           requestAnimFrame(animate2);
+         } else {
+           requestAnimFrame(animate);
+         }
+		   }
+		   
+		   function animate2() {
+         // draw face deformation model
+		     positions = ctrack.track(vid);
+         overlayCC.clearRect(0, 0, 720, 576);
+         ctrack.draw(overlay);
+         fd.load(vid, undefined, positions, pModel.path.vertices)
+		     var elem = vid;
+         elem.parentNode.removeChild(elem);
+		     fd.draw(positions);
+		     stats.update();
+		     requestAnimFrame(animate3);
+		   }
+		   
+		   function animate3() {
+         // draw model
+		     var parameters = ctrack.getCurrentParameters();
+		     parameters[0+4] = ph.param1;
+		     parameters[1+4] = ph.param2;
+		     parameters[2+4] = ph.param3;
+		     parameters[3+4] = ph.param4;
+		     parameters[4+4] = ph.param5;
+		     parameters[5+4] = ph.param6;
+		     parameters[6+4] = ph.param7;
+		     parameters[7+4] = ph.param8;
+		     parameters[8+4] = ph.param9;
+		     parameters[9+4] = ph.param10;
+		     parameters[10+4] = ph.param11;
+		     parameters[11+4] = ph.param12;
+		     parameters[12+4] = ph.param13;
+		     parameters[13+4] = ph.param14;
+		     parameters[14+4] = ph.param15;
+		     parameters[15+4] = ph.param16;
+		     parameters[16+4] = ph.param17;
+		     parameters[17+4] = ph.param18;
+		     parameters[18+4] = ph.param19;
+		     parameters[19+4] = ph.param20;
+		     positions = calculatePositions(parameters);
+		     fd.draw(positions);
+		   }
+		   
+        var parameterHolder = function() {
+          this.param1 = 0.0001;
+          this.param2 = 0.0001;
+          this.param3 = 0.0001;
+          this.param4 = 0.0001;
+          this.param5 = 0.0001;
+          this.param6 = 0.0001;
+          this.param7 = 0.0001;
+          this.param8 = 0.0001;
+          this.param9 = 0.0001;
+          this.param10 = 0.0;
+          this.param11 = 0.0;
+          this.param12 = 0.0;
+          this.param13 = 0.0;
+          this.param14 = 0.0;
+          this.param15 = 0.0;
+          this.param16 = 0.0;
+          this.param17 = 0.0;
+          this.param18 = 0.0;
+          this.param19 = 0.0;
+          this.param20 = 0.0;
+        }
+		   
+        var ph = new parameterHolder();
+        var gui = new dat.GUI();
+        var gui1 = gui.add(ph, 'param1', -50, 50);
+        var gui2 = gui.add(ph, 'param2', -20, 20);
+        var gui3 = gui.add(ph, 'param3', -20, 20);
+        var gui4 = gui.add(ph, 'param4', -20, 20);
+        var gui5 = gui.add(ph, 'param5', -20, 20);
+        var gui6 = gui.add(ph, 'param6', -20, 20);
+        var gui7 = gui.add(ph, 'param7', -20, 20);
+        var gui8 = gui.add(ph, 'param8', -20, 20);
+        var gui9 = gui.add(ph, 'param9', -20, 20);
+        var gui10 = gui.add(ph, 'param10', -20, 20);
+        var gui11 = gui.add(ph, 'param11', -20, 20);
+        var gui12 = gui.add(ph, 'param12', -20, 20);
+        var gui13 = gui.add(ph, 'param13', -20, 20);
+        var gui14 = gui.add(ph, 'param14', -20, 20);
+        var gui15 = gui.add(ph, 'param15', -20, 20);
+        var gui16 = gui.add(ph, 'param16', -20, 20);
+        var gui17 = gui.add(ph, 'param17', -20, 20);
+        var gui18 = gui.add(ph, 'param18', -20, 20);
+        var gui19 = gui.add(ph, 'param19', -20, 20);
+        var gui20 = gui.add(ph, 'param20', -20, 20);
+        
+        gui1.onChange(animate3);
+        gui2.onChange(animate3);
+        gui3.onChange(animate3);
+        gui4.onChange(animate3);
+        gui5.onChange(animate3);
+        gui6.onChange(animate3);
+        gui7.onChange(animate3);
+        gui8.onChange(animate3);
+        gui9.onChange(animate3);
+        gui10.onChange(animate3);
+        gui11.onChange(animate3);
+        gui12.onChange(animate3);
+        gui13.onChange(animate3);
+        gui14.onChange(animate3);
+        gui15.onChange(animate3);
+        gui16.onChange(animate3);
+        gui17.onChange(animate3);
+        gui18.onChange(animate3);
+        gui19.onChange(animate3);
+        gui20.onChange(animate3);
+        
+        var calculatePositions = function(parameters) {
+          var x, y, a, b;
+          var numParameters = parameters.length;
+          var positions = [];
+          for (var i = 0;i < pModel.shapeModel.meanShape.length;i++) {
+            x = pModel.shapeModel.meanShape[i][0];
+            y = pModel.shapeModel.meanShape[i][1];
+            for (var j = 0;j < numParameters-4;j++) {
+              x += pModel.shapeModel.eigenVectors[(i*2)][j]*parameters[j+4];
+              y += pModel.shapeModel.eigenVectors[(i*2)+1][j]*parameters[j+4];
+            }
+            a = parameters[0]*x - parameters[1]*y + parameters[2];
+            b = parameters[0]*y + parameters[1]*x + parameters[3];
+            x += a;
+            y += b;
+            positions[i] = [x,y];
+          }
+          
+          return positions;
+        }
+        
+        /*
+        var calculatePositions = function(parameters) {
+          var x, y, a, b;
+          var numParameters = parameters.length;
+          var positions = [];
+          for (var i = 0;i < pModel20.shapeModel.meanShape.length;i++) {
+            x = pModel20.shapeModel.meanShape[i][0];
+            y = pModel20.shapeModel.meanShape[i][1];
+            for (var j = 0;j < numParameters-4;j++) {
+              x += pModel20.shapeModel.eigenVectors[(i*2)][j]*parameters[j+4];
+              y += pModel20.shapeModel.eigenVectors[(i*2)+1][j]*parameters[j+4];
+            }
+            a = parameters[0]*x - parameters[1]*y + parameters[2];
+            b = parameters[0]*y + parameters[1]*x + parameters[3];
+            x += a;
+            y += b;
+            positions[i] = [x,y];
+          }
+          
+          return positions;
+        }
+        */
+		</script>
+	</body>
+</html>
