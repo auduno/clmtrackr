@@ -1,49 +1,99 @@
 <!doctype html>
 <html lang="en">
 	<head>
-		<title>Constrained Local Models</title>
+		<title>Face deformation</title>
 		<meta charset="utf-8">
+		<link href="./styles/bootstrap.min.css" rel="stylesheet" type="text/css">
 		<style>
+			@import url(https://fonts.googleapis.com/css?family=Lato:300italic,700italic,300,700);
+
 			body {
-				font-family: Monospace;
+				font-family: 'Lato';
 				background-color: #f0f0f0;
-				margin: 0px;
+				margin: 0px auto;
+				max-width: 1150px;
 				overflow: hidden;
 			}
 			
 			#overlay {
-			  position: absolute;
-			  top: 0px;
-			  left: 0px;
+				position: absolute;
+				top: 0px;
+				left: 0px;
+				-o-transform : scaleX(-1);
+				-webkit-transform : scaleX(-1);
+				transform : scaleX(-1);
+				-ms-filter : fliph; /*IE*/
+				filter : fliph; /*IE*/
+			}
+
+			#videoel {
+				-o-transform : scaleX(-1);
+				-webkit-transform : scaleX(-1);
+				transform : scaleX(-1);
+				-ms-filter : fliph; /*IE*/
+				filter : fliph; /*IE*/
+			}
+
+			#container, #webglcontainer {
+				position : relative;
+				width : 370px;
+				/*margin : 0px auto;*/
+			}
+			
+			#content {
+				margin-top : 70px;
+				margin-left : 100px;
+				margin-right : 100px;
+				max-width: 950px;
 			}
 			
 			#sketch {
-			  display: none;
+				display: none;
 			}
 			
 			#filter {
-			  display: none;
+				display: none;
+			}
+
+			h2 {
+				font-weight : 400;
+			}
+			
+			.nogum {
+				display : none;
+			}
+			
+			.btn {
+				font-family: 'Lato';
+				font-size: 16px;
+			}
+
+			.hide {
+				display : none;
+			}
+
+			.nohide {
+				display : block;
 			}
 		</style>
 		<script type="text/javascript">
 
-      var _gaq = _gaq || [];
-      _gaq.push(['_setAccount', 'UA-32642923-1']);
-      _gaq.push(['_trackPageview']);
+			var _gaq = _gaq || [];
+			_gaq.push(['_setAccount', 'UA-32642923-1']);
+			_gaq.push(['_trackPageview']);
 
-      (function() {
-        var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
-        ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
-        var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
-      })();
+			(function() {
+				var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+				ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+				var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+			})();
 
-    </script>
-	</head>
+		</script>
+	</head>	
 	<body>
-	  <script src="./ext_js/dat.gui.min.js"></script>
-	  
-	  <script src="./ext_js/utils.js"></script>
-	  <script src="./ext_js/jsfeat-min.js"></script>
+		<script src="./ext_js/dat.gui.min.js"></script>
+		<script src="./ext_js/utils.js"></script>
+		<script src="./ext_js/jsfeat-min.js"></script>
 		<script src="./ext_js/frontalface.js"></script>
 		<script src="./ext_js/jsfeat_detect.js"></script>
 		<script src="./ext_js/numeric-1.2.6.min.js"></script>
@@ -52,7 +102,6 @@
 		<script src="./ext_js/right_eye_filter.js"></script>
 		<script src="./ext_js/nose_filter.js"></script>
 		<script src="../models/model_pca_20_svm.js"></script>
-		<!--<script src="../models/model_spca_20_svm.js"></script>-->
 		<script src="../js/clm.js"></script>
 		<script src="./ext_js/ccv.js"></script>
 		<script src="./ext_js/cascade.js"></script>
@@ -60,229 +109,348 @@
 		<script src="../js/svmfilter_fft.js"></script>
 		<script src="../js/mossefilter.js"></script>
 		<script src="./ext_js/Stats.js"></script>
-		<script src="./ext_js/face_deformer2.js"></script>
-		<div id="container"></div>
-    <video id="videoel" width="500" height="375" preload="auto">
-      <source src="./media/Capture_1_092.ogv" type="video/ogg"/>
-      <!--<source src="./media/franck.ogv" type="video/ogg"/>-->
-    </video>
-		<canvas id="compare" width="500" height="375"></canvas>
-		<canvas id="overlay" width="500" height="375"></canvas>
-		<!--<canvas id="filter"></canvas>-->
-    <!--<canvas id="sketch" width="138" height="138"></canvas>-->
-		<input class="btn" type="button" value="wait, loading video" disabled="disabled" onclick="start()" id="startbutton"></input>
-		<p id="peak"></p>
-		<p id="psr"></p>
-    <p id="score"></p>
-		<canvas id="webgl" width="500" height="375"></canvas>
-		<script>
-		   //var skcc = document.getElementById('sketch');
-       var vid = document.getElementById('videoel');
-		   var overlay = document.getElementById('overlay');
-       var overlayCC = overlay.getContext('2d');
-		   
-		   var ctrack = new clm.tracker({constantVelocity : true});
-		   ctrack.init(pModel);
-		   
-		   stats = new Stats();
-			 stats.domElement.style.position = 'absolute';
-			 stats.domElement.style.top = '0px';
-			 document.getElementById('container').appendChild( stats.domElement );
-		   
-       function enablestart() {
-         var startbutton = document.getElementById('startbutton');
-         startbutton.value = "start";
-         startbutton.disabled = null;
-       }
-       
-       vid.addEventListener('canplay', enablestart, false);
+		<script src="./ext_js/face_deformer.js"></script>
+		<div id="content">
+			<h2>Face deformation</h2>
+			<div id="container" class="nohide">
+				<video id="videoel" width="370" height="288" preload="auto">
+				</video>
+				<canvas id="overlay" width="370" height="288"></canvas>
+			</div>
+			<div id="webglcontainer" class="hide">
+				<canvas id="webgl" width="306" height="342"></canvas>
+			</div>
+			<br/>
+			<div id="buttons">
+				<input class="btn" type="button" value="wait, loading video" disabled="disabled" onclick="start()" id="startbutton"></input>
+				<!--<input class="btn" type="button" value="capture" disabled="disabled" onclick="capture()" id="capturebutton"></input>-->
+			</div>
+			<p id="score"></p>
+			<div id="text">
+				<p>This is an example of face deformation using the javascript library <a href="https://github.com/auduno/clmtrackr"><em>clmtrackr</em></a>.</p>
+				<p>Note that this example needs support for WebGL, and works best in Google Chrome.</p>
+				<div id="gum" class="nohide">
+					<p>To try it out:
+					<ol>
+						<li>allow the page to your use webcamera</li>
+						<li>make sure that your face is clearly visible in the video, and click start</li>
+						<li>wait till model fits your face properly and click something</li>
+						<li>choose a preset or fiddle with the parameters on the right hand side, to deform the captured face</li>
+					<ol>
+					</p>
+				</div>
+				<div id="nogum" class="hide">
+					<p>
+						There was some problem trying to capture your webcamera, please check that your browser supports WebRTC. Instead we'll use a static image. To try it out:
+						<ol>
+						<li>click start</li>
+						<li>wait till the model fits the face</li>
+						<li>choose a preset or fiddle with the parameters on the right hand side, to deform the captured face</li>
+						</ol>
+					</p>
+				</div>
+			</div>
+			<a href="https://github.com/auduno/clmtrackr"><img style="position: absolute; top: 0; left: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_left_green_007200.png" alt="Fork me on GitHub"></a>
+			<p id='gUMMessage'></p>
+			<script>
+				var vid = document.getElementById('videoel');
+				var overlay = document.getElementById('overlay');
+				var overlayCC = overlay.getContext('2d');
+				
+				var ctrack = new clm.tracker({constantVelocity : true});
+				ctrack.init(pModel);
+				
+				stats = new Stats();
+				stats.domElement.style.position = 'absolute';
+				stats.domElement.style.top = '0px';
+				document.getElementById('container').appendChild( stats.domElement );
+				
+				function enablestart() {
+					var startbutton = document.getElementById('startbutton');
+					startbutton.value = "start";
+					startbutton.disabled = null;
+				}
 
-       function start() {
-         //start video
-         vid.play();
-         
-         //start tracking
-         animate();
-       }
+				var insertAltVideo = function(video) {
+					
+					if (supports_video()) {
+						if (supports_ogg_theora_video()) {
+							video.src = "./media/franck.ogv";
+						} else if (supports_h264_baseline_video()) {
+							alert("no mp4 video :(");
+							//video.src = "./media/capture4.mp4";
+						} else {
+							return false;
+						}
+						//video.play();
+						return true;
+					} else return false;
+				}
+				navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
+				window.URL = window.URL || window.webkitURL || window.msURL || window.mozURL;
+				// check for camerasupport
+				if (navigator.getUserMedia) {
+					// set up stream
+					
+					var videoSelector = {video : true};
+					if (window.navigator.appVersion.match(/Chrome\/(.*?) /)) {
+						var chromeVersion = parseInt(window.navigator.appVersion.match(/Chrome\/(\d+)\./)[1], 10);
+						if (chromeVersion < 20) {
+							videoSelector = "video";
+						}
+					};
+				
+					navigator.getUserMedia({video: true}, function( stream ) {
+						vid.src = window.URL.createObjectURL(stream);
+						vid.play();
+					}, function() {
+						insertAltVideo(vid);
+						document.getElementById('gum').className = "hide";
+						document.getElementById('nogum').className = "nohide";
+					});
+				} else {
+					insertAltVideo(vid);
+					document.getElementById('gum').className = "hide";
+					document.getElementById('nogum').className = "nohide";
+				}
+				
+				vid.addEventListener('canplay', enablestart, false);
 
-		   var positions;
-		   var fd = new faceDeformer();
-		   fd.init(document.getElementById('webgl'));
-		   
-		   // start tracking when camera is ready
-		   // button to reinitialize tracking
-		   // button to say tracking is ok
-	   // when tracking is ok
-          // stop tracking
-          // remove video canvas
-          // set up webglcanvas with facemodel
-          // set up controls
-		   
-		   function animate() {
-         // track in video
-         positions = ctrack.track(vid);
-         overlayCC.clearRect(0, 0, 720, 576);
-         ctrack.draw(overlay);
-         stats.update();
-         var pn = ctrack.getMovementSum();
-         if (pn < 0.4) {
-         //if (pn < 0.09) {
-           requestAnimFrame(animate2);
-         } else {
-           requestAnimFrame(animate);
-         }
-		   }
-		   
-		   function animate2() {
-         // draw face deformation model
-		     positions = ctrack.track(vid);
-         overlayCC.clearRect(0, 0, 720, 576);
-         ctrack.draw(overlay);
-         fd.load(vid, undefined, positions, pModel.path.vertices)
-		     var elem = vid;
-         elem.parentNode.removeChild(elem);
-		     fd.draw(positions);
-		     stats.update();
-		     requestAnimFrame(animate3);
-		   }
-		   
-		   function animate3() {
-         // draw model
-		     var parameters = ctrack.getCurrentParameters();
-		     parameters[0+4] = ph.param1;
-		     parameters[1+4] = ph.param2;
-		     parameters[2+4] = ph.param3;
-		     parameters[3+4] = ph.param4;
-		     parameters[4+4] = ph.param5;
-		     parameters[5+4] = ph.param6;
-		     parameters[6+4] = ph.param7;
-		     parameters[7+4] = ph.param8;
-		     parameters[8+4] = ph.param9;
-		     parameters[9+4] = ph.param10;
-		     parameters[10+4] = ph.param11;
-		     parameters[11+4] = ph.param12;
-		     parameters[12+4] = ph.param13;
-		     parameters[13+4] = ph.param14;
-		     parameters[14+4] = ph.param15;
-		     parameters[15+4] = ph.param16;
-		     parameters[16+4] = ph.param17;
-		     parameters[17+4] = ph.param18;
-		     parameters[18+4] = ph.param19;
-		     parameters[19+4] = ph.param20;
-		     positions = calculatePositions(parameters);
-		     fd.draw(positions);
-		   }
-		   
-        var parameterHolder = function() {
-          this.param1 = 0.0001;
-          this.param2 = 0.0001;
-          this.param3 = 0.0001;
-          this.param4 = 0.0001;
-          this.param5 = 0.0001;
-          this.param6 = 0.0001;
-          this.param7 = 0.0001;
-          this.param8 = 0.0001;
-          this.param9 = 0.0001;
-          this.param10 = 0.0;
-          this.param11 = 0.0;
-          this.param12 = 0.0;
-          this.param13 = 0.0;
-          this.param14 = 0.0;
-          this.param15 = 0.0;
-          this.param16 = 0.0;
-          this.param17 = 0.0;
-          this.param18 = 0.0;
-          this.param19 = 0.0;
-          this.param20 = 0.0;
-        }
-		   
-        var ph = new parameterHolder();
-        var gui = new dat.GUI();
-        var gui1 = gui.add(ph, 'param1', -50, 50);
-        var gui2 = gui.add(ph, 'param2', -20, 20);
-        var gui3 = gui.add(ph, 'param3', -20, 20);
-        var gui4 = gui.add(ph, 'param4', -20, 20);
-        var gui5 = gui.add(ph, 'param5', -20, 20);
-        var gui6 = gui.add(ph, 'param6', -20, 20);
-        var gui7 = gui.add(ph, 'param7', -20, 20);
-        var gui8 = gui.add(ph, 'param8', -20, 20);
-        var gui9 = gui.add(ph, 'param9', -20, 20);
-        var gui10 = gui.add(ph, 'param10', -20, 20);
-        var gui11 = gui.add(ph, 'param11', -20, 20);
-        var gui12 = gui.add(ph, 'param12', -20, 20);
-        var gui13 = gui.add(ph, 'param13', -20, 20);
-        var gui14 = gui.add(ph, 'param14', -20, 20);
-        var gui15 = gui.add(ph, 'param15', -20, 20);
-        var gui16 = gui.add(ph, 'param16', -20, 20);
-        var gui17 = gui.add(ph, 'param17', -20, 20);
-        var gui18 = gui.add(ph, 'param18', -20, 20);
-        var gui19 = gui.add(ph, 'param19', -20, 20);
-        var gui20 = gui.add(ph, 'param20', -20, 20);
-        
-        gui1.onChange(animate3);
-        gui2.onChange(animate3);
-        gui3.onChange(animate3);
-        gui4.onChange(animate3);
-        gui5.onChange(animate3);
-        gui6.onChange(animate3);
-        gui7.onChange(animate3);
-        gui8.onChange(animate3);
-        gui9.onChange(animate3);
-        gui10.onChange(animate3);
-        gui11.onChange(animate3);
-        gui12.onChange(animate3);
-        gui13.onChange(animate3);
-        gui14.onChange(animate3);
-        gui15.onChange(animate3);
-        gui16.onChange(animate3);
-        gui17.onChange(animate3);
-        gui18.onChange(animate3);
-        gui19.onChange(animate3);
-        gui20.onChange(animate3);
-        
-        var calculatePositions = function(parameters) {
-          var x, y, a, b;
-          var numParameters = parameters.length;
-          var positions = [];
-          for (var i = 0;i < pModel.shapeModel.meanShape.length;i++) {
-            x = pModel.shapeModel.meanShape[i][0];
-            y = pModel.shapeModel.meanShape[i][1];
-            for (var j = 0;j < numParameters-4;j++) {
-              x += pModel.shapeModel.eigenVectors[(i*2)][j]*parameters[j+4];
-              y += pModel.shapeModel.eigenVectors[(i*2)+1][j]*parameters[j+4];
-            }
-            a = parameters[0]*x - parameters[1]*y + parameters[2];
-            b = parameters[0]*y + parameters[1]*x + parameters[3];
-            x += a;
-            y += b;
-            positions[i] = [x,y];
-          }
-          
-          return positions;
-        }
-        
-        /*
-        var calculatePositions = function(parameters) {
-          var x, y, a, b;
-          var numParameters = parameters.length;
-          var positions = [];
-          for (var i = 0;i < pModel20.shapeModel.meanShape.length;i++) {
-            x = pModel20.shapeModel.meanShape[i][0];
-            y = pModel20.shapeModel.meanShape[i][1];
-            for (var j = 0;j < numParameters-4;j++) {
-              x += pModel20.shapeModel.eigenVectors[(i*2)][j]*parameters[j+4];
-              y += pModel20.shapeModel.eigenVectors[(i*2)+1][j]*parameters[j+4];
-            }
-            a = parameters[0]*x - parameters[1]*y + parameters[2];
-            b = parameters[0]*y + parameters[1]*x + parameters[3];
-            x += a;
-            y += b;
-            positions[i] = [x,y];
-          }
-          
-          return positions;
-        }
-        */
-		</script>
+				function start() {
+					//start video
+					vid.play();
+					
+					//start tracking
+					animate();
+				}
+
+				var positions;
+				var fd = new faceDeformer();
+				fd.init(document.getElementById('webgl'));
+				
+				function animate() {
+					// track in video
+					positions = ctrack.track(vid);
+					overlayCC.clearRect(0, 0, 720, 576);
+					ctrack.draw(overlay);
+					stats.update();
+					var pn = ctrack.getMovementSum();
+					
+					//hide buttons
+					elem = document.getElementById('buttons');
+					elem.setAttribute('class', 'hide');
+
+					var scoreel = document.getElementById('score');
+					scoreel.innerHTML = "Please keep head still while model fits";
+					if (pn < 0.4) {
+						requestAnimFrame(animate2);
+						scoreel.innerHTML = "";
+					} else {
+						requestAnimFrame(animate);
+					}
+				}
+				
+				var ph, gui;
+				var rotation = 0.035;
+				var scale = 1.3;
+				var xOffset = -10;
+				var yOffset = 0;
+
+				function animate2() {
+					// draw face deformation model
+					positions = ctrack.track(vid);
+					overlayCC.clearRect(0, 0, 720, 576);
+					ctrack.draw(overlay);
+					fd.load(vid, undefined, positions, pModel.path.vertices)
+					debugger;	
+					//hide video
+					var elem = document.getElementById('container');
+					elem.setAttribute('class', 'hide');
+					//webgl
+					elem = document.getElementById('webglcontainer');
+					elem.setAttribute('class', 'nohide');
+
+					document.getElementById('score').setAttribute('class', 'hide');
+					
+					fd.draw(positions);
+					stats.update();
+
+					// set up controls
+					ph = new parameterHolder();
+					gui = new dat.GUI();
+					var guiSelect = gui.add(ph, 'presets', presets);
+					var gui1 = gui.add(ph, 'param1', -50, 50).listen();
+					var gui2 = gui.add(ph, 'param2', -20, 20).listen();
+					var gui3 = gui.add(ph, 'param3', -20, 20).listen();
+					var gui4 = gui.add(ph, 'param4', -20, 20).listen();
+					var gui5 = gui.add(ph, 'param5', -20, 20).listen();
+					var gui6 = gui.add(ph, 'param6', -20, 20).listen();
+					var gui7 = gui.add(ph, 'param7', -20, 20).listen();
+					var gui8 = gui.add(ph, 'param8', -20, 20).listen();
+					var gui9 = gui.add(ph, 'param9', -20, 20).listen();
+					var gui10 = gui.add(ph, 'param10', -20, 20).listen();
+					var gui11 = gui.add(ph, 'param11', -20, 20).listen();
+					var gui12 = gui.add(ph, 'param12', -20, 20).listen();
+					var gui13 = gui.add(ph, 'param13', -20, 20).listen();
+					var gui14 = gui.add(ph, 'param14', -20, 20).listen();
+					var gui15 = gui.add(ph, 'param15', -20, 20).listen();
+					var gui16 = gui.add(ph, 'param16', -20, 20).listen();
+					var gui17 = gui.add(ph, 'param17', -20, 20).listen();
+					var gui18 = gui.add(ph, 'param18', -20, 20).listen();
+					var gui19 = gui.add(ph, 'param19', -20, 20).listen();
+					var gui20 = gui.add(ph, 'param20', -20, 20).listen();
+					var guiGrid = gui.add(ph, 'draw_grid', false);
+					var guiFace = gui.add(ph, 'draw_face', true);
+					
+					gui1.onChange(animate3);
+					gui2.onChange(animate3);
+					gui3.onChange(animate3);
+					gui4.onChange(animate3);
+					gui5.onChange(animate3);
+					gui6.onChange(animate3);
+					gui7.onChange(animate3);
+					gui8.onChange(animate3);
+					gui9.onChange(animate3);
+					gui10.onChange(animate3);
+					gui11.onChange(animate3);
+					gui12.onChange(animate3);
+					gui13.onChange(animate3);
+					gui14.onChange(animate3);
+					gui15.onChange(animate3);
+					gui16.onChange(animate3);
+					gui17.onChange(animate3);
+					gui18.onChange(animate3);
+					gui19.onChange(animate3);
+					gui20.onChange(animate3);
+					guiSelect.onChange(animate4);
+					guiGrid.onChange(animate3);
+					guiFace.onChange(animate3);
+
+					requestAnimFrame(animate3);
+				}
+
+				function animate3() {
+					// draw model
+					var parameters = ctrack.getCurrentParameters();
+					parameters[0] = scale*Math.cos(rotation)-1;
+					parameters[1] = scale*Math.sin(rotation);
+					parameters[2] = xOffset;
+					parameters[3] = yOffset;
+					parameters[0+4] = ph.param1;
+					parameters[1+4] = ph.param2;
+					parameters[2+4] = ph.param3;
+					parameters[3+4] = ph.param4;
+					parameters[4+4] = ph.param5;
+					parameters[5+4] = ph.param6;
+					parameters[6+4] = ph.param7;
+					parameters[7+4] = ph.param8;
+					parameters[8+4] = ph.param9;
+					parameters[9+4] = ph.param10;
+					parameters[10+4] = ph.param11;
+					parameters[11+4] = ph.param12;
+					parameters[12+4] = ph.param13;
+					parameters[13+4] = ph.param14;
+					parameters[14+4] = ph.param15;
+					parameters[15+4] = ph.param16;
+					parameters[16+4] = ph.param17;
+					parameters[17+4] = ph.param18;
+					parameters[18+4] = ph.param19;
+					parameters[19+4] = ph.param20;
+					positions = calculatePositions(parameters);
+					fd.clear();
+					if (ph.draw_face) fd.draw(positions);
+					if (ph.draw_grid) fd.drawGrid(positions);
+				}
+
+				function animate4() {
+					// draw model
+					var parameters = ctrack.getCurrentParameters();
+					parameters[0] = scale*Math.cos(rotation)-1;
+					parameters[1] = scale*Math.sin(rotation);
+					parameters[2] = xOffset;
+					parameters[3] = yOffset;
+					var split = ph.presets.split(",");
+					parameters[0+4] = ph.param1 = parseInt(split[0],10);
+					parameters[1+4] = ph.param2 = parseInt(split[1],10);
+					parameters[2+4] = ph.param3 = parseInt(split[2],10);
+					parameters[3+4] = ph.param4 = parseInt(split[3],10);
+					parameters[4+4] = ph.param5 = parseInt(split[4],10);
+					parameters[5+4] = ph.param6 = parseInt(split[5],10);
+					parameters[6+4] = ph.param7 = parseInt(split[6],10);
+					parameters[7+4] = ph.param8 = parseInt(split[7],10);
+					parameters[8+4] = ph.param9 = parseInt(split[8],10);
+					parameters[9+4] = ph.param10 = parseInt(split[9],10);
+					parameters[10+4] = ph.param11 = parseInt(split[10],10);
+					parameters[11+4] = ph.param12 = parseInt(split[11],10);
+					parameters[12+4] = ph.param13 = parseInt(split[12],10);
+					parameters[13+4] = ph.param14 = parseInt(split[13],10);
+					parameters[14+4] = ph.param15 = parseInt(split[14],10);
+					parameters[15+4] = ph.param16 = parseInt(split[15],10);
+					parameters[16+4] = ph.param17 = parseInt(split[16],10);
+					parameters[17+4] = ph.param18 = parseInt(split[17],10);
+					parameters[18+4] = ph.param19 = parseInt(split[18],10);
+					parameters[19+4] = ph.param20 = parseInt(split[19],10);
+					positions = calculatePositions(parameters);
+					if (ph.draw_face) fd.draw(positions);
+					if (ph.draw_grid) fd.drawGrid(positions);
+				}
+
+				var parameterHolder = function() {
+					this.param1 = 0.0001;
+					this.param2 = 0.0001;
+					this.param3 = 0.0001;
+					this.param4 = 0.0001;
+					this.param5 = 0.0001;
+					this.param6 = 0.0001;
+					this.param7 = 0.0001;
+					this.param8 = 0.0001;
+					this.param9 = 0.0001;
+					this.param10 = 0.0001;
+					this.param11 = 0.0001;
+					this.param12 = 0.0001;
+					this.param13 = 0.0001;
+					this.param14 = 0.0001;
+					this.param15 = 0.0001;
+					this.param16 = 0.0001;
+					this.param17 = 0.0001;
+					this.param18 = 0.0001;
+					this.param19 = 0.0001;
+					this.param20 = 0.0001;
+					this.presets = 0;
+					this.draw_face = true;
+					this.draw_grid = false;
+				}
+					
+				var calculatePositions = function(parameters) {
+					var x, y, a, b;
+					var numParameters = parameters.length;
+					var positions = [];
+					for (var i = 0;i < pModel.shapeModel.meanShape.length;i++) {
+						x = pModel.shapeModel.meanShape[i][0];
+						y = pModel.shapeModel.meanShape[i][1];
+						for (var j = 0;j < numParameters-4;j++) {
+							x += pModel.shapeModel.eigenVectors[(i*2)][j]*parameters[j+4];
+							y += pModel.shapeModel.eigenVectors[(i*2)+1][j]*parameters[j+4];
+						}
+						a = parameters[0]*x - parameters[1]*y + parameters[2];
+						b = parameters[0]*y + parameters[1]*x + parameters[3];
+						x += a;
+						y += b;
+						positions[i] = [x,y];
+					}
+					
+					return positions;
+				}
+
+				var presets = {
+					"default" : [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+					"mr cool" : [0, 0, -10, -2,0, -7,8,-2,17,0,0,-3,0,0,0,0,0,0,0,0],
+					"mr big" : [0, 0, -6.5, -7, -4, -1, 0, -2, 4, 0,0,0,0,0,0,-13, 6,0,0,0],
+					"masculin" : [0, 0, -10, 0, -1, -4, 4, -2, 5.5, -1, -3, -7, 1, -3, 2, 0, 0, 3, 2, -4],
+					"dumbo" : [0, 0, -5, 0, -1, -4, 4, -2, 5.5, -1, -3, -7, 1, -3, 2, 0, 20, 0, 2, -4],
+					"lucky troll" : [0, 0, -20, -18.7, -11, 0, 0, 0, 0, 0, 0, 0, -6, 0, 0, 4, 11, 0, 17, 5],
+				};
+			</script>
+		</div>
 	</body>
 </html>
