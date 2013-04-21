@@ -20,7 +20,7 @@ var faceDeformer = function() {
     gl = getWebGLContext(canvas); 
   }
 
-  this.load = function(element, sketchCanvasContext, points, triangles) {
+  this.load = function(element, sketchCanvasContext, points, triangles, initw, inith) {
     verticeMap = triangles;
     numTriangles = triangles.length;
     
@@ -83,7 +83,7 @@ var faceDeformer = function() {
         "  vec2 zeroToOne = a_position / u_resolution;",
         "  vec2 zeroToTwo = zeroToOne * 2.0;",
         "  vec2 clipSpace = zeroToTwo - 1.0;",
-        "  gl_Position = vec4(clipSpace * vec2(-1, -1), 0, 1);",
+        "  gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);",
         "}"
       ].join('\n');
       
@@ -112,7 +112,7 @@ var faceDeformer = function() {
         "  vec2 zeroToOne = a_position / u_resolution;",
         "  vec2 zeroToTwo = zeroToOne * 2.0;",
         "  vec2 clipSpace = zeroToTwo - 1.0;",
-        "  gl_Position = vec4(clipSpace * vec2(-1, -1), 0, 1);",
+        "  gl_Position = vec4(clipSpace * vec2(1, -1), 0, 1);",
         "  ",
         "  v_texCoord = a_texCoord;",
         "}"
@@ -144,7 +144,11 @@ var faceDeformer = function() {
 
     // set the resolution for grid program
     var resolutionLocation = gl.getUniformLocation(gridProgram, "u_resolution");
-    gl.uniform2f(resolutionLocation, width, height);
+    if ((typeof(initw) === "undefined") || (typeof(inith) === "undefined")) {
+      gl.uniform2f(resolutionLocation, width, height);
+    } else {
+      gl.uniform2f(resolutionLocation, initw, inith);
+    }
 
     // load program for drawing deformed face
     gl.useProgram(drawProgram);
@@ -173,7 +177,11 @@ var faceDeformer = function() {
     
     // set the resolution for draw program
     resolutionLocation = gl.getUniformLocation(drawProgram, "u_resolution");
-    gl.uniform2f(resolutionLocation, width, height);
+    if ((typeof(initw) === "undefined") || (typeof(inith) === "undefined")) {
+      gl.uniform2f(resolutionLocation, width, height);
+    } else {
+      gl.uniform2f(resolutionLocation, initw, inith);
+    }
   }
 
   this.draw = function(points) {
