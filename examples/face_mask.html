@@ -95,7 +95,6 @@
 	</head>
 	<body>
 		<script src="./ext_js/dat.gui.min.js"></script>
-		
 		<script src="./ext_js/utils.js"></script>
 		<script src="./ext_js/jsfeat-min.js"></script>
 		<script src="./ext_js/frontalface.js"></script>
@@ -117,9 +116,9 @@
 		<div id="content">
 			<h2>Face mask</h2>
 			<div id="container">
+				<!--<video id="videoel" width="500" height="375" preload="auto">-->
 				<video id="videoel" width="500" height="375" preload="auto">
-					<source src="./media/Capture_1_092.ogv" type="video/ogg"/>
-					<!--<source src="./media/franck.ogv" type="video/ogg"/>-->
+					<!--<source src="./media/Capture_1_092.ogv" type="video/ogg"/>-->
 				</video>
 				<canvas id="overlay" width="500" height="375"></canvas>
 				<canvas id="webgl" width="500" height="375"></canvas>
@@ -170,7 +169,6 @@
 			<img id="audrey" class="masks" src="./media/audrey.jpg"></img>
 			<img id="cage2" class="masks" src="./media/cage.jpg"></img>
 			<script>
-				//var skcc = document.getElementById('sketch');
 				var vid = document.getElementById('videoel');
 				var overlay = document.getElementById('overlay');
 				var overlayCC = overlay.getContext('2d');
@@ -189,14 +187,57 @@
 					startbutton.disabled = null;
 				}
 				
+				var insertAltVideo = function(video) {
+					
+					if (supports_video()) {
+						if (supports_ogg_theora_video()) {
+							video.src = "./media/Capture_1_092.ogv";
+						} else if (supports_h264_baseline_video()) {
+							alert("no mp4 video :(");
+							//video.src = "./media/capture4.mp4";
+						} else {
+							return false;
+						}
+						//video.play();
+						return true;
+					} else return false;
+				}
+				navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
+				window.URL = window.URL || window.webkitURL || window.msURL || window.mozURL;
+				// check for camerasupport
+				if (navigator.getUserMedia) {
+					// set up stream
+					
+					var videoSelector = {video : true};
+					if (window.navigator.appVersion.match(/Chrome\/(.*?) /)) {
+						var chromeVersion = parseInt(window.navigator.appVersion.match(/Chrome\/(\d+)\./)[1], 10);
+						if (chromeVersion < 20) {
+							videoSelector = "video";
+						}
+					};
+				
+					navigator.getUserMedia({video: true}, function( stream ) {
+						vid.src = window.URL.createObjectURL(stream);
+						vid.play();
+					}, function() {
+						insertAltVideo(vid);
+						document.getElementById('gum').className = "hide";
+						document.getElementById('nogum').className = "nohide";
+					});
+				} else {
+					insertAltVideo(vid);
+					document.getElementById('gum').className = "hide";
+					document.getElementById('nogum').className = "nohide";
+				}
+
 				vid.addEventListener('canplay', enablestart, false);
 
 				document.getElementById('selectmask').addEventListener('change', updateMask, false);
 
 				function updateMask(el) {
-					currentMask = parseInt(el.srcElement.value,10);
+					currentMask = parseInt(el.target.value,10);
 					if (animationRequest) {
-						cancelAnimationFrame(animationRequest);
+						cancelRequestAnimFrame(animationRequest);
 						animationRequest = requestAnimFrame(animate2);
 					}
 				}

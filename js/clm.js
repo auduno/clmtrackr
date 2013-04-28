@@ -467,12 +467,16 @@ var clm = {
 		}
 		
 		// get initial starting point for model
-		var getInitialPosition = function(element) {
-      		var translateX, translateY, scaling, rotation;
-			var det = detectPosition(element);
-			if (!det) {
-			// if no face found, stop.
-			return false;
+		var getInitialPosition = function(element, box) {
+      var translateX, translateY, scaling, rotation;
+			if (box) {
+        candidate = {x : box[0], y : box[1], width : box[2], height : box[3]};
+			} else {
+        var det = detectPosition(element);
+        if (!det) {
+          // if no face found, stop.
+          return false;
+        }
 			}
 			
 			if (model.hints && mosseFilter && left_eye_filter && right_eye_filter && nose_filter) {
@@ -599,7 +603,7 @@ var clm = {
 		 *  element : canvas or video element
 		 *  TODO: should be able to take img element as well
 		 */
-		this.track = function(element) {
+		this.track = function(element, box) {
 			
 			var scaling, translateX, translateY, rotation;
 			var croppedPatches = [];
@@ -607,7 +611,7 @@ var clm = {
 			
 			if (first) {
 				// do viola-jones on canvas to get initial guess, if we don't have any points
-				var gi = getInitialPosition(element);
+				var gi = getInitialPosition(element, box);
 				if (!gi) {
 					return false;
 				}
@@ -857,6 +861,16 @@ var clm = {
 			
 			// return new points
 			return currentPositions;
+		}
+		
+		this.reset = function() {
+      // reset tracking, so that track() will start a new detection
+      first = true;
+      scoringHistory = [];
+      for (var i = 0;i < currentParameters.length;i++) {
+        currentParameters[i] = 0;
+        previousParameters = [];
+      }
 		}
 		
 		/*
