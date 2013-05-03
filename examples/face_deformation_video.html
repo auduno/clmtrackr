@@ -37,6 +37,7 @@
 			#container, #webglcontainer {
 				position : relative;
 				width : 370px;
+				height : 346px;
 				/*margin : 0px auto;*/
 			}
 			
@@ -134,7 +135,7 @@
 					<ol>
 						<li>allow the page to your use webcamera</li>
 						<li>make sure that your face is clearly visible in the video, and click start</li>
-						<li>wait till model fits your face properly and click something</li>
+						<li>keep your head still until the model fits your face properly</li>
 						<li>choose a preset or fiddle with the parameters on the right hand side, to deform the captured face</li>
 					<ol>
 					</p>
@@ -245,6 +246,7 @@
 					if (pn < 0.4) {
 						requestAnimFrame(animate2);
 						scoreel.innerHTML = "";
+						vid.pause();
 					} else {
 						requestAnimFrame(animate);
 					}
@@ -252,7 +254,7 @@
 				
 				var ph, gui;
 				var rotation = 0;
-				var scale = 1.3;
+				var scale = 3;
 				var xOffset = -10;
 				var yOffset = 0;
 
@@ -261,8 +263,8 @@
 					positions = ctrack.track(vid);
 					overlayCC.clearRect(0, 0, 720, 576);
 					ctrack.draw(overlay);
-					fd.load(vid, undefined, positions, pModel.path.vertices)
-					debugger;	
+					fd.load(vid, undefined, positions, pModel.path.vertices);
+					
 					//hide video
 					var elem = document.getElementById('container');
 					elem.setAttribute('class', 'hide');
@@ -326,7 +328,7 @@
 					guiGrid.onChange(animate3);
 					guiFace.onChange(animate3);
 
-					requestAnimFrame(animate3);
+					animate3();
 				}
 
 				function animate3() {

@@ -1,7 +1,7 @@
 "use strict";
 var faceDeformer = function() {
   
-  var gl, verticeMap, originalPositions;
+  var gl, verticeMap;
   var numTriangles;
   var maxx, minx, maxy, miny;
   var width, height;
@@ -59,8 +59,6 @@ var faceDeformer = function() {
       nupoints[i][0] = points[i][0] - minx;
       nupoints[i][1] = points[i][1] - miny;
     }
-    
-    originalPositions = points;
     
     // create vertices based on points
     var textureVertices = [];
@@ -145,11 +143,7 @@ var faceDeformer = function() {
 
     // set the resolution for grid program
     var resolutionLocation = gl.getUniformLocation(gridProgram, "u_resolution");
-    if ((typeof(initw) === "undefined") || (typeof(inith) === "undefined")) {
-      gl.uniform2f(resolutionLocation, width, height);
-    } else {
-      gl.uniform2f(resolutionLocation, initw, inith);
-    }
+    gl.uniform2f(resolutionLocation, gl.drawingBufferWidth, gl.drawingBufferHeight);
 
     // load program for drawing deformed face
     gl.useProgram(drawProgram);
@@ -178,11 +172,7 @@ var faceDeformer = function() {
     
     // set the resolution for draw program
     resolutionLocation = gl.getUniformLocation(drawProgram, "u_resolution");
-    if ((typeof(initw) === "undefined") || (typeof(inith) === "undefined")) {
-      gl.uniform2f(resolutionLocation, width, height);
-    } else {
-      gl.uniform2f(resolutionLocation, initw, inith);
-    }
+    gl.uniform2f(resolutionLocation, gl.drawingBufferWidth, gl.drawingBufferHeight);
   }
 
   this.draw = function(points) {
