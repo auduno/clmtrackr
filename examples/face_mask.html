@@ -296,7 +296,7 @@
 					overlayCC.clearRect(0, 0, 500, 375);
 					// get mask
 					var maskname = Object.keys(masks)[currentMask];
-					fd.load(document.getElementById(maskname), undefined, masks[maskname], pModel.path.vertices);
+					fd.load(document.getElementById(maskname), masks[maskname], pModel);
 					// draw mask on top of face
 					fd.draw(positions);
 					stats.update();

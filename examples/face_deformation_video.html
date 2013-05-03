@@ -124,7 +124,6 @@
 			<br/>
 			<div id="buttons">
 				<input class="btn" type="button" value="wait, loading video" disabled="disabled" onclick="start()" id="startbutton"></input>
-				<!--<input class="btn" type="button" value="capture" disabled="disabled" onclick="capture()" id="capturebutton"></input>-->
 			</div>
 			<p id="score"></p>
 			<div id="text">
@@ -263,7 +262,7 @@
 					positions = ctrack.track(vid);
 					overlayCC.clearRect(0, 0, 720, 576);
 					ctrack.draw(overlay);
-					fd.load(vid, undefined, positions, pModel.path.vertices);
+					fd.load(vid, positions, pModel);
 					
 					//hide video
 					var elem = document.getElementById('container');
@@ -358,7 +357,7 @@
 					parameters[17+4] = ph.param18;
 					parameters[18+4] = ph.param19;
 					parameters[19+4] = ph.param20;
-					positions = calculatePositions(parameters);
+					positions = fd.calculatePositions(parameters, true);
 					fd.clear();
 					if (ph.draw_face) fd.draw(positions);
 					if (ph.draw_grid) fd.drawGrid(positions);
@@ -392,7 +391,7 @@
 					parameters[17+4] = ph.param18 = parseInt(split[17],10);
 					parameters[18+4] = ph.param19 = parseInt(split[18],10);
 					parameters[19+4] = ph.param20 = parseInt(split[19],10);
-					positions = calculatePositions(parameters);
+					positions = fd.calculatePositions(parameters, true);
 					if (ph.draw_face) fd.draw(positions);
 					if (ph.draw_grid) fd.drawGrid(positions);
 				}
@@ -421,27 +420,6 @@
 					this.presets = 0;
 					this.draw_face = true;
 					this.draw_grid = false;
-				}
-					
-				var calculatePositions = function(parameters) {
-					var x, y, a, b;
-					var numParameters = parameters.length;
-					var positions = [];
-					for (var i = 0;i < pModel.shapeModel.meanShape.length;i++) {
-						x = pModel.shapeModel.meanShape[i][0];
-						y = pModel.shapeModel.meanShape[i][1];
-						for (var j = 0;j < numParameters-4;j++) {
-							x += pModel.shapeModel.eigenVectors[(i*2)][j]*parameters[j+4];
-							y += pModel.shapeModel.eigenVectors[(i*2)+1][j]*parameters[j+4];
-						}
-						a = parameters[0]*x - parameters[1]*y + parameters[2];
-						b = parameters[0]*y + parameters[1]*x + parameters[3];
-						x += a;
-						y += b;
-						positions[i] = [x,y];
-					}
-					
-					return positions;
 				}
 
 				var presets = {

@@ -9,21 +9,20 @@ var faceDeformer = function() {
   var textureVertices, gridVertices;
   var texCoordBuffer, gridCoordbuffer;
   var texCoordLocation;
+  var pdmModel;
 
   var usegrid = false;
   var drawProgram, gridProgram;
-  
-  // set vertice coordinates to draw on a_position
-  // set original image vertices on a_texCoord
   
   this.init = function(canvas) {
     // ready a webgl element
     gl = getWebGLContext(canvas); 
   }
 
-  this.load = function(element, sketchCanvasContext, points, triangles, initw, inith) {
-    verticeMap = triangles;
-    numTriangles = triangles.length;
+  this.load = function(element, points, pModel) {
+    pdmModel = pModel;
+    verticeMap = pdmModel.path.vertices;
+    numTriangles = verticeMap.length;
     
     // get cropping
     maxx = 0;
@@ -45,12 +44,10 @@ var faceDeformer = function() {
       ca.height = element.height;
       var cc = ca.getContext('2d');
       cc.drawImage(element, 0, 0, element.width, element.height);
-      //sketchCanvasContext.drawImage(element, 0, 0, element.width, element.height);
     } else if (element.tagName == 'CANVAS') {
       var cc = element.getContext('2d');
     }
     var image = cc.getImageData(minx, miny, width+1, height+1);
-    //var image = sketchCanvasContext.getImageData(Math.round(minx), Math.round(miny), Math.round(maxx-minx+1), Math.round(maxy-miny+1));
     
     // correct points
     var nupoints = [];
@@ -262,12 +259,12 @@ var faceDeformer = function() {
     var x, y, a, b;
     var numParameters = parameters.length;
     var positions = [];
-    for (var i = 0;i < numPatches;i++) {
-      x = pModel.shapeModel.meanShape[i][0];
-      y = pModel.shapeModel.meanShape[i][1];
+    for (var i = 0;i < pdmModel.patchModel.numPatches;i++) {
+      x = pdmModel.shapeModel.meanShape[i][0];
+      y = pdmModel.shapeModel.meanShape[i][1];
       for (var j = 0;j < numParameters-4;j++) {
-        x += pModel.shapeModel.eigenVectors[(i*2)][j]*parameters[j+4];
-        y += pModel.shapeModel.eigenVectors[(i*2)+1][j]*parameters[j+4];
+        x += pdmModel.shapeModel.eigenVectors[(i*2)][j]*parameters[j+4];
+        y += pdmModel.shapeModel.eigenVectors[(i*2)+1][j]*parameters[j+4];
       }
       if (useTransforms) {
         a = parameters[0]*x - parameters[1]*y + parameters[2];
