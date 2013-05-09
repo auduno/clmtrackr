@@ -14,6 +14,7 @@
 				overflow: hidden;
 			}
 			
+			
 			#overlay, #webgl {
 				position: absolute;
 				top: 0px;
@@ -278,37 +279,39 @@
 					// get position of face
 					positions = ctrack.track(vid);
 					overlayCC.clearRect(0, 0, 500, 375);
-					// draw current grid
-					ctrack.draw(overlay);
-					stats.update();
-					// check whether mask 
-					var pn = ctrack.getMovementSum();
-					if (pn < 0.4) {
-						requestAnimFrame(animate2);
-					} else {
-						requestAnimFrame(animate);
-					}
+					if (positions) {
+            // draw current grid
+            ctrack.draw(overlay);
+          }
+          stats.update();
+          // check whether mask 
+          var pn = ctrack.getMovementSum();
+          if (pn < 0.4) {
+            requestAnimFrame(animate2);
+          } else {
+            requestAnimFrame(animate);
+          }
 				}
 				 
 				function animate2() {
 					// get position of face
 					positions = ctrack.track(vid);
-					overlayCC.clearRect(0, 0, 500, 375);
-					// get mask
-					var maskname = Object.keys(masks)[currentMask];
-					fd.load(document.getElementById(maskname), masks[maskname], pModel);
-					// draw mask on top of face
-					fd.draw(positions);
-					stats.update();
-					animationRequest = requestAnimFrame(animate3);
+          overlayCC.clearRect(0, 0, 500, 375);
+          // get mask
+          var maskname = Object.keys(masks)[currentMask];
+          fd.load(document.getElementById(maskname), masks[maskname], pModel);
+          // draw mask on top of face
+          fd.draw(positions);
+          stats.update();
+          animationRequest = requestAnimFrame(animate3);
 				}
 
 				function animate3() {
 					// get position of face
 					positions = ctrack.track(vid);
+          overlayCC.clearRect(0, 0, 500, 375);
 					if (positions) {
 						// draw mask on top of face
-						overlayCC.clearRect(0, 0, 500, 375);
 						fd.draw(positions);
 					}
 					stats.update();

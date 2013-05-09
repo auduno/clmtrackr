@@ -23,8 +23,8 @@ var jsfeat_face = function(image) {
   ii_tilted = new Int32Array((w+1)*(h+1));
   
   var classifier = jsfeat.haar.frontalface;
-    
-  this.findFace = function findFace(max) {
+  
+  this.findFace = function () {
     if (image.tagName == 'VIDEO' || image.tagName == 'IMG') {
       work_ctx.drawImage(image, 0, 0);
     } 
@@ -40,21 +40,21 @@ var jsfeat_face = function(image) {
     
     rects = jsfeat.haar.group_rectangles(rects, 1);
     
-    if (max) {
-      var on = rects.length;
-      if(on) {
-          jsfeat.math.qsort(rects, 0, on-1, function(a,b){return (b.confidence<a.confidence);})
-      }
-      var n = max || on;
-      n = Math.min(n, on);
-      var nurects = [];
-      for(var i = 0; i < n; ++i) {
-          nurects[i] = rects[i];
-      }
-      rects = nurects;
-    }
+    var rl = rects.length;
     
-    return rects
+    if (rl > 0) {
+      var best = rects[0];
+      for (var i = 1;i < rl;i++) {
+          if (rects[i].neighbors > best.neighbors) {
+              best = rects[i]
+          } else if (rects[i].neighbors == best.neighbors) {
+              if (rects[i].confidence > best.confidence) best = rects[i];
+          }
+      }
+      return [best];
+    } else {
+      return false;
+    }
   }
   
 }

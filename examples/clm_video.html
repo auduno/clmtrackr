@@ -216,9 +216,10 @@
 				
 				function animate() {
 					requestAnimFrame(animate);
-					if (ctrack.track(vid)) {
-						//psrElement.innerHTML = "score :" + ctrack.getScore().toFixed(4);
-						overlayCC.clearRect(0, 0, 720, 576);
+					var position = ctrack.track(vid);
+          overlayCC.clearRect(0, 0, 720, 576);
+          //psrElement.innerHTML = "score :" + ctrack.getScore().toFixed(4);
+					if (position) {
 						ctrack.draw(overlay);
 					}
 					stats.update();

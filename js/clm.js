@@ -8,7 +8,7 @@ var clm = {
 		if (params.constantVelocity === undefined) params.constantVelocity = true;
 		if (params.searchWindow === undefined) params.searchWindow = 10;
 		if (params.useWebGL === undefined) params.useWebGL = true;
-		if (params.scoreThreshold === undefined) params.scoreThreshold = 0.4;
+		if (params.scoreThreshold === undefined) params.scoreThreshold = 0.25;
 		
 		var numPatches, patchSize, numParameters, patchType;
 		var gaussianPD;
@@ -316,7 +316,7 @@ var clm = {
 				ccv.grayscale(canvas), ccv.cascade, 5, 1
 			);*/
 			var jf = new jsfeat_face(canvas);
-			var comp = jf.findFace(1);
+			var comp = jf.findFace();
 			
 			if (comp.length > 0) {
 				candidate = comp[0];
@@ -482,28 +482,27 @@ var clm = {
 			if (model.hints && mosseFilter && left_eye_filter && right_eye_filter && nose_filter) {
 				var noseFilterWidth = candidate.width * 4.5/10;
 				var eyeFilterWidth = candidate.width * 6/10;
-				//var eyeFilterWidth = candidate.width * 4.5/10;
 				
 				// detect position of eyes and nose via mosse filter
-				//element.pause();
+				//
+				/*element.pause();
 				
-				/*var canvasContext = document.getElementById('overlay2').getContext('2d')
-				canvasContext.clearRect(0,0,320,240);
+				var canvasContext = document.getElementById('overlay2').getContext('2d')
+				canvasContext.clearRect(0,0,500,375);
 				canvasContext.strokeRect(candidate.x, candidate.y, candidate.width, candidate.height);*/
+				//
 				
 				var nose_result = mossef_nose.track(element, Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2)), Math.round(candidate.y+candidate.height*(5/8)-(noseFilterWidth/2)), noseFilterWidth, noseFilterWidth, false);
 				var right_result = mossef_righteye.track(element, Math.round(candidate.x+(candidate.width*3/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth, false);
 				var left_result = mossef_lefteye.track(element, Math.round(candidate.x+(candidate.width/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth, false);
-				//var nose_result = mossef_nose.track(element, Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2)), Math.round(candidate.y+candidate.height*(3/4)-(noseFilterWidth/2)), noseFilterWidth, noseFilterWidth, false);
 				right_eye_position[0] = Math.round(candidate.x+(candidate.width*3/4)-(eyeFilterWidth/2))+right_result[0];
 				right_eye_position[1] = Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2))+right_result[1];
 				left_eye_position[0] = Math.round(candidate.x+(candidate.width/4)-(eyeFilterWidth/2))+left_result[0];
 				left_eye_position[1] = Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2))+left_result[1];
-				//nose_position[0] = Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2))+nose_result[0];
-				//nose_position[1] = Math.round(candidate.y+candidate.height*(3/4)-(noseFilterWidth/2))+nose_result[1];
 				nose_position[0] = Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2))+nose_result[0];
 				nose_position[1] = Math.round(candidate.y+candidate.height*(5/8)-(noseFilterWidth/2))+nose_result[1];
 				
+				//
 				/*canvasContext.strokeRect(Math.round(candidate.x+(candidate.width*3/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth);
 				canvasContext.strokeRect(Math.round(candidate.x+(candidate.width/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth);
 				//canvasContext.strokeRect(Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2)), Math.round(candidate.y+candidate.height*(3/4)-(noseFilterWidth/2)), noseFilterWidth, noseFilterWidth);
@@ -526,7 +525,9 @@ var clm = {
 				canvasContext.fill();
 				
 				debugger;
-				canvasContext.clearRect(0,0,320,240);*/
+				element.play()
+				canvasContext.clearRect(0,0,element.width,element.height);*/
+				//
 				
 				// get eye and nose positions of model
 				var lep = model.hints.leftEye;
