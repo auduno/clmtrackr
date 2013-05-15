@@ -433,7 +433,7 @@ var webglFilter = function() {
     // draw to framebuffer
     gl.drawArrays(gl.TRIANGLES, 0, patchCells*6);
     
-    gl.finish();
+    //gl.finish();
     
     if (drawOut) {
       

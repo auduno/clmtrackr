@@ -11,7 +11,6 @@
 				background-color: #f0f0f0;
 				margin: 0px auto;
 				max-width: 1150px;
-				overflow: hidden;
 			}
 			
 			
@@ -118,14 +117,14 @@
 			<h2>Face mask</h2>
 			<div id="container">
 				<!--<video id="videoel" width="500" height="375" preload="auto">-->
-				<video id="videoel" width="500" height="375" preload="auto">
+				<video id="videoel" width="400" height="300" preload="auto">
 					<!--<source src="./media/Capture_1_092.ogv" type="video/ogg"/>-->
 				</video>
-				<canvas id="overlay" width="500" height="375"></canvas>
-				<canvas id="webgl" width="500" height="375"></canvas>
+				<canvas id="overlay" width="400" height="300"></canvas>
+				<canvas id="webgl" width="400" height="300"></canvas>
 			</div>
 			<br/>
-			<input class="btn" type="button" value="wait, loading video" disabled="disabled" onclick="start()" id="startbutton"></input>
+			<input class="btn" type="button" value="wait, loading video" disabled="disabled" onclick="startVideo()" id="startbutton"></input>
 			<select name="mask" id="selectmask">
 				<option value="0">Average face</option>
 				<option value="1">Mona Lisa</option>
@@ -151,7 +150,7 @@
 				</div>
 				<div id="nogum" class="hide">
 					<p>
-						There was some problem trying to capture your webcamera, please check that your browser supports WebRTC. Instead we'll use another video. To try it out:
+						There was some problem trying to capture your webcamera, please check that your browser supports WebRTC. Using a fallback video instead. try it out:
 						<ol>
 							<li>click start</li>
 							<li>wait till model fits the face and a mask is applied</li>
@@ -192,10 +191,9 @@
 					
 					if (supports_video()) {
 						if (supports_ogg_theora_video()) {
-							video.src = "./media/Capture_1_092.ogv";
+							video.src = "./media/cap13_edit2.ogv";
 						} else if (supports_h264_baseline_video()) {
-							alert("no mp4 video :(");
-							//video.src = "./media/capture4.mp4";
+							video.src = "./media/cap13_edit2.mp4";
 						} else {
 							return false;
 						}
@@ -203,12 +201,28 @@
 						return true;
 					} else return false;
 				}
+				
+				// check whether browser supports webGL
+				var webGLContext;
+				var webGLTestCanvas = document.createElement('canvas');
+				if (window.WebGLRenderingContext) {
+					webGLContext = webGLTestCanvas.getContext('webgl') || webGLTestCanvas.getContext('experimental-webgl');
+					if (!webGLContext || !webGLContext.getExtension('OES_texture_float')) {
+						webGLContext = null;
+					}
+				}
+				if (webGLContext == null) {
+                    alert("Your browser does not seem to support WebGL. Unfortunately this face mask example depends on WebGL, so you'll have to try it in another browser. :(");
+				}
+				
 				navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
 				window.URL = window.URL || window.webkitURL || window.msURL || window.mozURL;
+				
 				// check for camerasupport
 				if (navigator.getUserMedia) {
 					// set up stream
 					
+					// chrome 19 shim
 					var videoSelector = {video : true};
 					if (window.navigator.appVersion.match(/Chrome\/(.*?) /)) {
 						var chromeVersion = parseInt(window.navigator.appVersion.match(/Chrome\/(\d+)\./)[1], 10);
@@ -216,19 +230,25 @@
 							videoSelector = "video";
 						}
 					};
-				
-					navigator.getUserMedia({video: true}, function( stream ) {
-						vid.src = window.URL.createObjectURL(stream);
+                    
+					navigator.getUserMedia(videoSelector, function( stream ) {
+						if (vid.mozCaptureStream) {
+                            vid.mozSrcObject = stream;
+						} else {
+                            vid.src = (window.URL && window.URL.createObjectURL(stream)) || stream;
+                        }
 						vid.play();
 					}, function() {
 						insertAltVideo(vid);
 						document.getElementById('gum').className = "hide";
 						document.getElementById('nogum').className = "nohide";
+						alert("There was some problem trying to fetch video from your webcam, using a fallback video instead.");
 					});
 				} else {
-					insertAltVideo(vid);
+					insertAltVideo(vid)
 					document.getElementById('gum').className = "hide";
 					document.getElementById('nogum').className = "nohide";
+					alert("Your browser does not seem to support getUserMedia, using a fallback video instead.");
 				}
 
 				vid.addEventListener('canplay', enablestart, false);
@@ -243,7 +263,7 @@
 					}
 				}
 
-				function start() {
+				function startVideo() {
 					//start video
 					vid.play();
 					
@@ -309,7 +329,7 @@
 				function animate3() {
 					// get position of face
 					positions = ctrack.track(vid);
-          overlayCC.clearRect(0, 0, 500, 375);
+          overlayCC.clearRect(0, 0, 400, 300);
 					if (positions) {
 						// draw mask on top of face
 						fd.draw(positions);

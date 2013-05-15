@@ -12,10 +12,9 @@
 				background-color: #f0f0f0;
 				margin: 0px auto;
 				max-width: 1150px;
-				overflow: hidden;
 			}
 			
-			#overlay {
+			#overlay, #canvasel {
 				position: absolute;
 				top: 0px;
 				left: 0px;
@@ -114,8 +113,8 @@
 		<div id="content">
 			<h2>Face deformation</h2>
 			<div id="container" class="nohide">
-				<video id="videoel" width="370" height="288" preload="auto">
-				</video>
+				<video id="videoel" width="370" height="288" preload="auto"></video>
+				<canvas id="canvasel" width="370" height="288" class="hide"></canvas>
 				<canvas id="overlay" width="370" height="288"></canvas>
 			</div>
 			<div id="webglcontainer" class="hide">
@@ -123,7 +122,7 @@
 			</div>
 			<br/>
 			<div id="buttons">
-				<input class="btn" type="button" value="wait, loading video" disabled="disabled" onclick="start()" id="startbutton"></input>
+				<input class="btn" type="button" value="wait, loading video" disabled="disabled" onclick="startVideo()" id="startbutton"></input>
 			</div>
 			<p id="score"></p>
 			<div id="text">
@@ -186,6 +185,39 @@
 						return true;
 					} else return false;
 				}
+				
+				var insertAltImage = function() {
+          var canvas = document.getElementById('canvasel');
+          var cc = canvas.getContext('2d');
+          var img = new Image();
+          img.onload = function() {
+            cc.drawImage(img, 0, 0, 370, 288);
+            //animate();
+          };
+          img.src = './media/franck_02221.jpg';  
+          vid.className = "hide";
+          vid = canvas;
+          canvas.className = "nohide";
+          
+          var startbutton = document.getElementById('startbutton');
+          startbutton.addEventListener('click', animate, false);
+					startbutton.value = "start";
+					startbutton.disabled = null;
+				}
+				
+				// check whether browser supports webGL
+				var webGLContext;
+				var webGLTestCanvas = document.createElement('canvas');
+				if (window.WebGLRenderingContext) {
+					webGLContext = webGLTestCanvas.getContext('webgl') || webGLTestCanvas.getContext('experimental-webgl');
+					if (!webGLContext || !webGLContext.getExtension('OES_texture_float')) {
+						webGLContext = null;
+					}
+				}
+				if (webGLContext == null) {
+          alert("Your browser does not seem to support WebGL. Unfortunately this face deformation example depends on WebGL, so you'll have to try it in another browser. :(");
+				}
+				
 				navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
 				window.URL = window.URL || window.webkitURL || window.msURL || window.mozURL;
 				// check for camerasupport
@@ -200,23 +232,31 @@
 						}
 					};
 				
-					navigator.getUserMedia({video: true}, function( stream ) {
-						vid.src = window.URL.createObjectURL(stream);
+					navigator.getUserMedia(videoSelector, function( stream ) {
+						if (vid.mozCaptureStream) {
+                            vid.mozSrcObject = stream;
+						} else {
+                            vid.src = (window.URL && window.URL.createObjectURL(stream)) || stream;
+                        }
 						vid.play();
 					}, function() {
-						insertAltVideo(vid);
+						//insertAltVideo(vid);
+						insertAltImage();
 						document.getElementById('gum').className = "hide";
 						document.getElementById('nogum').className = "nohide";
+						alert("There was some problem trying to fetch video from your webcam, using a static image instead.");
 					});
 				} else {
-					insertAltVideo(vid);
+					insertAltImage();
+					//insertAltVideo(vid);
 					document.getElementById('gum').className = "hide";
 					document.getElementById('nogum').className = "nohide";
+					alert("Your browser does not seem to support getUserMedia, using a static image instead.");
 				}
 				
 				vid.addEventListener('canplay', enablestart, false);
 
-				function start() {
+				function startVideo() {
 					//start video
 					vid.play();
 					
