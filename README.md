@@ -15,7 +15,7 @@ For some more information about Constrained Local Models, take a look at Xiaogua
 
 ### Examples ###
 
-* [Tracking in image](http://auduno.github.com/clmtrackr/clm_small.html)
+* [Tracking in image](http://auduno.github.com/clmtrackr/clm_image.html)
 * [Tracking in video](http://auduno.github.com/clmtrackr/clm_video.html)
 * [Face masking](http://auduno.github.com/clmtrackr/face_mask.html)
 * [Face deformation](http://auduno.github.com/clmtrackr/face_deformation_video.html)
