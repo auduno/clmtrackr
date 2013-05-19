@@ -801,6 +801,7 @@ var clm = {
 				var paramUpdateLeft = numeric.add(prior, jtj);
 				var paramUpdateRight = numeric.sub(priorP, jtv);
 				var paramUpdate = numeric.dot(numeric.inv(paramUpdateLeft), paramUpdateRight);
+				//var paramUpdate = numeric.solve(paramUpdateLeft, paramUpdateRight, true);
 				
 				var oldPositions = currentPositions;
 				
