@@ -234,16 +234,12 @@ var clm = {
 				console.log("tracker needs to be initalized before starting to track.");
 				return false;
 			}
-			//check if a runnerelement already exists, if so, use it
+			//check if a runnerelement already exists, if not, use passed parameters
 			if (typeof(runnerElement) === "undefined") {
 				runnerElement = element;
 				runnerBox = box;
-				this.track(runnerElement, runnerBox);
-			} else {
-				this.track(runnerElement);
 			}
 			// start named timeout function
-			//runnerTimeout = window.setTimeout(runnerFunction, params.trackingInterval);
 			runnerTimeout = requestAnimFrame(runnerFunction);
 		}
 
@@ -533,13 +529,13 @@ var clm = {
 			evt.initEvent("clmtrackrIteration", true, true);
 			document.dispatchEvent(evt)
 			
-			if (params.stopOnConvergence) {
-				if (this.getConvergence() < 0.5) {
+			if (this.getConvergence() < 0.5) {
+				if (params.stopOnConvergence) {
 					this.stop();
-					var evt = document.createEvent("Event");
-					evt.initEvent("clmtrackrConverged", true, true);
-					document.dispatchEvent(evt)
 				}
+				var evt = document.createEvent("Event");
+				evt.initEvent("clmtrackrConverged", true, true);
+				document.dispatchEvent(evt)
 			}
 			
 			// return new points
@@ -607,7 +603,11 @@ var clm = {
 		 *	get coordinates of current model fit
 		 */
 		this.getCurrentPosition = function() {
-			return currentPositions;
+			if (first) {
+				return false;
+			} else {
+				return currentPositions;
+			}
 		}
 		
 		/*
@@ -633,12 +633,13 @@ var clm = {
 		}
 
 		var runnerFunction = function() {
+			runnerTimeout = requestAnimFrame(runnerFunction);
 			// schedule as many iterations as we can during each request
 			var startTime = (new Date()).getTime();
 			while (((new Date()).getTime() - startTime) < 16) {
-				this.track(runnerElement, runnerBox);
+				var tracking = this.track(runnerElement, runnerBox);
+				if (!tracking) continue;
 			}
-			runnerTimeout = requestAnimFrame(runnerFunction);
 		}.bind(this);
 
 		// generates the jacobian matrix used for optimization calculations
