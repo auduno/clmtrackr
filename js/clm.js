@@ -9,6 +9,7 @@ var clm = {
 		if (params.searchWindow === undefined) params.searchWindow = 10;
 		if (params.useWebGL === undefined) params.useWebGL = true;
 		if (params.scoreThreshold === undefined) params.scoreThreshold = 0.25;
+		if (params.stopOnConvergence === undefined) params.stopOnConvergence = false;
 		
 		var numPatches, patchSize, numParameters, patchType;
 		var gaussianPD;
@@ -30,16 +31,10 @@ var clm = {
 		/*
 		It's possible to experiment with the sequence of variances used for the finding the maximum in the KDE.
 		This sequence is pretty arbitrary, but was found to be okay using some manual testing.
-		In Saragih's paper he used the sequence [20,10,5,1], this was however found to be slower and equally precise.
 		*/
 		var varianceSeq = [3,1.5,0.75];
-		
-		/*
-		The PDM variance determines how the PDM models parameters can vary when fitting.
-		A low variance puts very little constraint on the parameters, a high variance puts a lot of constraint.
-		According to the formula in Saragih's paper, this parameter should be around 0.00005, however a higher variance was found to work better for this model.
-		*/
-		var PDMVariance = 0.05;
+		//var varianceSeq = [6,3,0.75];
+		var PDMVariance = 1;
 		
 		var relaxation = 0.1;
 		
@@ -82,6 +77,7 @@ var clm = {
 		var left_eye_position = [0.0,0.0];
 		var nose_position = [0.0,0.0];
 		var lep, rep, mep;
+		var runnerTimeout, runnerElement, runnerBox;
 		
 		/*
 		 *	load model data, initialize filters, etc.
@@ -104,8 +100,8 @@ var clm = {
 			numParameters = model.shapeModel.numEvalues;
 			modelWidth = model.patchModel.canvasSize[0];
 			modelHeight = model.patchModel.canvasSize[1];
-      
-      		// set up canvas to work on
+			
+			// set up canvas to work on
 			sketchCanvas = document.createElement('canvas');
 			sketchCC = sketchCanvas.getContext('2d');
 			sketchW = sketchCanvas.width = modelWidth + searchWindow + patchSize-1;
@@ -229,377 +225,36 @@ var clm = {
 			}
 		}
 		
-
-		// generates the jacobian matrix used for optimization calculations
-		var createJacobian = function(parameters, eigenVectors) {
-			
-			var jacobian = numeric.rep([2*numPatches, numParameters+4],0.0);
-			var j0,j1;
-			for (var i = 0;i < numPatches;i ++) {
-				// 1
-				j0 = meanShape[i][0];
-				j1 = meanShape[i][1];
-				for (var p = 0;p < numParameters;p++) {
-					j0 += parameters[p+4]*eigenVectors[i*2][p];
-					j1 += parameters[p+4]*eigenVectors[(i*2)+1][p];
-				}
-				jacobian[i*2][0] = j0;
-				jacobian[(i*2)+1][0] = j1;
-				// 2
-				j0 = meanShape[i][1];
-				j1 = meanShape[i][0];
-				for (var p = 0;p < numParameters;p++) {
-					j0 += parameters[p+4]*eigenVectors[(i*2)+1][p];
-					j1 += parameters[p+4]*eigenVectors[i*2][p];
-				}
-				jacobian[i*2][1] = -j0;
-				jacobian[(i*2)+1][1] = j1;
-				// 3
-				jacobian[i*2][2] = 1;
-				jacobian[(i*2)+1][2] = 0;
-				// 4
-				jacobian[i*2][3] = 0;
-				jacobian[(i*2)+1][3] = 1;
-				// the rest
-				for (var j = 0;j < numParameters;j++) {
-					j0 = parameters[0]*eigenVectors[i*2][j] - parameters[1]*eigenVectors[(i*2)+1][j] + eigenVectors[i*2][j];
-					j1 = parameters[0]*eigenVectors[(i*2)+1][j] + parameters[1]*eigenVectors[i*2][j] + eigenVectors[(i*2)+1][j];
-					jacobian[i*2][j+4] = j0;
-					jacobian[(i*2)+1][j+4] = j1;
-				}
-			}
-			
-			return jacobian;
-		}
-		
-      	// calculate positions from parameters
-		var calculatePositions = function(parameters, useTransforms) {
-			var x, y, a, b;
-			var numParameters = parameters.length;
-			var positions = [];
-			for (var i = 0;i < numPatches;i++) {
-				x = meanShape[i][0];
-				y = meanShape[i][1];
-				for (var j = 0;j < numParameters-4;j++) {
-					x += model.shapeModel.eigenVectors[(i*2)][j]*parameters[j+4];
-					y += model.shapeModel.eigenVectors[(i*2)+1][j]*parameters[j+4];
-				}
-				if (useTransforms) {
-					a = parameters[0]*x - parameters[1]*y + parameters[2];
-					b = parameters[0]*y + parameters[1]*x + parameters[3];
-					x += a;
-					y += b;
-				}
-				positions[i] = [x,y];
-			}
-			
-			return positions;
-		}
-		
 		/*
-		 *	calculate positions based on parameters
+		 *	starts the tracker to run on a regular interval
 		 */
-		this.calculatePositions = function(parameters) {
-			return calculatePositions(parameters, true);
-		}
-		
-		// detect position of face on canvas/video element
-		var detectPosition = function(el) {
-			var canvas = document.createElement('canvas');
-			canvas.width = el.width;
-			canvas.height = el.height;
-			var cc = canvas.getContext('2d');
-			cc.drawImage(el, 0, 0, el.width, el.height);
-			
-			// do viola-jones on canvas to get initial guess, if we don't have any points
-			/*var comp = ccv.detect_objects(
-				ccv.grayscale(canvas), ccv.cascade, 5, 1
-			);*/
-			var jf = new jsfeat_face(canvas);
-			var comp = jf.findFace();
-			
-			if (comp.length > 0) {
-				candidate = comp[0];
-			} else {
+		this.start = function(element, box) {
+			// check if model is initalized, else return false
+			if (typeof(model) === "undefined") {
+				console.log("tracker needs to be initalized before starting to track.");
 				return false;
 			}
-			
-			/*for (var i = 1; i < comp.length; i++) {
-				if (comp[i].confidence > candidate.confidence) {
-					candidate = comp[i];
-				}
-			}*/
-			
-			return candidate;
-		}
-		
-		/*
-		 *	get coordinates of current model fit
-		 */
-		this.getCurrentPosition = function() {
-			return currentPositions;
-		}
-		
-		/*
-		 *	get parameters of current model fit
-		 */
-		this.getCurrentParameters = function() {
-			return currentParameters;
-		}
-		
-		// part one of meanshift calculation
-		var gpopt = function(responseWidth, currentPositionsj, updatePosition, vecProbs, responses, opj0, opj1, j, variance) {
-			var pos_idx = 0;
-			var vpsum = 0;
-			var dx, dy;
-			for (var k = 0;k < responseWidth;k++) {
-				updatePosition[1] = opj1+k;
-				for (var l = 0;l < responseWidth;l++) {
-					updatePosition[0] = opj0+l;
-					
-					dx = currentPositionsj[0] - updatePosition[0];
-					dy = currentPositionsj[1] - updatePosition[1];
-					vecProbs[pos_idx] = responses[j][pos_idx] * Math.exp(-0.5*((dx*dx)+(dy*dy))/variance);
-					
-					vpsum += vecProbs[pos_idx];
-					pos_idx++;
-				}
-			}
-			
-			return vpsum;
-		}
-		
-		// part two of meanshift calculation
-		var gpopt2 = function(responseWidth, vecpos, updatePosition, vecProbs, vpsum, opj0, opj1) {
-			//for debugging
-			//var vecmatrix = [];
-			
-			var pos_idx = 0;
-			var vecsum = 0;
-			vecpos[0] = 0;
-			vecpos[1] = 0;
-			for (var k = 0;k < responseWidth;k++) {
-				updatePosition[1] = opj1+k;
-				for (var l = 0;l < responseWidth;l++) {
-					updatePosition[0] = opj0+l;
-					vecsum = vecProbs[pos_idx]/vpsum;
-					
-					//for debugging
-					//vecmatrix[k*responseWidth + l] = vecsum;
-					
-					vecpos[0] += vecsum*updatePosition[0];
-					vecpos[1] += vecsum*updatePosition[1];
-					pos_idx++;
-				}
-			}
-			// for debugging
-			//return vecmatrix;
-		}
-		
-		// calculate score of current fit
-		var checkTracking = function() {			
-			scoringContext.drawImage(sketchCanvas, msxmin, msymin, msmodelwidth, msmodelheight, 0, 0, 20, 22);
-			// getImageData of canvas
-			var imgData = scoringContext.getImageData(0,0,20,22);
-			// convert data to grayscale
-			var scoringData = new Array(20*22);
-			var scdata = imgData.data;
-			var scmax = 0;
-			var scmin = 255;
-			for (var i = 0;i < 20*22;i++) {
-			  scoringData[i] = scdata[i*4]*0.3 + scdata[(i*4)+1]*0.59 + scdata[(i*4)+2]*0.11;
-			  if (scoringData[i] > scmax) scmax = scoringData[i];
-			  if (scoringData[i] < scmin) scmin = scoringData[i];
-			}
-			
-			if (scmax > 0) {
-				// normalize & multiply by svmFilter
-				var score = 0;
-				var newim = scoringContext.createImageData(20,22);
-				var newimdata = newim.data;
-				var scdaata = new Array(20*22);
-				var scdamin = 10000000;
-				var scdamax = -10000000;
-				for (var i = 0;i < 20*22;i++) {
-					scoringData[i] = (scoringData[i]-scmin)/(scmax-scmin);
-					scdaata[i] = scoringData[i]*scoringWeights[i];
-					if (scdaata[scdamin] < i) scdamin = scdaata[i];
-					if (scdaata[i] > scdamax) scdamax = scdaata[i];
-				}
-
-				for (var i = 0;i < 20*22;i++) {
-					var nid = 255*((scdaata[i]-scdamin)/(scdamax-scdamin));
-					newimdata[i*4] = nid;
-					newimdata[(i*4)+1] = nid;
-					newimdata[(i*4)+2] = nid;
-					newimdata[(i*4)+3] = 255;
-				}
-				scoringContext.putImageData(newim,0,0);
-
-				for (var i = 0;i < 20*22;i++) {
-					score += (scoringData[i])*-scoringWeights[i];
-				}
-				score += scoringBias;
-
-				scoringHistory.splice(0, scoringHistory.length == 5 ? 1 : 0);
-				scoringHistory.push(score);
-
-				if (scoringHistory.length > 4) {
-					// get average
-					meanscore = 0;
-					for (var i = 0;i < 5;i++) {
-						meanscore += scoringHistory[i];
-					}
-					meanscore /= 5;
-					// if below threshold, then reset (return false)
-					if (meanscore < params.scoreThreshold) return false;
-				}
-			}
-			return true;
-		}
-
-		/*
-		 * 	get the score of the current model fit
-		 *	(based on svm of face according to current model)
-		 */
-		this.getScore = function() {
-			return meanscore;
-		}
-		
-		// get initial starting point for model
-		var getInitialPosition = function(element, box) {
-      var translateX, translateY, scaling, rotation;
-			if (box) {
-        candidate = {x : box[0], y : box[1], width : box[2], height : box[3]};
+			//check if a runnerelement already exists, if so, use it
+			if (typeof(runnerElement) === "undefined") {
+				runnerElement = element;
+				runnerBox = box;
+				this.track(runnerElement, runnerBox);
 			} else {
-        var det = detectPosition(element);
-        if (!det) {
-          // if no face found, stop.
-          return false;
-        }
+				this.track(runnerElement);
 			}
-			
-			if (model.hints && mosseFilter && left_eye_filter && right_eye_filter && nose_filter) {
-				var noseFilterWidth = candidate.width * 4.5/10;
-				var eyeFilterWidth = candidate.width * 6/10;
-				
-				// detect position of eyes and nose via mosse filter
-				//
-				/*element.pause();
-				
-				var canvasContext = document.getElementById('overlay2').getContext('2d')
-				canvasContext.clearRect(0,0,500,375);
-				canvasContext.strokeRect(candidate.x, candidate.y, candidate.width, candidate.height);*/
-				//
-				
-				var nose_result = mossef_nose.track(element, Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2)), Math.round(candidate.y+candidate.height*(5/8)-(noseFilterWidth/2)), noseFilterWidth, noseFilterWidth, false);
-				var right_result = mossef_righteye.track(element, Math.round(candidate.x+(candidate.width*3/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth, false);
-				var left_result = mossef_lefteye.track(element, Math.round(candidate.x+(candidate.width/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth, false);
-				right_eye_position[0] = Math.round(candidate.x+(candidate.width*3/4)-(eyeFilterWidth/2))+right_result[0];
-				right_eye_position[1] = Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2))+right_result[1];
-				left_eye_position[0] = Math.round(candidate.x+(candidate.width/4)-(eyeFilterWidth/2))+left_result[0];
-				left_eye_position[1] = Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2))+left_result[1];
-				nose_position[0] = Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2))+nose_result[0];
-				nose_position[1] = Math.round(candidate.y+candidate.height*(5/8)-(noseFilterWidth/2))+nose_result[1];
-				
-				//
-				/*canvasContext.strokeRect(Math.round(candidate.x+(candidate.width*3/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth);
-				canvasContext.strokeRect(Math.round(candidate.x+(candidate.width/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth);
-				//canvasContext.strokeRect(Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2)), Math.round(candidate.y+candidate.height*(3/4)-(noseFilterWidth/2)), noseFilterWidth, noseFilterWidth);
-				canvasContext.strokeRect(Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2)), Math.round(candidate.y+candidate.height*(5/8)-(noseFilterWidth/2)), noseFilterWidth, noseFilterWidth);
-				
-				canvasContext.fillStyle = "rgb(0,0,250)";
-				canvasContext.beginPath();
-				canvasContext.arc(left_eye_position[0], left_eye_position[1], 3, 0, Math.PI*2, true);
-				canvasContext.closePath();
-				canvasContext.fill();
-				
-				canvasContext.beginPath();
-				canvasContext.arc(right_eye_position[0], right_eye_position[1], 3, 0, Math.PI*2, true);
-				canvasContext.closePath();
-				canvasContext.fill();
-				
-				canvasContext.beginPath();
-				canvasContext.arc(nose_position[0], nose_position[1], 3, 0, Math.PI*2, true);
-				canvasContext.closePath();
-				canvasContext.fill();
-				
-				debugger;
-				element.play()
-				canvasContext.clearRect(0,0,element.width,element.height);*/
-				//
-				
-				// get eye and nose positions of model
-				var lep = model.hints.leftEye;
-				var rep = model.hints.rightEye;
-				var mep = model.hints.nose;
-				
-				// get scaling, rotation, etc. via procrustes analysis
-				var procrustes_params = procrustes([left_eye_position, right_eye_position, nose_position], [lep, rep, mep]);
-				translateX = procrustes_params[0];
-				translateY = procrustes_params[1];
-				scaling = procrustes_params[2];
-				rotation = procrustes_params[3];
-				
-				//element.play();
-				
-				//var maxscale = 1.10;
-				//if ((scaling*modelHeight)/candidate.height < maxscale*0.7) scaling = (maxscale*0.7*candidate.height)/modelHeight;
-				//if ((scaling*modelHeight)/candidate.height > maxscale*1.2) scaling = (maxscale*1.2*candidate.height)/modelHeight;
-				
-				/*var smean = [0,0];
-				smean[0] += lep[0];
-				smean[1] += lep[1];
-				smean[0] += rep[0];
-				smean[1] += rep[1];
-				smean[0] += mep[0];
-				smean[1] += mep[1];
-				smean[0] /= 3;
-				smean[1] /= 3;
-				
-				var nulep = [(lep[0]*scaling*Math.cos(-rotation)+lep[1]*scaling*Math.sin(-rotation))+translateX, (lep[0]*scaling*(-Math.sin(-rotation)) + lep[1]*scaling*Math.cos(-rotation))+translateY];
-				var nurep = [(rep[0]*scaling*Math.cos(-rotation)+rep[1]*scaling*Math.sin(-rotation))+translateX, (rep[0]*scaling*(-Math.sin(-rotation)) + rep[1]*scaling*Math.cos(-rotation))+translateY];
-				var numep = [(mep[0]*scaling*Math.cos(-rotation)+mep[1]*scaling*Math.sin(-rotation))+translateX, (mep[0]*scaling*(-Math.sin(-rotation)) + mep[1]*scaling*Math.cos(-rotation))+translateY];
-				
-				canvasContext.fillStyle = "rgb(200,10,100)";
-				canvasContext.beginPath();
-				canvasContext.arc(nulep[0], nulep[1], 3, 0, Math.PI*2, true);
-				canvasContext.closePath();
-				canvasContext.fill();
-				
-				canvasContext.beginPath();
-				canvasContext.arc(nurep[0], nurep[1], 3, 0, Math.PI*2, true);
-				canvasContext.closePath();
-				canvasContext.fill();
-				
-				canvasContext.beginPath();
-				canvasContext.arc(numep[0], numep[1], 3, 0, Math.PI*2, true);
-				canvasContext.closePath();
-				canvasContext.fill();*/
-				
-				currentParameters[0] = (scaling*Math.cos(rotation))-1;
-				currentParameters[1] = (scaling*Math.sin(rotation));
-				currentParameters[2] = translateX;
-				currentParameters[3] = translateY;
-				
-				//this.draw(document.getElementById('overlay'), currentParameters);
-				
-			} else {
-				scaling = candidate.width/modelheight;
-				//var ccc = document.getElementById('overlay').getContext('2d');
-				//ccc.strokeRect(candidate.x,candidate.y,candidate.width,candidate.height);
-				translateX = candidate.x-(xmin*scaling)+0.1*candidate.width;
-				translateY = candidate.y-(ymin*scaling)+0.25*candidate.height;
-				currentParameters[0] = scaling-1;
-				currentParameters[2] = translateX;
-				currentParameters[3] = translateY;
-			}
-		
-			currentPositions = calculatePositions(currentParameters, true);
-			
-			return [scaling, rotation, translateX, translateY];
+			// start named timeout function
+			//runnerTimeout = window.setTimeout(runnerFunction, params.trackingInterval);
+			runnerTimeout = requestAnimFrame(runnerFunction);
 		}
-		
+
+		/*
+		 *	stop the running tracker
+		 */
+		this.stop = function() {
+			// stop the running tracker if any exists
+			cancelRequestAnimFrame(runnerTimeout);
+		}
+
 		/*
 		 *  element : canvas or video element
 		 *  TODO: should be able to take img element as well
@@ -609,11 +264,16 @@ var clm = {
 			var scaling, translateX, translateY, rotation;
 			var croppedPatches = [];
 			var ptch, px, py;
-			
+						
 			if (first) {
 				// do viola-jones on canvas to get initial guess, if we don't have any points
 				var gi = getInitialPosition(element, box);
 				if (!gi) {
+					// send an event on no face found
+					var evt = document.createEvent("Event");
+					evt.initEvent("clmtrackrNotFound", true, true);
+					document.dispatchEvent(evt)
+					
 					return false;
 				}
 				scaling = gi[0];
@@ -661,12 +321,19 @@ var clm = {
 			// check whether tracking is ok
 			if (scoringWeights && (facecheck_count % 10 == 0)) {
 				if (!checkTracking()) {
+					// reset all parameters
 					first = true;
 					scoringHistory = [];
 					for (var i = 0;i < currentParameters.length;i++) {
 						currentParameters[i] = 0;
 						previousParameters = [];
 					}
+					
+					// send event to signal that tracking was lost
+					var evt = document.createEvent("Event");
+					evt.initEvent("clmtrackrLost", true, true);
+					document.dispatchEvent(evt)
+					
 					return false;
 				}
 			}
@@ -854,40 +521,465 @@ var clm = {
 			var movementSum = 0;
 			var mssq_x, mssq_y;
 			for (var i = 0;i < originalPositions.length;i++) {
-			  mssq_x = (originalPositions[i][0]-oldPositions[i][0]);
-			  mssq_y = (originalPositions[i][1]-oldPositions[i][1]);
-			  movementSum += ((mssq_x*mssq_x) + (mssq_y*mssq_y));
+				mssq_x = (originalPositions[i][0]-oldPositions[i][0]);
+				mssq_y = (originalPositions[i][1]-oldPositions[i][1]);
+				movementSum += ((mssq_x*mssq_x) + (mssq_y*mssq_y));
 			}
 			movementSums.splice(0, movementSums.length == 10 ? 1 : 0);
 			movementSums.push(movementSum);
 			
+			// send an event on each iteration
+			var evt = document.createEvent("Event");
+			evt.initEvent("clmtrackrIteration", true, true);
+			document.dispatchEvent(evt)
+			
+			if (params.stopOnConvergence) {
+				if (this.getConvergence() < 0.5) {
+					this.stop();
+					var evt = document.createEvent("Event");
+					evt.initEvent("clmtrackrConverged", true, true);
+					document.dispatchEvent(evt)
+				}
+			}
+			
 			// return new points
 			return currentPositions;
 		}
-		
+
+		/*
+		 *	reset tracking, so that track() will start a new detection
+		 */
 		this.reset = function() {
-      // reset tracking, so that track() will start a new detection
-      first = true;
-      scoringHistory = [];
-      for (var i = 0;i < currentParameters.length;i++) {
-        currentParameters[i] = 0;
-        previousParameters = [];
-      }
+			first = true;
+			scoringHistory = [];
+			for (var i = 0;i < currentParameters.length;i++) {
+				currentParameters[i] = 0;
+				previousParameters = [];
+			}
+			runnerElement = undefined;
+			runnerBox = undefined;
+		}
+
+		/*
+		 *	draw model on given canvas
+		 */
+		this.draw = function(canvas, pv) {
+			// if no previous points, just draw in the middle of canvas
+			
+			var params;
+			if (pv === undefined) {
+				params = currentParameters.slice(0);
+			} else {
+				params = pv.slice(0);
+			}
+			
+			var cc = canvas.getContext('2d');
+			cc.fillStyle = "rgb(200,200,200)";
+			cc.strokeStyle = "rgb(130,255,50)";
+			//cc.lineWidth = 1;
+			
+			var paths = model.path.normal;
+			for (var i = 0;i < paths.length;i++) {
+				if (typeof(paths[i]) == 'number') {
+					drawPoint(cc, paths[i], params);
+				} else {
+					drawPath(cc, paths[i], params);
+				}
+			}
+		}
+
+		/*
+		 * 	get the score of the current model fit
+		 *	(based on svm of face according to current model)
+		 */
+		this.getScore = function() {
+			return meanscore;
+		}
+
+		/*
+		 *	calculate positions based on parameters
+		 */
+		this.calculatePositions = function(parameters) {
+			return calculatePositions(parameters, true);
 		}
 		
+		/*
+		 *	get coordinates of current model fit
+		 */
+		this.getCurrentPosition = function() {
+			return currentPositions;
+		}
+		
+		/*
+		 *	get parameters of current model fit
+		 */
+		this.getCurrentParameters = function() {
+			return currentParameters;
+		}
+
 		/*
 		 *	Get the average of recent model movements
 		 *	Used for checking whether model fit has converged
 		 */
-		this.getMovementSum = function() {
-		  if (movementSums.length < 10) return 999999;
-		  //calc average
-		  var msavg = 0;
-		  for (var i = 0;i < movementSums.length;i++) {
-		    msavg += movementSums[i];
-		  }
-		  msavg /= movementSums.length
-		  return msavg;
+		this.getConvergence = function() {
+			if (movementSums.length < 10) return 999999;
+			//calc average
+			var msavg = 0;
+			for (var i = 0;i < movementSums.length;i++) {
+				msavg += movementSums[i];
+			}
+			msavg /= movementSums.length
+			return msavg;
+		}
+
+		var runnerFunction = function() {
+			// schedule as many iterations as we can during each request
+			var startTime = (new Date()).getTime();
+			while (((new Date()).getTime() - startTime) < 16) {
+				this.track(runnerElement, runnerBox);
+			}
+			runnerTimeout = requestAnimFrame(runnerFunction);
+		}.bind(this);
+
+		// generates the jacobian matrix used for optimization calculations
+		var createJacobian = function(parameters, eigenVectors) {
+			
+			var jacobian = numeric.rep([2*numPatches, numParameters+4],0.0);
+			var j0,j1;
+			for (var i = 0;i < numPatches;i ++) {
+				// 1
+				j0 = meanShape[i][0];
+				j1 = meanShape[i][1];
+				for (var p = 0;p < numParameters;p++) {
+					j0 += parameters[p+4]*eigenVectors[i*2][p];
+					j1 += parameters[p+4]*eigenVectors[(i*2)+1][p];
+				}
+				jacobian[i*2][0] = j0;
+				jacobian[(i*2)+1][0] = j1;
+				// 2
+				j0 = meanShape[i][1];
+				j1 = meanShape[i][0];
+				for (var p = 0;p < numParameters;p++) {
+					j0 += parameters[p+4]*eigenVectors[(i*2)+1][p];
+					j1 += parameters[p+4]*eigenVectors[i*2][p];
+				}
+				jacobian[i*2][1] = -j0;
+				jacobian[(i*2)+1][1] = j1;
+				// 3
+				jacobian[i*2][2] = 1;
+				jacobian[(i*2)+1][2] = 0;
+				// 4
+				jacobian[i*2][3] = 0;
+				jacobian[(i*2)+1][3] = 1;
+				// the rest
+				for (var j = 0;j < numParameters;j++) {
+					j0 = parameters[0]*eigenVectors[i*2][j] - parameters[1]*eigenVectors[(i*2)+1][j] + eigenVectors[i*2][j];
+					j1 = parameters[0]*eigenVectors[(i*2)+1][j] + parameters[1]*eigenVectors[i*2][j] + eigenVectors[(i*2)+1][j];
+					jacobian[i*2][j+4] = j0;
+					jacobian[(i*2)+1][j+4] = j1;
+				}
+			}
+			
+			return jacobian;
+		}
+		
+		// calculate positions from parameters
+		var calculatePositions = function(parameters, useTransforms) {
+			var x, y, a, b;
+			var numParameters = parameters.length;
+			var positions = [];
+			for (var i = 0;i < numPatches;i++) {
+				x = meanShape[i][0];
+				y = meanShape[i][1];
+				for (var j = 0;j < numParameters-4;j++) {
+					x += model.shapeModel.eigenVectors[(i*2)][j]*parameters[j+4];
+					y += model.shapeModel.eigenVectors[(i*2)+1][j]*parameters[j+4];
+				}
+				if (useTransforms) {
+					a = parameters[0]*x - parameters[1]*y + parameters[2];
+					b = parameters[0]*y + parameters[1]*x + parameters[3];
+					x += a;
+					y += b;
+				}
+				positions[i] = [x,y];
+			}
+			
+			return positions;
+		}
+		
+		// detect position of face on canvas/video element
+		var detectPosition = function(el) {
+			var canvas = document.createElement('canvas');
+			canvas.width = el.width;
+			canvas.height = el.height;
+			var cc = canvas.getContext('2d');
+			cc.drawImage(el, 0, 0, el.width, el.height);
+			
+			// do viola-jones on canvas to get initial guess, if we don't have any points
+			/*var comp = ccv.detect_objects(
+				ccv.grayscale(canvas), ccv.cascade, 5, 1
+			);*/
+			var jf = new jsfeat_face(canvas);
+			var comp = jf.findFace();
+			
+			if (comp.length > 0) {
+				candidate = comp[0];
+			} else {
+				return false;
+			}
+			
+			/*for (var i = 1; i < comp.length; i++) {
+				if (comp[i].confidence > candidate.confidence) {
+					candidate = comp[i];
+				}
+			}*/
+			
+			return candidate;
+		}
+		
+		// part one of meanshift calculation
+		var gpopt = function(responseWidth, currentPositionsj, updatePosition, vecProbs, responses, opj0, opj1, j, variance) {
+			var pos_idx = 0;
+			var vpsum = 0;
+			var dx, dy;
+			for (var k = 0;k < responseWidth;k++) {
+				updatePosition[1] = opj1+k;
+				for (var l = 0;l < responseWidth;l++) {
+					updatePosition[0] = opj0+l;
+					
+					dx = currentPositionsj[0] - updatePosition[0];
+					dy = currentPositionsj[1] - updatePosition[1];
+					vecProbs[pos_idx] = responses[j][pos_idx] * Math.exp(-0.5*((dx*dx)+(dy*dy))/variance);
+					
+					vpsum += vecProbs[pos_idx];
+					pos_idx++;
+				}
+			}
+			
+			return vpsum;
+		}
+		
+		// part two of meanshift calculation
+		var gpopt2 = function(responseWidth, vecpos, updatePosition, vecProbs, vpsum, opj0, opj1) {
+			//for debugging
+			//var vecmatrix = [];
+			
+			var pos_idx = 0;
+			var vecsum = 0;
+			vecpos[0] = 0;
+			vecpos[1] = 0;
+			for (var k = 0;k < responseWidth;k++) {
+				updatePosition[1] = opj1+k;
+				for (var l = 0;l < responseWidth;l++) {
+					updatePosition[0] = opj0+l;
+					vecsum = vecProbs[pos_idx]/vpsum;
+					
+					//for debugging
+					//vecmatrix[k*responseWidth + l] = vecsum;
+					
+					vecpos[0] += vecsum*updatePosition[0];
+					vecpos[1] += vecsum*updatePosition[1];
+					pos_idx++;
+				}
+			}
+			// for debugging
+			//return vecmatrix;
+		}
+		
+		// calculate score of current fit
+		var checkTracking = function() {			
+			scoringContext.drawImage(sketchCanvas, msxmin, msymin, msmodelwidth, msmodelheight, 0, 0, 20, 22);
+			// getImageData of canvas
+			var imgData = scoringContext.getImageData(0,0,20,22);
+			// convert data to grayscale
+			var scoringData = new Array(20*22);
+			var scdata = imgData.data;
+			var scmax = 0;
+			var scmin = 255;
+			for (var i = 0;i < 20*22;i++) {
+			  scoringData[i] = scdata[i*4]*0.3 + scdata[(i*4)+1]*0.59 + scdata[(i*4)+2]*0.11;
+			  if (scoringData[i] > scmax) scmax = scoringData[i];
+			  if (scoringData[i] < scmin) scmin = scoringData[i];
+			}
+			
+			if (scmax > 0) {
+				// normalize & multiply by svmFilter
+				var score = 0;
+				var newim = scoringContext.createImageData(20,22);
+				var newimdata = newim.data;
+				var scdaata = new Array(20*22);
+				var scdamin = 10000000;
+				var scdamax = -10000000;
+				for (var i = 0;i < 20*22;i++) {
+					scoringData[i] = (scoringData[i]-scmin)/(scmax-scmin);
+					scdaata[i] = scoringData[i]*scoringWeights[i];
+					if (scdaata[scdamin] < i) scdamin = scdaata[i];
+					if (scdaata[i] > scdamax) scdamax = scdaata[i];
+				}
+
+				for (var i = 0;i < 20*22;i++) {
+					var nid = 255*((scdaata[i]-scdamin)/(scdamax-scdamin));
+					newimdata[i*4] = nid;
+					newimdata[(i*4)+1] = nid;
+					newimdata[(i*4)+2] = nid;
+					newimdata[(i*4)+3] = 255;
+				}
+				scoringContext.putImageData(newim,0,0);
+
+				for (var i = 0;i < 20*22;i++) {
+					score += (scoringData[i])*-scoringWeights[i];
+				}
+				score += scoringBias;
+
+				scoringHistory.splice(0, scoringHistory.length == 5 ? 1 : 0);
+				scoringHistory.push(score);
+
+				if (scoringHistory.length > 4) {
+					// get average
+					meanscore = 0;
+					for (var i = 0;i < 5;i++) {
+						meanscore += scoringHistory[i];
+					}
+					meanscore /= 5;
+					// if below threshold, then reset (return false)
+					if (meanscore < params.scoreThreshold) return false;
+				}
+			}
+			return true;
+		}
+		
+		// get initial starting point for model
+		var getInitialPosition = function(element, box) {
+			var translateX, translateY, scaling, rotation;
+			if (box) {
+				candidate = {x : box[0], y : box[1], width : box[2], height : box[3]};
+			} else {
+				var det = detectPosition(element);
+				if (!det) {
+					// if no face found, stop.
+					return false;
+				}
+			}
+			
+			if (model.hints && mosseFilter && left_eye_filter && right_eye_filter && nose_filter) {
+				var noseFilterWidth = candidate.width * 4.5/10;
+				var eyeFilterWidth = candidate.width * 6/10;
+				
+				// detect position of eyes and nose via mosse filter
+				//
+				/*element.pause();
+				
+				var canvasContext = document.getElementById('overlay2').getContext('2d')
+				canvasContext.clearRect(0,0,500,375);
+				canvasContext.strokeRect(candidate.x, candidate.y, candidate.width, candidate.height);*/
+				//
+				
+				var nose_result = mossef_nose.track(element, Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2)), Math.round(candidate.y+candidate.height*(5/8)-(noseFilterWidth/2)), noseFilterWidth, noseFilterWidth, false);
+				var right_result = mossef_righteye.track(element, Math.round(candidate.x+(candidate.width*3/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth, false);
+				var left_result = mossef_lefteye.track(element, Math.round(candidate.x+(candidate.width/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth, false);
+				right_eye_position[0] = Math.round(candidate.x+(candidate.width*3/4)-(eyeFilterWidth/2))+right_result[0];
+				right_eye_position[1] = Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2))+right_result[1];
+				left_eye_position[0] = Math.round(candidate.x+(candidate.width/4)-(eyeFilterWidth/2))+left_result[0];
+				left_eye_position[1] = Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2))+left_result[1];
+				nose_position[0] = Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2))+nose_result[0];
+				nose_position[1] = Math.round(candidate.y+candidate.height*(5/8)-(noseFilterWidth/2))+nose_result[1];
+				
+				//
+				/*canvasContext.strokeRect(Math.round(candidate.x+(candidate.width*3/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth);
+				canvasContext.strokeRect(Math.round(candidate.x+(candidate.width/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth);
+				//canvasContext.strokeRect(Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2)), Math.round(candidate.y+candidate.height*(3/4)-(noseFilterWidth/2)), noseFilterWidth, noseFilterWidth);
+				canvasContext.strokeRect(Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2)), Math.round(candidate.y+candidate.height*(5/8)-(noseFilterWidth/2)), noseFilterWidth, noseFilterWidth);
+				
+				canvasContext.fillStyle = "rgb(0,0,250)";
+				canvasContext.beginPath();
+				canvasContext.arc(left_eye_position[0], left_eye_position[1], 3, 0, Math.PI*2, true);
+				canvasContext.closePath();
+				canvasContext.fill();
+				
+				canvasContext.beginPath();
+				canvasContext.arc(right_eye_position[0], right_eye_position[1], 3, 0, Math.PI*2, true);
+				canvasContext.closePath();
+				canvasContext.fill();
+				
+				canvasContext.beginPath();
+				canvasContext.arc(nose_position[0], nose_position[1], 3, 0, Math.PI*2, true);
+				canvasContext.closePath();
+				canvasContext.fill();
+				
+				debugger;
+				element.play()
+				canvasContext.clearRect(0,0,element.width,element.height);*/
+				//
+				
+				// get eye and nose positions of model
+				var lep = model.hints.leftEye;
+				var rep = model.hints.rightEye;
+				var mep = model.hints.nose;
+				
+				// get scaling, rotation, etc. via procrustes analysis
+				var procrustes_params = procrustes([left_eye_position, right_eye_position, nose_position], [lep, rep, mep]);
+				translateX = procrustes_params[0];
+				translateY = procrustes_params[1];
+				scaling = procrustes_params[2];
+				rotation = procrustes_params[3];
+				
+				//element.play();
+				
+				//var maxscale = 1.10;
+				//if ((scaling*modelHeight)/candidate.height < maxscale*0.7) scaling = (maxscale*0.7*candidate.height)/modelHeight;
+				//if ((scaling*modelHeight)/candidate.height > maxscale*1.2) scaling = (maxscale*1.2*candidate.height)/modelHeight;
+				
+				/*var smean = [0,0];
+				smean[0] += lep[0];
+				smean[1] += lep[1];
+				smean[0] += rep[0];
+				smean[1] += rep[1];
+				smean[0] += mep[0];
+				smean[1] += mep[1];
+				smean[0] /= 3;
+				smean[1] /= 3;
+				
+				var nulep = [(lep[0]*scaling*Math.cos(-rotation)+lep[1]*scaling*Math.sin(-rotation))+translateX, (lep[0]*scaling*(-Math.sin(-rotation)) + lep[1]*scaling*Math.cos(-rotation))+translateY];
+				var nurep = [(rep[0]*scaling*Math.cos(-rotation)+rep[1]*scaling*Math.sin(-rotation))+translateX, (rep[0]*scaling*(-Math.sin(-rotation)) + rep[1]*scaling*Math.cos(-rotation))+translateY];
+				var numep = [(mep[0]*scaling*Math.cos(-rotation)+mep[1]*scaling*Math.sin(-rotation))+translateX, (mep[0]*scaling*(-Math.sin(-rotation)) + mep[1]*scaling*Math.cos(-rotation))+translateY];
+				
+				canvasContext.fillStyle = "rgb(200,10,100)";
+				canvasContext.beginPath();
+				canvasContext.arc(nulep[0], nulep[1], 3, 0, Math.PI*2, true);
+				canvasContext.closePath();
+				canvasContext.fill();
+				
+				canvasContext.beginPath();
+				canvasContext.arc(nurep[0], nurep[1], 3, 0, Math.PI*2, true);
+				canvasContext.closePath();
+				canvasContext.fill();
+				
+				canvasContext.beginPath();
+				canvasContext.arc(numep[0], numep[1], 3, 0, Math.PI*2, true);
+				canvasContext.closePath();
+				canvasContext.fill();*/
+				
+				currentParameters[0] = (scaling*Math.cos(rotation))-1;
+				currentParameters[1] = (scaling*Math.sin(rotation));
+				currentParameters[2] = translateX;
+				currentParameters[3] = translateY;
+				
+				//this.draw(document.getElementById('overlay'), currentParameters);
+				
+			} else {
+				scaling = candidate.width/modelheight;
+				//var ccc = document.getElementById('overlay').getContext('2d');
+				//ccc.strokeRect(candidate.x,candidate.y,candidate.width,candidate.height);
+				translateX = candidate.x-(xmin*scaling)+0.1*candidate.width;
+				translateY = candidate.y-(ymin*scaling)+0.25*candidate.height;
+				currentParameters[0] = scaling-1;
+				currentParameters[2] = translateX;
+				currentParameters[3] = translateY;
+			}
+		
+			currentPositions = calculatePositions(currentParameters, true);
+			
+			return [scaling, rotation, translateX, translateY];
 		}
 		
 		// draw a parametrized line on a canvas
@@ -936,36 +1028,6 @@ var clm = {
 			canvasContext.arc(x, y, 1, 0, Math.PI*2, true);
 			canvasContext.closePath();
 			canvasContext.fill();
-		}
-		
-
-		
-		/*
-		 *	draw model on given canvas
-		 */
-		this.draw = function(canvas, pv) {
-			// if no previous points, just draw in the middle of canvas
-			
-			var params;
-			if (pv === undefined) {
-				params = currentParameters.slice(0);
-			} else {
-				params = pv.slice(0);
-			}
-			
-			var cc = canvas.getContext('2d');
-			cc.fillStyle = "rgb(200,200,200)";
-			cc.strokeStyle = "rgb(130,255,50)";
-			//cc.lineWidth = 1;
-			
-			var paths = model.path.normal;
-			for (var i = 0;i < paths.length;i++) {
-				if (typeof(paths[i]) == 'number') {
-					drawPoint(cc, paths[i], params);
-				} else {
-					drawPath(cc, paths[i], params);
-				}
-			}
 		}
 		
 		// procrustes analysis
@@ -1072,6 +1134,26 @@ var clm = {
 			}
 			canvasContext.putImageData(psci, drawX, drawY);
 		}
+		
+		var requestAnimFrame = (function() {
+			return window.requestAnimationFrame ||
+			window.webkitRequestAnimationFrame ||
+			window.mozRequestAnimationFrame ||
+			window.oRequestAnimationFrame ||
+			window.msRequestAnimationFrame ||
+			function(/* function FrameRequestCallback */ callback, /* DOMElement Element */ element) {
+				return window.setTimeout(callback, 1000/60);
+			};
+		})();
+		
+		var cancelRequestAnimFrame = (function() {
+			return window.cancelCancelRequestAnimationFrame ||
+				window.webkitCancelRequestAnimationFrame ||
+				window.mozCancelRequestAnimationFrame ||
+				window.oCancelRequestAnimationFrame ||
+				window.msCancelRequestAnimationFrame ||
+				window.clearTimeout;
+		})();
 		
 		return true;
 	}
