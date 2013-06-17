@@ -173,7 +173,7 @@
 				var overlay = document.getElementById('overlay');
 				var overlayCC = overlay.getContext('2d');
 				
-				var ctrack = new clm.tracker({constantVelocity : true});
+				var ctrack = new clm.tracker();
 				ctrack.init(pModel);
 				
 				stats = new Stats();
@@ -212,7 +212,7 @@
 					}
 				}
 				if (webGLContext == null) {
-                    alert("Your browser does not seem to support WebGL. Unfortunately this face mask example depends on WebGL, so you'll have to try it in another browser. :(");
+					alert("Your browser does not seem to support WebGL. Unfortunately this face mask example depends on WebGL, so you'll have to try it in another browser. :(");
 				}
 				
 				navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
@@ -230,13 +230,13 @@
 							videoSelector = "video";
 						}
 					};
-                    
+					
 					navigator.getUserMedia(videoSelector, function( stream ) {
 						if (vid.mozCaptureStream) {
-                            vid.mozSrcObject = stream;
+							vid.mozSrcObject = stream;
 						} else {
-                            vid.src = (window.URL && window.URL.createObjectURL(stream)) || stream;
-                        }
+							vid.src = (window.URL && window.URL.createObjectURL(stream)) || stream;
+						}
 						vid.play();
 					}, function() {
 						insertAltVideo(vid);
@@ -256,19 +256,17 @@
 				document.getElementById('selectmask').addEventListener('change', updateMask, false);
 
 				function updateMask(el) {
-					currentMask = parseInt(el.target.value,10);
-					if (animationRequest) {
-						cancelRequestAnimFrame(animationRequest);
-						animationRequest = requestAnimFrame(animate2);
-					}
+					currentMask = parseInt(el.target.value, 10);
+					switchMasks();
 				}
 
 				function startVideo() {
-					//start video
+					// start video
 					vid.play();
-					
-					//start tracking
-					animate();
+					// start tracking
+					ctrack.start(vid);
+					// start drawing face grid
+					drawGridLoop();
 				}
 
 				var positions;
@@ -294,49 +292,46 @@
 				};
 				var currentMask = 0;
 				var animationRequest;
-
-				function animate() {
+		
+				function drawGridLoop() {
 					// get position of face
-					positions = ctrack.track(vid);
+					positions = ctrack.getCurrentPosition(vid);
 					overlayCC.clearRect(0, 0, 500, 375);
 					if (positions) {
-            // draw current grid
-            ctrack.draw(overlay);
-          }
-          stats.update();
-          // check whether mask 
-          var pn = ctrack.getMovementSum();
-          if (pn < 0.4) {
-            requestAnimFrame(animate2);
-          } else {
-            requestAnimFrame(animate);
-          }
+						// draw current grid
+						ctrack.draw(overlay);
+					}
+					// check whether mask has converged
+					var pn = ctrack.getConvergence();
+					if (pn < 0.4) {
+						switchMasks();
+						requestAnimFrame(drawMaskLoop);
+					} else {
+						requestAnimFrame(drawGridLoop);
+					}
 				}
-				 
-				function animate2() {
-					// get position of face
-					positions = ctrack.track(vid);
-          overlayCC.clearRect(0, 0, 500, 375);
-          // get mask
-          var maskname = Object.keys(masks)[currentMask];
-          fd.load(document.getElementById(maskname), masks[maskname], pModel);
-          // draw mask on top of face
-          fd.draw(positions);
-          stats.update();
-          animationRequest = requestAnimFrame(animate3);
+					
+				function switchMasks() {
+					// get mask
+					var maskname = Object.keys(masks)[currentMask];
+					fd.load(document.getElementById(maskname), masks[maskname], pModel);
 				}
-
-				function animate3() {
+				
+				function drawMaskLoop() {
 					// get position of face
-					positions = ctrack.track(vid);
-          overlayCC.clearRect(0, 0, 400, 300);
+					positions = ctrack.getCurrentPosition();
+					overlayCC.clearRect(0, 0, 400, 300);
 					if (positions) {
 						// draw mask on top of face
 						fd.draw(positions);
 					}
-					stats.update();
-					animationRequest = requestAnimFrame(animate3);
+					animationRequest = requestAnimFrame(drawMaskLoop);
 				}
+							
+				document.addEventListener("clmtrackrIteration", function(event) {
+					stats.update();
+				}, false);
+					
 			</script>
 		</div>
 	</body>

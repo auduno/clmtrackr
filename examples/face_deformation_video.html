@@ -156,7 +156,7 @@
 				var overlay = document.getElementById('overlay');
 				var overlayCC = overlay.getContext('2d');
 				
-				var ctrack = new clm.tracker({constantVelocity : true});
+				var ctrack = new clm.tracker();
 				ctrack.init(pModel);
 				
 				stats = new Stats();
@@ -187,20 +187,22 @@
 				}
 				
 				var insertAltImage = function() {
-          var canvas = document.getElementById('canvasel');
-          var cc = canvas.getContext('2d');
-          var img = new Image();
-          img.onload = function() {
-            cc.drawImage(img, 0, 0, 370, 288);
-            //animate();
-          };
-          img.src = './media/franck_02221.jpg';  
-          vid.className = "hide";
-          vid = canvas;
-          canvas.className = "nohide";
-          
-          var startbutton = document.getElementById('startbutton');
-          startbutton.addEventListener('click', animate, false);
+					var canvas = document.getElementById('canvasel');
+					var cc = canvas.getContext('2d');
+					var img = new Image();
+					img.onload = function() {
+						cc.drawImage(img, 0, 0, 370, 288);
+					};
+					img.src = './media/franck_02221.jpg';  
+					vid.className = "hide";
+					vid = canvas;
+					canvas.className = "nohide";
+					
+					var startbutton = document.getElementById('startbutton');
+					startbutton.onclick = function() {
+						ctrack.start(vid);
+						drawLoop();
+					}
 					startbutton.value = "start";
 					startbutton.disabled = null;
 				}
@@ -215,7 +217,7 @@
 					}
 				}
 				if (webGLContext == null) {
-          alert("Your browser does not seem to support WebGL. Unfortunately this face deformation example depends on WebGL, so you'll have to try it in another browser. :(");
+					alert("Your browser does not seem to support WebGL. Unfortunately this face deformation example depends on WebGL, so you'll have to try it in another browser. :(");
 				}
 				
 				navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
@@ -234,10 +236,10 @@
 				
 					navigator.getUserMedia(videoSelector, function( stream ) {
 						if (vid.mozCaptureStream) {
-                            vid.mozSrcObject = stream;
+							vid.mozSrcObject = stream;
 						} else {
-                            vid.src = (window.URL && window.URL.createObjectURL(stream)) || stream;
-                        }
+							vid.src = (window.URL && window.URL.createObjectURL(stream)) || stream;
+						}
 						vid.play();
 					}, function() {
 						//insertAltVideo(vid);
@@ -257,39 +259,46 @@
 				vid.addEventListener('canplay', enablestart, false);
 
 				function startVideo() {
-					//start video
+					// start video
 					vid.play();
-					
-					//start tracking
-					animate();
+					// start tracking
+					ctrack.start(vid);
+					//start drawing faces
+					drawLoop();
 				}
 
 				var positions;
 				var fd = new faceDeformer();
 				fd.init(document.getElementById('webgl'));
 				
-				function animate() {
+				document.addEventListener("clmtrackrIteration", function(event) {
+					stats.update();
+				}, false);
+				
+				function drawLoop() {
 					// track in video
-					positions = ctrack.track(vid);
+					positions = ctrack.getCurrentPosition();
 					overlayCC.clearRect(0, 0, 720, 576);
 					if (positions) {
-            ctrack.draw(overlay);
-          }
-					stats.update();
-					var pn = ctrack.getMovementSum();
+						ctrack.draw(overlay);
+					}
 					
-					//hide buttons
+					// hide buttons
 					elem = document.getElementById('buttons');
 					elem.setAttribute('class', 'hide');
-
+					// show message
 					var scoreel = document.getElementById('score');
 					scoreel.innerHTML = "Please keep head still while model fits";
+					
+					var pn = ctrack.getConvergence();
 					if (pn < 0.4) {
-						requestAnimFrame(animate2);
+						requestAnimFrame(setupFaceDeformation);
 						scoreel.innerHTML = "";
-						vid.pause();
+						if (vid.tagName == "VIDEO") {
+							vid.pause();
+						}
 					} else {
-						requestAnimFrame(animate);
+						requestAnimFrame(drawLoop);
 					}
 				}
 				
@@ -299,24 +308,22 @@
 				var xOffset = -10;
 				var yOffset = 0;
 
-				function animate2() {
+				function setupFaceDeformation() {
 					// draw face deformation model
-					positions = ctrack.track(vid);
+					positions = ctrack.getCurrentPosition();
 					overlayCC.clearRect(0, 0, 720, 576);
 					ctrack.draw(overlay);
 					fd.load(vid, positions, pModel);
+					fd.draw(positions);
 					
-					//hide video
+					// hide video
 					var elem = document.getElementById('container');
 					elem.setAttribute('class', 'hide');
-					//webgl
+					// show facial deformation element
 					elem = document.getElementById('webglcontainer');
 					elem.setAttribute('class', 'nohide');
-
+					// hide message element
 					document.getElementById('score').setAttribute('class', 'hide');
-					
-					fd.draw(positions);
-					stats.update();
 
 					// set up controls
 					ph = new parameterHolder();
@@ -345,34 +352,34 @@
 					var guiGrid = gui.add(ph, 'draw_grid', false);
 					var guiFace = gui.add(ph, 'draw_face', true);
 					
-					gui1.onChange(animate3);
-					gui2.onChange(animate3);
-					gui3.onChange(animate3);
-					gui4.onChange(animate3);
-					gui5.onChange(animate3);
-					gui6.onChange(animate3);
-					gui7.onChange(animate3);
-					gui8.onChange(animate3);
-					gui9.onChange(animate3);
-					gui10.onChange(animate3);
-					gui11.onChange(animate3);
-					gui12.onChange(animate3);
-					gui13.onChange(animate3);
-					gui14.onChange(animate3);
-					gui15.onChange(animate3);
-					gui16.onChange(animate3);
-					gui17.onChange(animate3);
-					gui18.onChange(animate3);
-					gui19.onChange(animate3);
-					gui20.onChange(animate3);
-					guiSelect.onChange(animate4);
-					guiGrid.onChange(animate3);
-					guiFace.onChange(animate3);
+					gui1.onChange(drawDeformedFace);
+					gui2.onChange(drawDeformedFace);
+					gui3.onChange(drawDeformedFace);
+					gui4.onChange(drawDeformedFace);
+					gui5.onChange(drawDeformedFace);
+					gui6.onChange(drawDeformedFace);
+					gui7.onChange(drawDeformedFace);
+					gui8.onChange(drawDeformedFace);
+					gui9.onChange(drawDeformedFace);
+					gui10.onChange(drawDeformedFace);
+					gui11.onChange(drawDeformedFace);
+					gui12.onChange(drawDeformedFace);
+					gui13.onChange(drawDeformedFace);
+					gui14.onChange(drawDeformedFace);
+					gui15.onChange(drawDeformedFace);
+					gui16.onChange(drawDeformedFace);
+					gui17.onChange(drawDeformedFace);
+					gui18.onChange(drawDeformedFace);
+					gui19.onChange(drawDeformedFace);
+					gui20.onChange(drawDeformedFace);
+					guiSelect.onChange(switchDeformedFace);
+					guiGrid.onChange(drawDeformedFace);
+					guiFace.onChange(drawDeformedFace);
 
-					animate3();
+					drawDeformedFace();
 				}
 
-				function animate3() {
+				function drawDeformedFace() {
 					// draw model
 					var parameters = ctrack.getCurrentParameters();
 					parameters[0] = scale*Math.cos(rotation)-1;
@@ -405,7 +412,7 @@
 					if (ph.draw_grid) fd.drawGrid(positions);
 				}
 
-				function animate4() {
+				function switchDeformedFace() {
 					// draw model
 					var parameters = ctrack.getCurrentParameters();
 					parameters[0] = scale*Math.cos(rotation)-1;
