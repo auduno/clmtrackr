@@ -32,10 +32,20 @@ var mosseFilterResponses = function() {
   this.getResponses = function(patches) {
     for (var i = 0;i < num_Patches;i++) {
       responses[i] = filters[i].getResponse(patches[i]);
+      //responses[i] = logisticResponse(responses[i]);
       responses[i] = normalizeFilterMatrix(responses[i]);
     }
     
     return responses;
+  }
+  
+  var logisticResponse = function(response) {
+    // create probability by doing logistic transformation
+    var filter_size = response.length;
+    for (var j = 0;j < filter_size;j++) {
+      response[j] = 1.0 - 1.0/(1.0 + Math.exp(response[j]));
+    }
+    return response;
   }
   
   var normalizeFilterMatrix = function(response) {
