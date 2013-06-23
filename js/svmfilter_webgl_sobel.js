@@ -12,6 +12,8 @@ var webglFilter = function() {
   var newCanvasWidth, newCanvasBlockHeight, newCanvasHeight;
   var drawOutRectangles, drawOutImages, drawOutLayer;
   var patchCells, textureWidth, textureHeight, patchSize, patchArray;
+  var gradientResponseProgram;
+  var gbo, gradTexCoordLocation, gradTexCoordBuffer, gradPositionLocation, gradAPositionBuffer;
   
   this.init = function(filterVector, nP, pW, pH, fW, fH, drawOut) {
     // we assume filterVector goes from left to right, rowwise
@@ -155,6 +157,76 @@ var webglFilter = function() {
     }
     irectangles = new Float32Array(irectangles);
     
+    
+    
+    // calculate position of vertex rectangles for gradient program
+    var gradRectangles = [];
+    for (var i = 0;i < numBlocks;i++) {
+      //first triangle
+      gradRectangles = gradRectangles.concat(
+        [-1.0, 1.0, 
+        1.0, 1.0,
+        -1.0, -1.0]
+      );
+      //second triangle
+      gradRectangles = gradRectangles.concat(
+        [-1.0, -1.0, 
+        1.0, 1.0,
+        1.0, -1.0]
+      );
+    }
+    gradRectangles = new Float32Array(gradRectangles);
+    
+    // calculate position of image rectangles to draw out
+    var gradIRectangles = [];
+    for (var i = 0;i < numBlocks;i++) {
+      //first triangle
+      gradIRectangles = gradIRectangles.concat(
+        [0.0, 1.0, 
+        1.0, 1.0,
+        0.0, 0.0]
+      );
+      //second triangle
+      gradIRectangles = gradIRectangles.concat(
+        [0.0, 0.0, 
+        1.0, 1.0,
+        1.0, 0.0]
+      );
+    }
+    gradIRectangles = new Float32Array(gradIRectangles);
+    
+    // setup gradientresponse program
+    var grVertexShader = loadShader(gl, gradientResponseVS, gl.VERTEX_SHADER);
+    var grFragmentShader = loadShader(gl, gradientResponseFS, gl.FRAGMENT_SHADER);
+    gradientResponseProgram = createProgram(gl, [grVertexShader, grFragmentShader]);
+    gl.useProgram(gradientResponseProgram);
+    
+    // set the onepixel size for patches
+    var onePixelPatchLocation = gl.getUniformLocation(gradientResponseProgram, "u_onePixelPatches");
+    gl.uniform2f(onePixelPatchLocation, 1/patchWidth, 1/(patchHeight*numBlocks));
+    
+    // set up vertices with rectangles
+    gradPositionLocation = gl.getAttribLocation(gradientResponseProgram, "a_position");
+    gradAPositionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, gradAPositionBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, gradRectangles, gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(gradPositionLocation);
+    gl.vertexAttribPointer(gradPositionLocation, 2, gl.FLOAT, false, 0, 0);
+    
+    // set up texture positions
+    gradTexCoordLocation = gl.getAttribLocation(gradientResponseProgram, "a_texCoord");
+    // provide texture coordinates for the rectangle.
+    gradTexCoordBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, gradTexCoordBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, gradIRectangles, gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(gradTexCoordLocation);
+    gl.vertexAttribPointer(gradTexCoordLocation, 2, gl.FLOAT, false, 0, 0);
+    
+    
+    
+    
+    
+    
     // setup patchdraw program
     var drVertexShader = loadShader(gl, drawResponsesVS, gl.VERTEX_SHADER);
     var drFragmentShader = loadShader(gl, drawResponsesFS, gl.FRAGMENT_SHADER);
@@ -168,9 +240,6 @@ var webglFilter = function() {
     // set u_responses
     var responsesLocation = gl.getUniformLocation(patchDrawProgram, "u_responses");
     gl.uniform1i(responsesLocation, 2);
-    
-    
-    
     
     // setup patchresponse program
     var prVertexShader = loadShader(gl, patchResponseVS, gl.VERTEX_SHADER);
@@ -267,6 +336,29 @@ var webglFilter = function() {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
     gl.uniform1i(gl.getUniformLocation(patchResponseProgram, "u_filters"), 0);
     
+    
+    
+    
+    // set up gradient buffer
+    gl.activeTexture(gl.TEXTURE3);
+    var gradients = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, gradients);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, patchWidth, patchHeight*numBlocks, 0, gl.RGBA, gl.FLOAT, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.useProgram(gradientResponseProgram);
+    gl.uniform1i(gl.getUniformLocation(gradientResponseProgram, "u_patches"), 1);
+    
+    // set up this buffer as framebuffer
+    gbo = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, gbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, gradients, 0);
+    gl.viewport(0, 0, patchWidth, patchHeight*numBlocks);
+    
+    
+    
     // set up buffer to draw to
     gl.activeTexture(gl.TEXTURE2);
     rttTexture = gl.createTexture();
@@ -277,16 +369,14 @@ var webglFilter = function() {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, patchWidth, patchHeight*numBlocks, 0, gl.RGBA, gl.FLOAT, null);
     
-    // set this buffer as framebuffer
+    // set up this buffer as framebuffer
     fbo = gl.createFramebuffer();
     gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
-    
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, rttTexture, 0);
     
-    gl.viewport(0, 0, patchWidth, patchHeight*numBlocks);
+    //gl.viewport(0, 0, patchWidth, patchHeight*numBlocks);
     
     // preinitialization of drawOut variables
-    
     // drawOutRectangles
     drawOutRectangles = new Float32Array(12*numPatches);
     var yOffset, indexOffset;
@@ -358,33 +448,12 @@ var webglFilter = function() {
     patchSize = patchWidth*patchHeight;
     patchArray = new Float32Array(patchSize*(patchCells+1)*4);
     
+    gl.useProgram(patchResponseProgram);
+    gl.uniform1i(gl.getUniformLocation(patchResponseProgram, "u_patches"), 3);
   }
 
   this.getResponses = function(patches, drawOut) {
     // TODO: check patches correct length/dimension
-    
-    // switch to response generation program if we're not already using it
-    if (!first) {
-      gl.useProgram(patchResponseProgram);
-      
-      // set up vertices with rectangles
-      var positionLocation = gl.getAttribLocation(patchResponseProgram, "a_position");
-      gl.bindBuffer(gl.ARRAY_BUFFER, apositionBuffer);
-      gl.enableVertexAttribArray(positionLocation);
-      gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
-      
-      // set up texture positions
-      var texCoordLocation = gl.getAttribLocation(patchResponseProgram, "a_texCoord");
-      // provide texture coordinates for the rectangle.
-      gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
-      gl.enableVertexAttribArray(texCoordLocation);
-      gl.vertexAttribPointer(texCoordLocation, 2, gl.FLOAT, false, 0, 0);
-      
-      // set framebuffer to the original one if not already using it
-      gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
-      
-      gl.viewport(0, 0, patchWidth, patchHeight*numBlocks);
-    }
     
     // pass patches into texture, each patch in either r, g, b or a
     var patchArrayIndex = 0;
@@ -436,7 +505,59 @@ var webglFilter = function() {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-    gl.uniform1i(gl.getUniformLocation(patchResponseProgram, "u_patches"), 1);
+    
+    
+    if (true) {
+      // draw out gradient
+      gl.useProgram(gradientResponseProgram);
+      
+      // set up vertices with rectangles
+      var gradPositionLocation = gl.getAttribLocation(gradientResponseProgram, "a_position");
+      gl.bindBuffer(gl.ARRAY_BUFFER, gradAPositionBuffer);
+      gl.enableVertexAttribArray(gradPositionLocation);
+      gl.vertexAttribPointer(gradPositionLocation, 2, gl.FLOAT, false, 0, 0);
+      
+      // set up texture positions
+      var gradTexCoordLocation = gl.getAttribLocation(gradientResponseProgram, "a_texCoord");
+      // provide texture coordinates for the rectangle.
+      gl.bindBuffer(gl.ARRAY_BUFFER, gradTexCoordBuffer);
+      gl.enableVertexAttribArray(gradTexCoordLocation);
+      gl.vertexAttribPointer(gradTexCoordLocation, 2, gl.FLOAT, false, 0, 0);
+      
+      // set framebuffer to the original one if not already using it
+      gl.bindFramebuffer(gl.FRAMEBUFFER, gbo);
+      
+      gl.viewport(0, 0, patchWidth, patchHeight*numBlocks);
+      
+      gl.clearColor(0.0, 0.0, 0.0, 1.0);
+      gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER)
+      
+      // draw to framebuffer
+      gl.drawArrays(gl.TRIANGLES, 0, patchCells*6);
+    }
+    
+    // switch to response generation program if we're not already using it
+    if (true) {
+      gl.useProgram(patchResponseProgram);
+      
+      // set up vertices with rectangles
+      var positionLocation = gl.getAttribLocation(patchResponseProgram, "a_position");
+      gl.bindBuffer(gl.ARRAY_BUFFER, apositionBuffer);
+      gl.enableVertexAttribArray(positionLocation);
+      gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+      
+      // set up texture positions
+      var texCoordLocation = gl.getAttribLocation(patchResponseProgram, "a_texCoord");
+      // provide texture coordinates for the rectangle.
+      gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+      gl.enableVertexAttribArray(texCoordLocation);
+      gl.vertexAttribPointer(texCoordLocation, 2, gl.FLOAT, false, 0, 0);
+      
+      // set framebuffer to the original one if not already using it
+      gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+      
+      gl.viewport(0, 0, patchWidth, patchHeight*numBlocks);
+    }
     
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER)
@@ -575,6 +696,53 @@ var webglFilter = function() {
     
     return response
   }
+  
+  var gradientResponseVS = [
+    "attribute vec2 a_texCoord;",
+    "attribute vec2 a_position;",
+    "",
+    "varying vec2 v_texCoord;",
+    "",
+    "void main() {",
+    "   // transform coordinates to regular coordinates",
+    "   gl_Position = vec4(a_position,0.0,1.0);",
+    " ",
+    "   // pass the texCoord to the fragment shader",
+    "   v_texCoord = a_texCoord;",
+    "}"
+  ].join('\n');
+  
+  var gradientResponseFS = [
+    "precision mediump float;",
+    "",
+    "uniform vec2 u_onePixelPatches;",
+    "",
+    "// our patches",
+    "uniform sampler2D u_patches;",
+    "",
+    "// the texCoords passed in from the vertex shader.",
+    "varying vec2 v_texCoord;",
+    "",
+    "void main() {",
+    "  vec4 dx = ",
+    "    texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(-1.0, 1.0)) +",
+    "    (texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(-1.0, 0.0))*vec4(2.0,2.0,2.0,2.0)) +",
+    "    texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(-1.0, -1.0)) -",
+    "    texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(1.0, 1.0)) -",
+    "    (texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(1.0, 0.0))*vec4(2.0,2.0,2.0,2.0)) -",
+    "    texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(1.0, -1.0));",
+    "  vec4 dy = ",
+    "    texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(-1.0, 1.0)) +",
+    "    (texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(0.0, 1.0))*vec4(2.0,2.0,2.0,2.0)) +",
+    "    texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(1.0, 1.0)) -",
+    "    texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(-1.0, -1.0)) -",
+    "    (texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(0.0, -1.0))*vec4(2.0,2.0,2.0,2.0)) -",
+    "    texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(1.0, -1.0));",
+    "  vec4 gradient = sqrt((dx*dx) + (dy*dy));",
+    //"  gl_FragColor = texture2D(u_patches, v_texCoord);",
+    "  gl_FragColor = gradient;",
+    "}"
+  ].join('\n');
   
   var patchResponseVS = [
     "attribute vec2 a_texCoord;",

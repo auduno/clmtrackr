@@ -11,7 +11,6 @@ var webglFilter = function() {
   var texCoordBuffer, texCoordLocation, apositionBuffer;
   var newCanvasWidth, newCanvasBlockHeight, newCanvasHeight;
   var drawOutRectangles, drawOutImages, drawOutLayer;
-  var patchCells, textureWidth, textureHeight, patchSize, patchArray;
   
   this.init = function(filterVector, nP, pW, pH, fW, fH, drawOut) {
     // we assume filterVector goes from left to right, rowwise
@@ -71,27 +70,85 @@ var webglFilter = function() {
       "",
       "void main() {",
       "  vec4 colorSum = vec4(0.0, 0.0, 0.0, 0.0);",
-      "  vec4 maxn = vec4(0.0, 0.0, 0.0, 0.0);",
-      "  vec4 minn = vec4(256.0, 256.0, 256.0, 256.0);",
+      "  vec4 max = vec4(0.0, 0.0, 0.0, 0.0);",
+      "  vec4 min = vec4(256.0, 256.0, 256.0, 256.0);",
       "  vec4 scale = vec4(0.0, 0.0, 0.0, 0.0);",
       "  vec4 value = vec4(0.0, 0.0, 0.0, 0.0);",
+      "  vec4 dx = vec4(0.0, 0.0, 0.0, 0.0);",
+      "  vec4 dy = vec4(0.0, 0.0, 0.0, 0.0);",
+      "  vec4 grad = vec4(0.0, 0.0, 0.0, 0.0);",
       "  for (float w = 0.0;w < u_filterwidth;w++) {",
       "    for (float h = 0.0;h < u_filterheight;h++) {",
-      "      value = texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(w-u_halffilterwidth, h-u_halffilterheight));",
-      "      maxn = max(value, maxn);",
-      "      minn = min(value, minn);",
+      "      dx = ",
+      "          texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(w-u_halffilterwidth-1.0, h-u_halffilterheight-1.0)) +",
+      "          (vec4(2.0,2.0,2.0,2.0)*texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(w-u_halffilterwidth-1.0, h-u_halffilterheight))) +",
+      "          texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(w-u_halffilterwidth-1.0, h-u_halffilterheight+1.0)) -",
+      "          texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(w-u_halffilterwidth+1.0, h-u_halffilterheight-1.0)) -",
+      "          (vec4(2.0,2.0,2.0,2.0)*texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(w-u_halffilterwidth+1.0, h-u_halffilterheight))) -",
+      "          texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(w-u_halffilterwidth+1.0, h-u_halffilterheight+1.0));",
+      "        dy = ",
+      "          texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(w-u_halffilterwidth-1.0, h-u_halffilterheight-1.0)) +",
+      "          (vec4(2.0,2.0,2.0,2.0)*texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(w-u_halffilterwidth, h-u_halffilterheight-1.0))) +",
+      "          texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(w-u_halffilterwidth+1.0, h-u_halffilterheight-1.0)) -",
+      "          texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(w-u_halffilterwidth-1.0, h-u_halffilterheight+1.0)) -",
+      "          (vec4(2.0,2.0,2.0,2.0)*texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(w-u_halffilterwidth, h-u_halffilterheight+1.0))) -",
+      "          texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(w-u_halffilterwidth+1.0, h-u_halffilterheight+1.0));",
+      "        value = sqrt((dx*dx) + (dy*dy));",
+      "      if (value.r < min.r) {",
+      "        min.r = value.r;",
+      "      }",
+      "      if (value.r > max.r) {",
+      "        max.r = value.r;",
+      "      }",
+      "      if (value.g < min.g) {",
+      "        min.g = value.g;",
+      "      }",
+      "      if (value.g > max.g) {",
+      "        max.g = value.g;",
+      "      }",
+      "      if (value.b < min.b) {",
+      "        min.b = value.b;",
+      "      }",
+      "      if (value.b > max.b) {",
+      "        max.b = value.b;",
+      "      }",
+      "      if (value.a < min.a) {",
+      "        min.a = value.a;",
+      "      }",
+      "      if (value.a > max.a) {",
+      "        max.a = value.a;",
+      "      }",
       "    } ",
       "  }",
-      "  scale = maxn-minn;",
-      "  for (float w = 0.0;w < u_filterwidth;w++) {",
-      "    for (float h = 0.0;h < u_filterheight;h++) {",
-      "      colorSum += ",
-      "        ((texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(w-u_halffilterwidth, h-u_halffilterheight))-minn)/(scale)) * ",
-      "        texture2D(u_filters, v_texCoordFilters + u_onePixelFilters * vec2(w-u_halffilterwidth, h-u_halffilterheight)); ",
-      "    } ",
+      "  scale = max-min;",
+      "  if (scale == vec4(0.0, 0.0, 0.0, 0.0)) {",
+      "    colorSum = vec4(0.0, 0.0, 0.0, 0.0);",
+      "  } else {",
+      "    for (float w = 0.0;w < u_filterwidth;w++) {",
+      "      for (float h = 0.0;h < u_filterheight;h++) {",
+      "        dx = ",
+      "          texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(w-u_halffilterwidth-1.0, h-u_halffilterheight-1.0)) +",
+      "          (vec4(2.0,2.0,2.0,2.0)*texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(w-u_halffilterwidth-1.0, h-u_halffilterheight))) +",
+      "          texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(w-u_halffilterwidth-1.0, h-u_halffilterheight+1.0)) -",
+      "          texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(w-u_halffilterwidth+1.0, h-u_halffilterheight-1.0)) -",
+      "          (vec4(2.0,2.0,2.0,2.0)*texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(w-u_halffilterwidth+1.0, h-u_halffilterheight))) -",
+      "          texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(w-u_halffilterwidth+1.0, h-u_halffilterheight+1.0));",
+      "        dy = ",
+      "          texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(w-u_halffilterwidth-1.0, h-u_halffilterheight-1.0)) +",
+      "          (vec4(2.0,2.0,2.0,2.0)*texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(w-u_halffilterwidth, h-u_halffilterheight-1.0))) +",
+      "          texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(w-u_halffilterwidth+1.0, h-u_halffilterheight-1.0)) -",
+      "          texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(w-u_halffilterwidth-1.0, h-u_halffilterheight+1.0)) -",
+      "          (vec4(2.0,2.0,2.0,2.0)*texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(w-u_halffilterwidth, h-u_halffilterheight+1.0))) -",
+      "          texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(w-u_halffilterwidth+1.0, h-u_halffilterheight+1.0));",
+      "        grad = sqrt((dx*dx) + (dy*dy));",
+      "        colorSum += ",
+      "          ((grad-min)/(scale)) * ",
+      "          texture2D(u_filters, v_texCoordFilters + u_onePixelFilters * vec2(w-u_halffilterwidth, h-u_halffilterheight)); ",
+      "      } ",
+      "    }",
+      "    // logistic",
+      "    colorSum = 1.0-(1.0/(1.0 + exp(colorSum)));",
       "  }",
-      "  // logistic",
-      "  colorSum = 1.0-(1.0/(1.0 + exp(colorSum)));",
       "  gl_FragColor = colorSum;",
       "}"
     ].join('\n');
@@ -99,9 +156,6 @@ var webglFilter = function() {
     numBlocks = Math.floor(numPatches / 4) + Math.ceil(numPatches % 4);
     canvasWidth = patchWidth;
     canvasHeight = patchHeight*numBlocks;
-    newCanvasWidth = patchWidth-corrFilterWidth;
-    newCanvasBlockHeight = patchHeight-corrFilterWidth;
-    newCanvasHeight = newCanvasBlockHeight*numPatches;
     
     //create canvas
     canvas = document.createElement('canvas')
@@ -155,28 +209,16 @@ var webglFilter = function() {
     }
     irectangles = new Float32Array(irectangles);
     
-    // setup patchdraw program
-    var drVertexShader = loadShader(gl, drawResponsesVS, gl.VERTEX_SHADER);
-    var drFragmentShader = loadShader(gl, drawResponsesFS, gl.FRAGMENT_SHADER);
-    patchDrawProgram = createProgram(gl, [drVertexShader, drFragmentShader]);
-    gl.useProgram(patchDrawProgram);
-    
-    // set the resolution/dimension of the canvas
-    var resolutionLocation = gl.getUniformLocation(patchDrawProgram, "u_resolutiondraw");
-    gl.uniform2f(resolutionLocation, newCanvasWidth, newCanvasHeight);
-    
-    // set u_responses
-    var responsesLocation = gl.getUniformLocation(patchDrawProgram, "u_responses");
-    gl.uniform1i(responsesLocation, 2);
-    
-    
-    
-    
     // setup patchresponse program
     var prVertexShader = loadShader(gl, patchResponseVS, gl.VERTEX_SHADER);
     var prFragmentShader = loadShader(gl, patchResponseFS, gl.FRAGMENT_SHADER);
     patchResponseProgram = createProgram(gl, [prVertexShader, prFragmentShader]);
     gl.useProgram(patchResponseProgram);
+    
+    // setup patchdraw program
+    var drVertexShader = loadShader(gl, drawResponsesVS, gl.VERTEX_SHADER);
+    var drFragmentShader = loadShader(gl, drawResponsesFS, gl.FRAGMENT_SHADER);
+    patchDrawProgram = createProgram(gl, [drVertexShader, drFragmentShader]);
     
     // set the resolution/dimension of the canvas
     var resolutionLocation = gl.getUniformLocation(patchResponseProgram, "u_resolution");
@@ -287,6 +329,9 @@ var webglFilter = function() {
     
     // preinitialization of drawOut variables
     
+    newCanvasWidth = patchWidth-corrFilterWidth;
+    newCanvasBlockHeight = patchHeight-corrFilterWidth;
+    newCanvasHeight = newCanvasBlockHeight*numPatches;
     // drawOutRectangles
     drawOutRectangles = new Float32Array(12*numPatches);
     var yOffset, indexOffset;
@@ -313,7 +358,7 @@ var webglFilter = function() {
     
     // images
     drawOutImages = new Float32Array(numPatches*12);
-    patchCells = (Math.floor(numPatches / 4) + Math.ceil(numPatches % 4));
+    var patchCells = (Math.floor(numPatches / 4) + Math.ceil(numPatches % 4));
     var halfFilterWidth = (corrFilterWidth/2)/patchWidth;
     var halfFilterHeight = (corrFilterWidth/2)/(patchHeight*patchCells);
     var patchHeightT = patchHeight / (patchHeight*patchCells);
@@ -351,13 +396,6 @@ var webglFilter = function() {
       drawOutLayer[indexOffset+4] = layernum;
       drawOutLayer[indexOffset+5] = layernum;
     }
-    
-    // initialize patchvariables
-    textureWidth = patchWidth;
-    textureHeight = patchHeight*patchCells;
-    patchSize = patchWidth*patchHeight;
-    patchArray = new Float32Array(patchSize*(patchCells+1)*4);
-    
   }
 
   this.getResponses = function(patches, drawOut) {
@@ -387,6 +425,13 @@ var webglFilter = function() {
     }
     
     // pass patches into texture, each patch in either r, g, b or a
+    var numPatches = patches.length;
+    var patchCells = (Math.floor(numPatches / 4) + Math.ceil(numPatches % 4));
+    var textureWidth = patchWidth;
+    var textureHeight = patchHeight*patchCells;
+    var patchSize = patchWidth*patchHeight;
+    var patchArray = new Float32Array(patchSize*(patchCells+1)*4);
+    
     var patchArrayIndex = 0;
     var patchesIndex1 = 0;
     var patchesIndex2 = 0;
@@ -457,6 +502,14 @@ var webglFilter = function() {
       
       gl.clearColor(0.0, 0.0, 0.0, 1.0);
       gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER)
+      
+      // set the resolution/dimension of the canvas
+      var resolutionLocation = gl.getUniformLocation(patchDrawProgram, "u_resolutiondraw");
+      gl.uniform2f(resolutionLocation, newCanvasWidth, newCanvasHeight);
+      
+      // set u_responses
+      var responsesLocation = gl.getUniformLocation(patchDrawProgram, "u_responses");
+      gl.uniform1i(responsesLocation, 2);
       
       if (first) {
         drawRectBuffer = gl.createBuffer();
