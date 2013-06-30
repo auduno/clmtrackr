@@ -14,7 +14,7 @@ var webglFilter = function() {
   var patchCells, textureWidth, textureHeight, patchSize, patchArray;
   
   this.init = function(filterVector, nP, pW, pH, fW, fH, drawOut) {
-    // we assume filterVector goes from left to right, rowwise
+    // we assume filterVector goes from left to right, rowwise, i.e. row-major order
     if (fW != fH) {
       alert("filter width and height must be same size!");
       return;
