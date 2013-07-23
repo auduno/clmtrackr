@@ -43,7 +43,7 @@ var mosseFilterResponses = function() {
     // create probability by doing logistic transformation
     var filter_size = response.length;
     for (var j = 0;j < filter_size;j++) {
-      response[j] = 1.0 - 1.0/(1.0 + Math.exp(response[j]));
+      response[j] = 1.0/(1.0 + Math.exp(- (response[j]-1.0) ));
     }
     return response;
   }

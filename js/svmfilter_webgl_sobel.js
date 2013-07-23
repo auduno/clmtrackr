@@ -22,28 +22,13 @@ var webglFilter = function() {
       return;
     }
     
-    // if filter width is not odd, we pad it with 0s on bottom and right side
+    // if filter width is not odd, alert
     if (fW % 2 == 0 || fH % 2 == 0) {
-      var newFilter = [];
-      filterWidth = fW + 1;
-      filterHeight = fH + 1;
-      var nfsize = filterWidth * filterHeight;
-      
-      for (var i = 0;i < nP;i++) {
-        for (var j = 0;j < fW;j++) {
-          filterVector[i].splice((fW*fH)+j, 0, 0);
-        }
-        for (var j = fH+1;j > 0;j--) {
-          filterVector[i].splice((j*fW), 0, 0);
-        }
-      }
-      corrFilterWidth = filterWidth-1;
-      corrFilterHeight = filterHeight-1;
+      alert("filters used in svm must be of odd dimensions");
+      return;
     } else {
       filterWidth = fW;
       filterHeight = fH;
-      corrFilterWidth = filterWidth;
-      corrFilterHeight = filterHeight;
     }
 
     patchWidth = pW;
@@ -55,12 +40,12 @@ var webglFilter = function() {
       "",
       "uniform vec2 u_onePixelFilters;",
       "uniform vec2 u_onePixelPatches;",
-      "const float u_filterwidth = "+corrFilterWidth.toFixed(1)+";",
-      "const float u_filterheight = "+corrFilterHeight.toFixed(1)+";",
-      "const float u_halffilterwidth = "+(corrFilterWidth/2).toFixed(1)+";",
-      "const float u_halffilterheight = "+(corrFilterHeight/2).toFixed(1)+";",
-      "const float u_filtersize = "+(corrFilterWidth*corrFilterHeight)+".0;",
-      "const float u_divfiltersize = "+(1/(corrFilterWidth*corrFilterHeight)).toFixed(10)+";",
+      "const float u_filterwidth = "+filterWidth.toFixed(1)+";",
+      "const float u_filterheight = "+filterHeight.toFixed(1)+";",
+      "const float u_halffilterwidth = "+((filterWidth-1.0)/2).toFixed(1)+";",
+      "const float u_halffilterheight = "+((filterHeight-1.0)/2).toFixed(1)+";",
+      "const float u_filtersize = "+(filterWidth*filterHeight)+".0;",
+      "const float u_divfiltersize = "+(1/(filterWidth*filterHeight)).toFixed(10)+";",
       "",
       "// our patches",
       "uniform sampler2D u_patches;",
@@ -92,8 +77,8 @@ var webglFilter = function() {
       "        texture2D(u_filters, v_texCoordFilters + u_onePixelFilters * vec2(w-u_halffilterwidth, h-u_halffilterheight)); ",
       "    } ",
       "  }",
-      "  // logistic",
-      "  colorSum = 1.0-(1.0/(1.0 + exp(colorSum)));",
+      "  // logistic transformation",
+      "  colorSum = 1.0/(1.0 + exp(- (colorSum-1.0) ));",
       "  gl_FragColor = colorSum;",
       "}"
     ].join('\n');
@@ -101,14 +86,14 @@ var webglFilter = function() {
     numBlocks = Math.floor(numPatches / 4) + Math.ceil(numPatches % 4);
     canvasWidth = patchWidth;
     canvasHeight = patchHeight*numBlocks;
-    newCanvasWidth = patchWidth-corrFilterWidth;
-    newCanvasBlockHeight = patchHeight-corrFilterWidth;
+    newCanvasWidth = patchWidth-filterWidth+1;
+    newCanvasBlockHeight = patchHeight-filterWidth+1;
     newCanvasHeight = newCanvasBlockHeight*numPatches;
     
     //create canvas
     canvas = document.createElement('canvas')
-    canvas.setAttribute('width', (patchWidth-corrFilterWidth)+"px");
-    canvas.setAttribute('height', ((patchHeight-corrFilterHeight)*numPatches)+"px");
+    canvas.setAttribute('width', (patchWidth-filterWidth+1)+"px");
+    canvas.setAttribute('height', ((patchHeight-filterHeight+1)*numPatches)+"px");
     canvas.setAttribute('id', 'renderCanvas');
     canvas.setAttribute('style', 'display:none;');
     document.body.appendChild(canvas);
@@ -127,7 +112,7 @@ var webglFilter = function() {
     
     // calculate position of vertex rectangles to draw out
     var rectangles = [];
-    var halfFilter = corrFilterWidth/2;
+    var halfFilter = (filterWidth-1)/2;
     var yOffset;
     for (var i = 0;i < numBlocks;i++) {
       yOffset = i*patchHeight;
@@ -222,11 +207,6 @@ var webglFilter = function() {
     gl.enableVertexAttribArray(gradTexCoordLocation);
     gl.vertexAttribPointer(gradTexCoordLocation, 2, gl.FLOAT, false, 0, 0);
     
-    
-    
-    
-    
-    
     // setup patchdraw program
     var drVertexShader = loadShader(gl, drawResponsesVS, gl.VERTEX_SHADER);
     var drFragmentShader = loadShader(gl, drawResponsesFS, gl.FRAGMENT_SHADER);
@@ -294,7 +274,7 @@ var webglFilter = function() {
     // insert filters into float32array and pass to texture via this mechanism:
     // http://stackoverflow.com/questions/7709689/webgl-pass-array-shader
     var filterSize = filterWidth*filterHeight;
-    var filterArray = new Float32Array(filterSize*(numBlocks+1)*4);
+    var filterArray = new Float32Array(filterSize*(numBlocks)*4);
     for (var i = 0;i < numBlocks;i++) {
       for (var j = 0;j < filterHeight;j++) {
         for (var k = 0;k < filterWidth;k++) {
@@ -404,8 +384,8 @@ var webglFilter = function() {
     // images
     drawOutImages = new Float32Array(numPatches*12);
     patchCells = (Math.floor(numPatches / 4) + Math.ceil(numPatches % 4));
-    var halfFilterWidth = (corrFilterWidth/2)/patchWidth;
-    var halfFilterHeight = (corrFilterWidth/2)/(patchHeight*patchCells);
+    var halfFilterWidth = ((filterWidth-1)/2)/patchWidth;
+    var halfFilterHeight = ((filterWidth-1)/2)/(patchHeight*patchCells);
     var patchHeightT = patchHeight / (patchHeight*patchCells);
     for (var i = 0;i < numPatches;i++) {
       yOffset = Math.floor(i / 4)*patchHeightT;

@@ -57,9 +57,6 @@ var svmFilter = function() {
       var flar_fi0 = new Float64Array(filterLength);
       var flar_fi1 = new Float64Array(filterLength);
       
-      // offset to "center" it in larger fft-size
-      offset = filterLength-(((filterWidth*filterWidth)-1)/2);
-      
       // load filter 
       var xOffset, yOffset;
       for (var j = 0;j < filterWidth;j++) {
@@ -77,7 +74,7 @@ var svmFilter = function() {
           //console.log(k + ","+ j+":" + (k+xOffset+((j+yOffset)*fft_size)))
         }
       }
-      
+
       // fft it and store
       fft_filter = this.fft_inplace(flar_fi0, flar_fi1);
       fft_filters[i] = fft_filter;
@@ -111,7 +108,7 @@ var svmFilter = function() {
       // patch must be padded (with zeroes) to match fft size
       for (var j = 0;j < patch_width;j++) {
         for (var k = 0;k < patch_width;k++) {
-          temp_real_part[j + (fft_size*k)] = patches[i][k + ((patch_width+1)*j)];
+          temp_real_part[j + (fft_size*k)] = patches[i][k + (patch_width*j)];
         }
       }
       
@@ -158,7 +155,7 @@ var svmFilter = function() {
     var value;
     for (var j = 0;j < patch_width;j++) {
       for (var k = 0;k < patch_width;k++) {
-        value = patch[k + ((patch_width+1)*j)]
+        value = patch[k + (patch_width*j)]
         if (value < min) {
           min = value;
         }
@@ -170,7 +167,7 @@ var svmFilter = function() {
     var scale = max-min;
     for (var j = 0;j < patch_width;j++) {
       for (var k = 0;k < patch_width;k++) {
-        patch[k + ((patch_width+1)*j)] = (patch[k + ((patch_width+1)*j)]-min)/scale;
+        patch[k + (patch_width*j)] = (patch[k + (patch_width*j)]-min)/scale;
       }
     }
     return patch;
@@ -180,7 +177,7 @@ var svmFilter = function() {
     // create probability by doing logistic transformation
     for (var j = 0;j < search_width;j++) {
       for (var k = 0;k < search_width;k++) {
-        response[j + (k*search_width)] = 1.0 - 1.0/(1.0 + Math.exp(response[j + (k*search_width)]));
+        response[j + (k*search_width)] = 1.0/(1.0 + Math.exp(- (response[j + (k*search_width)] - 1.0 )));
       }
     }
     return response

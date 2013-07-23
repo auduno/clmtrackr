@@ -806,10 +806,12 @@ var clm = {
 		
 		if (!params) params = {};
 		if (params.constantVelocity === undefined) params.constantVelocity = true;
-		if (params.searchWindow === undefined) params.searchWindow = 10;
+		if (params.searchWindow === undefined) params.searchWindow = 11;
 		if (params.useWebGL === undefined) params.useWebGL = true;
-		if (params.scoreThreshold === undefined) params.scoreThreshold = 0.25;
+		if (params.scoreThreshold === undefined) params.scoreThreshold = 0.30;
 		if (params.stopOnConvergence === undefined) params.stopOnConvergence = false;
+		if (params.weightPoints === undefined) params.weightPoints = undefined;
+		if (params.sharpenResponse === undefined) params.sharpenResponse = false;
 		
 		var numPatches, patchSize, numParameters, patchType;
 		var gaussianPD;
@@ -834,7 +836,7 @@ var clm = {
 		*/
 		var varianceSeq = [3,1.5,0.75];
 		//var varianceSeq = [6,3,0.75];
-		var PDMVariance = 1;
+		var PDMVariance = 0.7;
 		
 		var relaxation = 0.1;
 		
@@ -879,6 +881,8 @@ var clm = {
 		var lep, rep, mep;
 		var runnerTimeout, runnerElement, runnerBox;
 		
+		var pointWeights;
+
 		/*
 		 *	load model data, initialize filters, etc.
 		 *
@@ -904,8 +908,9 @@ var clm = {
 			// set up canvas to work on
 			sketchCanvas = document.createElement('canvas');
 			sketchCC = sketchCanvas.getContext('2d');
-			sketchW = sketchCanvas.width = modelWidth + searchWindow + patchSize-1;
-			sketchH = sketchCanvas.height = modelHeight + searchWindow + patchSize-1;
+
+			sketchW = sketchCanvas.width = modelWidth + (searchWindow-1) + patchSize-1;
+			sketchH = sketchCanvas.height = modelHeight + (searchWindow-1) + patchSize-1;
 			
 			if (model.hints && mosseFilter && left_eye_filter && right_eye_filter && nose_filter) {
 				//var mossef_lefteye = new mosseFilter({drawResponse : document.getElementById('overlay2')});
@@ -986,7 +991,7 @@ var clm = {
 				
 				if (webGLContext && params.useWebGL && (typeof(webglFilter) !== "undefined")) {
 					webglFi = new webglFilter();
-					webglFi.init(weights, numPatches, searchWindow+patchSize, searchWindow+patchSize, patchSize, patchSize, true);
+					webglFi.init(weights, numPatches, searchWindow+patchSize-1, searchWindow+patchSize-1, patchSize, patchSize, true);
 				} else if (typeof(svmFilter) !== "undefined") {
 					// use fft convolution if no webGL is available
 					svmFi = new svmFilter();
@@ -1000,12 +1005,12 @@ var clm = {
 			}
 			
 			if (patchType == "SVM") {
-				pw = pl = patchSize+searchWindow;
+				pw = pl = patchSize+searchWindow-1;
 			} else {
 				pw = pl = searchWindow;
 			}
 			pdataLength = pw*pl;
-			halfSearchWindow = searchWindow/2;
+			halfSearchWindow = (searchWindow-1)/2;
 			responsePixels = searchWindow*searchWindow;
 			if(typeof Float64Array !== 'undefined') {
 				vecProbs = new Float64Array(responsePixels);
@@ -1022,6 +1027,21 @@ var clm = {
 			for (var i = 0;i < numPatches;i++) {
 				learningRate[i] = 1.0;
 				prevCostFunc[i] = 0.0;
+			}
+
+			if (params.weightPoints) {
+				// weighting of points 
+				pointWeights = [];
+				for (var i = 0;i < numPatches;i++) {
+					if (i in params.weightPoints) {
+						pointWeights[(i*2)] = params.weightPoints[i];
+						pointWeights[(i*2)+1] = params.weightPoints[i];
+					} else {
+						pointWeights[(i*2)] = 1;
+						pointWeights[(i*2)+1] = 1;
+					}
+				}
+				pointWeights = numeric.diag(pointWeights);
 			}
 		}
 		
@@ -1137,9 +1157,9 @@ var clm = {
 
 			var pdata, pmatrix, grayscaleColor;
 			for (var i = 0; i < numPatches; i++) {
-				px = patchPositions[i][0]-(pw/2);
-				py = patchPositions[i][1]-(pl/2);
-				ptch = sketchCC.getImageData(px >> 0, py >> 0, pw, pl);
+				px = patchPositions[i][0]-((pw-1)/2);
+				py = patchPositions[i][1]-((pl-1)/2);
+				ptch = sketchCC.getImageData(Math.round(px), Math.round(py), pw, pl);
 				pdata = ptch.data;
 				
 				// convert to grayscale
@@ -1161,7 +1181,9 @@ var clm = {
 			// print patches
 			/*sketchCC.clearRect(0, 0, sketchW, sketchH);
 			for (var i = 0;i < numPatches;i++) {
-				drawData(sketchCC, patches[i], pw, pl, false, patchPositions[i][0]-(pw/2), patchPositions[i][1]-(pl/2));
+				if ([27,32,44,50].indexOf(i) > -1) {
+					drawData(sketchCC, patches[i], pw, pl, false, patchPositions[i][0]-(pw/2), patchPositions[i][1]-(pl/2));
+				}
 			}*/
 			
 			if (patchType == "SVM") {
@@ -1175,13 +1197,30 @@ var clm = {
 			} else if (patchType == "MOSSE") {
 				var responses = mosseCalc.getResponses(patches);
 			}
-			
+
+			// option to increase sharpness of responses
+			if (params.sharpenResponse) {
+				for (var i = 0;i < numPatches;i++) {
+					for (var j = 0;j < responses[i].length;j++) {
+						responses[i][j] = Math.pow(responses[i][j], params.sharpenResponse);
+					}
+				}
+			}
+
 			// print responses
 			/*sketchCC.clearRect(0, 0, sketchW, sketchH);
 			var nuWeights;
 			for (var i = 0;i < numPatches;i++) {
-				nuWeights = responses[i].map(function(x) {return x*255});
-				drawData(sketchCC, nuWeights, searchWindow, searchWindow, false, patchPositions[i][0]-(searchWindow/2), patchPositions[i][1]-(searchWindow/2));
+		
+				nuWeights = [];
+				for (var j = 0;j < responses[i].length;j++) {
+					nuWeights.push(responses[i][j]*255);
+				}
+				
+				//drawData(sketchCC, nuWeights, searchWindow, searchWindow, false, patchPositions[i][0]-((searchWindow-1)/2), patchPositions[i][1]-((searchWindow-1)/2));
+				if ([27,32,44,50].indexOf(i) > -1) {
+					drawData(sketchCC, nuWeights, searchWindow, searchWindow, false, patchPositions[i][0]-((searchWindow-1)/2), patchPositions[i][1]-((searchWindow-1)/2));
+				}
 			}*/
 			
 			// iterate until convergence or max 10, 20 iterations?:
@@ -1201,9 +1240,8 @@ var clm = {
 				var opj0, opj1;
 				
 				for (var j = 0;j < numPatches;j++) {
-					
-					opj0 = originalPositions[j][0]-halfSearchWindow;
-					opj1 = originalPositions[j][1]-halfSearchWindow;
+					opj0 = originalPositions[j][0]-((searchWindow-1)/2);
+					opj1 = originalPositions[j][1]-((searchWindow-1)/2);
 					
 					// calculate PI x gaussians
 					var vpsum = gpopt(searchWindow, currentPositions[j], updatePosition, vecProbs, responses, opj0, opj1, j, varianceSeq[i]);
@@ -1242,7 +1280,7 @@ var clm = {
 				var nuWeights;
 				for (var npidx = 0;npidx < numPatches;npidx++) {
 					nuWeights = debugMVs[npidx].map(function(x) {return x*255*500;});
-					drawData(sketchCC, nuWeights, searchWindow, searchWindow, false, patchPositions[npidx][0]-(searchWindow/2), patchPositions[npidx][1]-(searchWindow/2));
+					drawData(sketchCC, nuWeights, searchWindow, searchWindow, false, patchPositions[npidx][0]-((searchWindow-1)/2), patchPositions[npidx][1]-((searchWindow-1)/2));
 				}*/
 				
 				var meanShiftVector = numeric.rep([numPatches*2, 1],0.0);
@@ -1254,13 +1292,21 @@ var clm = {
 				// compute pdm parameter update
 				//var prior = numeric.mul(gaussianPD, PDMVariance);
 				var prior = numeric.mul(gaussianPD, varianceSeq[i]);
-				var jtj = numeric.dot(numeric.transpose(jac), jac);
+				if (params.weightPoints) {
+					var jtj = numeric.dot(numeric.transpose(jac), numeric.dot(pointWeights, jac));
+				} else {
+					var jtj = numeric.dot(numeric.transpose(jac), jac);
+				}
 				var cpMatrix = numeric.rep([numParameters+4, 1],0.0);
 				for (var l = 0;l < (numParameters+4);l++) {
 					cpMatrix[l][0] = currentParameters[l];
 				}
 				var priorP = numeric.dot(prior, cpMatrix);
-				var jtv = numeric.dot(numeric.transpose(jac), meanShiftVector);
+				if (params.weightPoints) {
+					var jtv = numeric.dot(numeric.transpose(jac), numeric.dot(pointWeights, meanShiftVector));
+				} else {
+					var jtv = numeric.dot(numeric.transpose(jac), meanShiftVector);
+				}
 				var paramUpdateLeft = numeric.add(prior, jtj);
 				var paramUpdateRight = numeric.sub(priorP, jtv);
 				var paramUpdate = numeric.dot(numeric.inv(paramUpdateLeft), paramUpdateRight);
@@ -1284,6 +1330,7 @@ var clm = {
 							currentParameters[k+4] = -clip;
 						}
 					}
+					
 				}
 				
 				// update current coordinates
@@ -1547,7 +1594,7 @@ var clm = {
 				updatePosition[1] = opj1+k;
 				for (var l = 0;l < responseWidth;l++) {
 					updatePosition[0] = opj0+l;
-					
+
 					dx = currentPositionsj[0] - updatePosition[0];
 					dy = currentPositionsj[1] - updatePosition[1];
 					vecProbs[pos_idx] = responses[j][pos_idx] * Math.exp(-0.5*((dx*dx)+(dy*dy))/variance);
@@ -1921,17 +1968,17 @@ var clm = {
 			var psci = canvasContext.createImageData(width, height);
 			var pscidata = psci.data;
 			for (var j = 0;j < width*height;j++) {
-			if (!transposed) {
-				var val = data[(j%width)+((j/width) >> 0)*width];
-			} else {
-				var val = data[(j%height)*height+((j/height) >> 0)];
-			}
-			val = val > 255 ? 255 : val;
-			val = val < 0 ? 0 : val;
-			pscidata[j*4] = val;
-			pscidata[(j*4)+1] = val;
-			pscidata[(j*4)+2] = val;
-			pscidata[(j*4)+3] = 255;
+				if (!transposed) {
+					var val = data[(j%width)+((j/width) >> 0)*width];
+				} else {
+					var val = data[(j%height)*height+((j/height) >> 0)];
+				}
+				val = val > 255 ? 255 : val;
+				val = val < 0 ? 0 : val;
+				pscidata[j*4] = val;
+				pscidata[(j*4)+1] = val;
+				pscidata[(j*4)+2] = val;
+				pscidata[(j*4)+3] = 255;
 			}
 			canvasContext.putImageData(psci, drawX, drawY);
 		}
@@ -1964,7 +2011,6 @@ var clm = {
 var webglFilter = function() {
   var gl, canvas;
   var filterWidth, filterHeight, patchWidth, patchHeight, numPatches, canvasWidth, canvasHeight;
-  var corrFilterWidth, corrFilterHeight;
   var patchResponseProgram, patchDrawProgram;
   var fbo, numBlocks, patchTex;
   var first = true;
@@ -1976,50 +2022,35 @@ var webglFilter = function() {
   
   this.init = function(filterVector, nP, pW, pH, fW, fH, drawOut) {
     // we assume filterVector goes from left to right, rowwise, i.e. row-major order
+    
     if (fW != fH) {
       alert("filter width and height must be same size!");
       return;
     }
     
-    // if filter width is not odd, we pad it with 0s on bottom and right side
+    // if filter width is not odd, alert
     if (fW % 2 == 0 || fH % 2 == 0) {
-      var newFilter = [];
-      filterWidth = fW + 1;
-      filterHeight = fH + 1;
-      var nfsize = filterWidth * filterHeight;
-      
-      for (var i = 0;i < nP;i++) {
-        for (var j = 0;j < fW;j++) {
-          filterVector[i].splice((fW*fH)+j, 0, 0);
-        }
-        for (var j = fH+1;j > 0;j--) {
-          filterVector[i].splice((j*fW), 0, 0);
-        }
-      }
-      corrFilterWidth = filterWidth-1;
-      corrFilterHeight = filterHeight-1;
-    } else {
-      filterWidth = fW;
-      filterHeight = fH;
-      corrFilterWidth = filterWidth;
-      corrFilterHeight = filterHeight;
+      alert("filters used in svm must be of odd dimensions!")
+      return;
     }
-
+    
+    filterWidth = fW;
+    filterHeight = fH;
     patchWidth = pW;
     patchHeight = pH;
     numPatches = nP;
-    
+
     patchResponseFS = [
       "precision mediump float;",
       "",
       "uniform vec2 u_onePixelFilters;",
       "uniform vec2 u_onePixelPatches;",
-      "const float u_filterwidth = "+corrFilterWidth.toFixed(1)+";",
-      "const float u_filterheight = "+corrFilterHeight.toFixed(1)+";",
-      "const float u_halffilterwidth = "+(corrFilterWidth/2).toFixed(1)+";",
-      "const float u_halffilterheight = "+(corrFilterHeight/2).toFixed(1)+";",
-      "const float u_filtersize = "+(corrFilterWidth*corrFilterHeight)+".0;",
-      "const float u_divfiltersize = "+(1/(corrFilterWidth*corrFilterHeight)).toFixed(10)+";",
+      "const float u_filterwidth = "+filterWidth.toFixed(1)+";",
+      "const float u_filterheight = "+filterHeight.toFixed(1)+";",
+      "const float u_halffilterwidth = "+((filterWidth-1.0)/2).toFixed(1)+";",
+      "const float u_halffilterheight = "+((filterHeight-1.0)/2).toFixed(1)+";",
+      "const float u_filtersize = "+(filterWidth*filterHeight)+".0;",
+      "const float u_divfiltersize = "+(1/(filterWidth*filterHeight)).toFixed(10)+";",
       "",
       "// our patches",
       "uniform sampler2D u_patches;",
@@ -2051,8 +2082,8 @@ var webglFilter = function() {
       "        texture2D(u_filters, v_texCoordFilters + u_onePixelFilters * vec2(w-u_halffilterwidth, h-u_halffilterheight)); ",
       "    } ",
       "  }",
-      "  // logistic",
-      "  colorSum = 1.0-(1.0/(1.0 + exp(colorSum)));",
+      "  // logistic transformation",
+      "  colorSum = 1.0/(1.0 + exp(- (colorSum-1.0) ));",
       "  gl_FragColor = colorSum;",
       "}"
     ].join('\n');
@@ -2060,14 +2091,14 @@ var webglFilter = function() {
     numBlocks = Math.floor(numPatches / 4) + Math.ceil(numPatches % 4);
     canvasWidth = patchWidth;
     canvasHeight = patchHeight*numBlocks;
-    newCanvasWidth = patchWidth-corrFilterWidth;
-    newCanvasBlockHeight = patchHeight-corrFilterWidth;
+    newCanvasWidth = patchWidth-filterWidth+1;
+    newCanvasBlockHeight = patchHeight-filterWidth+1;
     newCanvasHeight = newCanvasBlockHeight*numPatches;
     
     //create canvas
     canvas = document.createElement('canvas')
-    canvas.setAttribute('width', (patchWidth-corrFilterWidth)+"px");
-    canvas.setAttribute('height', ((patchHeight-corrFilterHeight)*numPatches)+"px");
+    canvas.setAttribute('width', (patchWidth-filterWidth+1)+"px");
+    canvas.setAttribute('height', ((patchHeight-filterHeight+1)*numPatches)+"px");
     canvas.setAttribute('id', 'renderCanvas');
     canvas.setAttribute('style', 'display:none;');
     document.body.appendChild(canvas);
@@ -2086,8 +2117,9 @@ var webglFilter = function() {
     
     // calculate position of vertex rectangles to draw out
     var rectangles = [];
-    var halfFilter = corrFilterWidth/2;
+    var halfFilter = (filterWidth-1)/2;
     var yOffset;
+    
     for (var i = 0;i < numBlocks;i++) {
       yOffset = i*patchHeight;
       //first triangle
@@ -2186,7 +2218,7 @@ var webglFilter = function() {
     // insert filters into float32array and pass to texture via this mechanism:
     // http://stackoverflow.com/questions/7709689/webgl-pass-array-shader
     var filterSize = filterWidth*filterHeight;
-    var filterArray = new Float32Array(filterSize*(numBlocks+1)*4);
+    var filterArray = new Float32Array(filterSize*(numBlocks)*4);
     for (var i = 0;i < numBlocks;i++) {
       for (var j = 0;j < filterHeight;j++) {
         for (var k = 0;k < filterWidth;k++) {
@@ -2275,8 +2307,8 @@ var webglFilter = function() {
     // images
     drawOutImages = new Float32Array(numPatches*12);
     patchCells = (Math.floor(numPatches / 4) + Math.ceil(numPatches % 4));
-    var halfFilterWidth = (corrFilterWidth/2)/patchWidth;
-    var halfFilterHeight = (corrFilterWidth/2)/(patchHeight*patchCells);
+    var halfFilterWidth = ((filterWidth-1)/2)/patchWidth;
+    var halfFilterHeight = ((filterWidth-1)/2)/(patchHeight*patchCells);
     var patchHeightT = patchHeight / (patchHeight*patchCells);
     for (var i = 0;i < numPatches;i++) {
       yOffset = Math.floor(i / 4)*patchHeightT;
@@ -2317,7 +2349,7 @@ var webglFilter = function() {
     textureWidth = patchWidth;
     textureHeight = patchHeight*patchCells;
     patchSize = patchWidth*patchHeight;
-    patchArray = new Float32Array(patchSize*(patchCells+1)*4);
+    patchArray = new Float32Array(patchSize*patchCells*4);
     
   }
 
@@ -3009,9 +3041,6 @@ var svmFilter = function() {
       var flar_fi0 = new Float64Array(filterLength);
       var flar_fi1 = new Float64Array(filterLength);
       
-      // offset to "center" it in larger fft-size
-      offset = filterLength-(((filterWidth*filterWidth)-1)/2);
-      
       // load filter 
       var xOffset, yOffset;
       for (var j = 0;j < filterWidth;j++) {
@@ -3029,7 +3058,7 @@ var svmFilter = function() {
           //console.log(k + ","+ j+":" + (k+xOffset+((j+yOffset)*fft_size)))
         }
       }
-      
+
       // fft it and store
       fft_filter = this.fft_inplace(flar_fi0, flar_fi1);
       fft_filters[i] = fft_filter;
@@ -3063,7 +3092,7 @@ var svmFilter = function() {
       // patch must be padded (with zeroes) to match fft size
       for (var j = 0;j < patch_width;j++) {
         for (var k = 0;k < patch_width;k++) {
-          temp_real_part[j + (fft_size*k)] = patches[i][k + ((patch_width+1)*j)];
+          temp_real_part[j + (fft_size*k)] = patches[i][k + (patch_width*j)];
         }
       }
       
@@ -3110,7 +3139,7 @@ var svmFilter = function() {
     var value;
     for (var j = 0;j < patch_width;j++) {
       for (var k = 0;k < patch_width;k++) {
-        value = patch[k + ((patch_width+1)*j)]
+        value = patch[k + (patch_width*j)]
         if (value < min) {
           min = value;
         }
@@ -3122,7 +3151,7 @@ var svmFilter = function() {
     var scale = max-min;
     for (var j = 0;j < patch_width;j++) {
       for (var k = 0;k < patch_width;k++) {
-        patch[k + ((patch_width+1)*j)] = (patch[k + ((patch_width+1)*j)]-min)/scale;
+        patch[k + (patch_width*j)] = (patch[k + (patch_width*j)]-min)/scale;
       }
     }
     return patch;
@@ -3132,7 +3161,7 @@ var svmFilter = function() {
     // create probability by doing logistic transformation
     for (var j = 0;j < search_width;j++) {
       for (var k = 0;k < search_width;k++) {
-        response[j + (k*search_width)] = 1.0 - 1.0/(1.0 + Math.exp(response[j + (k*search_width)]));
+        response[j + (k*search_width)] = 1.0/(1.0 + Math.exp(- (response[j + (k*search_width)] - 1.0 )));
       }
     }
     return response

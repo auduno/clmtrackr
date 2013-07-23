@@ -6,10 +6,12 @@ var clm = {
 		
 		if (!params) params = {};
 		if (params.constantVelocity === undefined) params.constantVelocity = true;
-		if (params.searchWindow === undefined) params.searchWindow = 10;
+		if (params.searchWindow === undefined) params.searchWindow = 11;
 		if (params.useWebGL === undefined) params.useWebGL = true;
-		if (params.scoreThreshold === undefined) params.scoreThreshold = 0.25;
+		if (params.scoreThreshold === undefined) params.scoreThreshold = 0.30;
 		if (params.stopOnConvergence === undefined) params.stopOnConvergence = false;
+		if (params.weightPoints === undefined) params.weightPoints = undefined;
+		if (params.sharpenResponse === undefined) params.sharpenResponse = false;
 		
 		var numPatches, patchSize, numParameters, patchType;
 		var gaussianPD;
@@ -34,7 +36,7 @@ var clm = {
 		*/
 		var varianceSeq = [3,1.5,0.75];
 		//var varianceSeq = [6,3,0.75];
-		var PDMVariance = 1;
+		var PDMVariance = 0.7;
 		
 		var relaxation = 0.1;
 		
@@ -79,6 +81,8 @@ var clm = {
 		var lep, rep, mep;
 		var runnerTimeout, runnerElement, runnerBox;
 		
+		var pointWeights;
+
 		/*
 		 *	load model data, initialize filters, etc.
 		 *
@@ -104,8 +108,9 @@ var clm = {
 			// set up canvas to work on
 			sketchCanvas = document.createElement('canvas');
 			sketchCC = sketchCanvas.getContext('2d');
-			sketchW = sketchCanvas.width = modelWidth + searchWindow + patchSize-1;
-			sketchH = sketchCanvas.height = modelHeight + searchWindow + patchSize-1;
+
+			sketchW = sketchCanvas.width = modelWidth + (searchWindow-1) + patchSize-1;
+			sketchH = sketchCanvas.height = modelHeight + (searchWindow-1) + patchSize-1;
 			
 			if (model.hints && mosseFilter && left_eye_filter && right_eye_filter && nose_filter) {
 				//var mossef_lefteye = new mosseFilter({drawResponse : document.getElementById('overlay2')});
@@ -186,7 +191,7 @@ var clm = {
 				
 				if (webGLContext && params.useWebGL && (typeof(webglFilter) !== "undefined")) {
 					webglFi = new webglFilter();
-					webglFi.init(weights, numPatches, searchWindow+patchSize, searchWindow+patchSize, patchSize, patchSize, true);
+					webglFi.init(weights, numPatches, searchWindow+patchSize-1, searchWindow+patchSize-1, patchSize, patchSize, true);
 				} else if (typeof(svmFilter) !== "undefined") {
 					// use fft convolution if no webGL is available
 					svmFi = new svmFilter();
@@ -200,12 +205,12 @@ var clm = {
 			}
 			
 			if (patchType == "SVM") {
-				pw = pl = patchSize+searchWindow;
+				pw = pl = patchSize+searchWindow-1;
 			} else {
 				pw = pl = searchWindow;
 			}
 			pdataLength = pw*pl;
-			halfSearchWindow = searchWindow/2;
+			halfSearchWindow = (searchWindow-1)/2;
 			responsePixels = searchWindow*searchWindow;
 			if(typeof Float64Array !== 'undefined') {
 				vecProbs = new Float64Array(responsePixels);
@@ -222,6 +227,21 @@ var clm = {
 			for (var i = 0;i < numPatches;i++) {
 				learningRate[i] = 1.0;
 				prevCostFunc[i] = 0.0;
+			}
+
+			if (params.weightPoints) {
+				// weighting of points 
+				pointWeights = [];
+				for (var i = 0;i < numPatches;i++) {
+					if (i in params.weightPoints) {
+						pointWeights[(i*2)] = params.weightPoints[i];
+						pointWeights[(i*2)+1] = params.weightPoints[i];
+					} else {
+						pointWeights[(i*2)] = 1;
+						pointWeights[(i*2)+1] = 1;
+					}
+				}
+				pointWeights = numeric.diag(pointWeights);
 			}
 		}
 		
@@ -337,9 +357,9 @@ var clm = {
 
 			var pdata, pmatrix, grayscaleColor;
 			for (var i = 0; i < numPatches; i++) {
-				px = patchPositions[i][0]-(pw/2);
-				py = patchPositions[i][1]-(pl/2);
-				ptch = sketchCC.getImageData(px >> 0, py >> 0, pw, pl);
+				px = patchPositions[i][0]-((pw-1)/2);
+				py = patchPositions[i][1]-((pl-1)/2);
+				ptch = sketchCC.getImageData(Math.round(px), Math.round(py), pw, pl);
 				pdata = ptch.data;
 				
 				// convert to grayscale
@@ -361,7 +381,9 @@ var clm = {
 			// print patches
 			/*sketchCC.clearRect(0, 0, sketchW, sketchH);
 			for (var i = 0;i < numPatches;i++) {
-				drawData(sketchCC, patches[i], pw, pl, false, patchPositions[i][0]-(pw/2), patchPositions[i][1]-(pl/2));
+				if ([27,32,44,50].indexOf(i) > -1) {
+					drawData(sketchCC, patches[i], pw, pl, false, patchPositions[i][0]-(pw/2), patchPositions[i][1]-(pl/2));
+				}
 			}*/
 			
 			if (patchType == "SVM") {
@@ -375,13 +397,30 @@ var clm = {
 			} else if (patchType == "MOSSE") {
 				var responses = mosseCalc.getResponses(patches);
 			}
-			
+
+			// option to increase sharpness of responses
+			if (params.sharpenResponse) {
+				for (var i = 0;i < numPatches;i++) {
+					for (var j = 0;j < responses[i].length;j++) {
+						responses[i][j] = Math.pow(responses[i][j], params.sharpenResponse);
+					}
+				}
+			}
+
 			// print responses
 			/*sketchCC.clearRect(0, 0, sketchW, sketchH);
 			var nuWeights;
 			for (var i = 0;i < numPatches;i++) {
-				nuWeights = responses[i].map(function(x) {return x*255});
-				drawData(sketchCC, nuWeights, searchWindow, searchWindow, false, patchPositions[i][0]-(searchWindow/2), patchPositions[i][1]-(searchWindow/2));
+		
+				nuWeights = [];
+				for (var j = 0;j < responses[i].length;j++) {
+					nuWeights.push(responses[i][j]*255);
+				}
+				
+				//drawData(sketchCC, nuWeights, searchWindow, searchWindow, false, patchPositions[i][0]-((searchWindow-1)/2), patchPositions[i][1]-((searchWindow-1)/2));
+				if ([27,32,44,50].indexOf(i) > -1) {
+					drawData(sketchCC, nuWeights, searchWindow, searchWindow, false, patchPositions[i][0]-((searchWindow-1)/2), patchPositions[i][1]-((searchWindow-1)/2));
+				}
 			}*/
 			
 			// iterate until convergence or max 10, 20 iterations?:
@@ -401,9 +440,8 @@ var clm = {
 				var opj0, opj1;
 				
 				for (var j = 0;j < numPatches;j++) {
-					
-					opj0 = originalPositions[j][0]-halfSearchWindow;
-					opj1 = originalPositions[j][1]-halfSearchWindow;
+					opj0 = originalPositions[j][0]-((searchWindow-1)/2);
+					opj1 = originalPositions[j][1]-((searchWindow-1)/2);
 					
 					// calculate PI x gaussians
 					var vpsum = gpopt(searchWindow, currentPositions[j], updatePosition, vecProbs, responses, opj0, opj1, j, varianceSeq[i]);
@@ -442,7 +480,7 @@ var clm = {
 				var nuWeights;
 				for (var npidx = 0;npidx < numPatches;npidx++) {
 					nuWeights = debugMVs[npidx].map(function(x) {return x*255*500;});
-					drawData(sketchCC, nuWeights, searchWindow, searchWindow, false, patchPositions[npidx][0]-(searchWindow/2), patchPositions[npidx][1]-(searchWindow/2));
+					drawData(sketchCC, nuWeights, searchWindow, searchWindow, false, patchPositions[npidx][0]-((searchWindow-1)/2), patchPositions[npidx][1]-((searchWindow-1)/2));
 				}*/
 				
 				var meanShiftVector = numeric.rep([numPatches*2, 1],0.0);
@@ -454,13 +492,21 @@ var clm = {
 				// compute pdm parameter update
 				//var prior = numeric.mul(gaussianPD, PDMVariance);
 				var prior = numeric.mul(gaussianPD, varianceSeq[i]);
-				var jtj = numeric.dot(numeric.transpose(jac), jac);
+				if (params.weightPoints) {
+					var jtj = numeric.dot(numeric.transpose(jac), numeric.dot(pointWeights, jac));
+				} else {
+					var jtj = numeric.dot(numeric.transpose(jac), jac);
+				}
 				var cpMatrix = numeric.rep([numParameters+4, 1],0.0);
 				for (var l = 0;l < (numParameters+4);l++) {
 					cpMatrix[l][0] = currentParameters[l];
 				}
 				var priorP = numeric.dot(prior, cpMatrix);
-				var jtv = numeric.dot(numeric.transpose(jac), meanShiftVector);
+				if (params.weightPoints) {
+					var jtv = numeric.dot(numeric.transpose(jac), numeric.dot(pointWeights, meanShiftVector));
+				} else {
+					var jtv = numeric.dot(numeric.transpose(jac), meanShiftVector);
+				}
 				var paramUpdateLeft = numeric.add(prior, jtj);
 				var paramUpdateRight = numeric.sub(priorP, jtv);
 				var paramUpdate = numeric.dot(numeric.inv(paramUpdateLeft), paramUpdateRight);
@@ -484,6 +530,7 @@ var clm = {
 							currentParameters[k+4] = -clip;
 						}
 					}
+					
 				}
 				
 				// update current coordinates
@@ -747,7 +794,7 @@ var clm = {
 				updatePosition[1] = opj1+k;
 				for (var l = 0;l < responseWidth;l++) {
 					updatePosition[0] = opj0+l;
-					
+
 					dx = currentPositionsj[0] - updatePosition[0];
 					dy = currentPositionsj[1] - updatePosition[1];
 					vecProbs[pos_idx] = responses[j][pos_idx] * Math.exp(-0.5*((dx*dx)+(dy*dy))/variance);
@@ -1121,17 +1168,17 @@ var clm = {
 			var psci = canvasContext.createImageData(width, height);
 			var pscidata = psci.data;
 			for (var j = 0;j < width*height;j++) {
-			if (!transposed) {
-				var val = data[(j%width)+((j/width) >> 0)*width];
-			} else {
-				var val = data[(j%height)*height+((j/height) >> 0)];
-			}
-			val = val > 255 ? 255 : val;
-			val = val < 0 ? 0 : val;
-			pscidata[j*4] = val;
-			pscidata[(j*4)+1] = val;
-			pscidata[(j*4)+2] = val;
-			pscidata[(j*4)+3] = 255;
+				if (!transposed) {
+					var val = data[(j%width)+((j/width) >> 0)*width];
+				} else {
+					var val = data[(j%height)*height+((j/height) >> 0)];
+				}
+				val = val > 255 ? 255 : val;
+				val = val < 0 ? 0 : val;
+				pscidata[j*4] = val;
+				pscidata[(j*4)+1] = val;
+				pscidata[(j*4)+2] = val;
+				pscidata[(j*4)+3] = 255;
 			}
 			canvasContext.putImageData(psci, drawX, drawY);
 		}
