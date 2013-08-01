@@ -33,7 +33,8 @@ var clm = {
 		It's possible to experiment with the sequence of variances used for the finding the maximum in the KDE.
 		This sequence is pretty arbitrary, but was found to be okay using some manual testing.
 		*/
-		var varianceSeq = [3,1.5,0.75];
+		var varianceSeq = [10,5,1];
+		//var varianceSeq = [3,1.5,0.75];
 		//var varianceSeq = [6,3,0.75];
 		var PDMVariance = 0.7;
 		
@@ -439,14 +440,14 @@ var clm = {
 				var opj0, opj1;
 				
 				for (var j = 0;j < numPatches;j++) {
-					opj0 = originalPositions[j][0]-((searchWindow-1)/2);
-					opj1 = originalPositions[j][1]-((searchWindow-1)/2);
+					opj0 = originalPositions[j][0]-((searchWindow-1)*scaling/2);
+					opj1 = originalPositions[j][1]-((searchWindow-1)*scaling/2);
 					
 					// calculate PI x gaussians
-					var vpsum = gpopt(searchWindow, currentPositions[j], updatePosition, vecProbs, responses, opj0, opj1, j, varianceSeq[i]);
+					var vpsum = gpopt(searchWindow, currentPositions[j], updatePosition, vecProbs, responses, opj0, opj1, j, varianceSeq[i], scaling);
 					
 					// calculate meanshift-vector
-					gpopt2(searchWindow, vecpos, updatePosition, vecProbs, vpsum, opj0, opj1);
+					gpopt2(searchWindow, vecpos, updatePosition, vecProbs, vpsum, opj0, opj1, scaling);
 					
 					// for debugging
 					//var debugMatrixMV = gpopt2(searchWindow, vecpos, updatePosition, vecProbs, vpsum, opj0, opj1);
@@ -803,18 +804,18 @@ var clm = {
 		}
 		
 		// part one of meanshift calculation
-		var gpopt = function(responseWidth, currentPositionsj, updatePosition, vecProbs, responses, opj0, opj1, j, variance) {
+		var gpopt = function(responseWidth, currentPositionsj, updatePosition, vecProbs, responses, opj0, opj1, j, variance, scaling) {
 			var pos_idx = 0;
 			var vpsum = 0;
 			var dx, dy;
 			for (var k = 0;k < responseWidth;k++) {
-				updatePosition[1] = opj1+k;
+				updatePosition[1] = opj1+(k*scaling);
 				for (var l = 0;l < responseWidth;l++) {
-					updatePosition[0] = opj0+l;
+					updatePosition[0] = opj0+(l*scaling);
 
 					dx = currentPositionsj[0] - updatePosition[0];
 					dy = currentPositionsj[1] - updatePosition[1];
-					vecProbs[pos_idx] = responses[j][pos_idx] * Math.exp(-0.5*((dx*dx)+(dy*dy))/variance);
+					vecProbs[pos_idx] = responses[j][pos_idx] * Math.exp(-0.5*((dx*dx)+(dy*dy))/(variance*scaling));
 					
 					vpsum += vecProbs[pos_idx];
 					pos_idx++;
@@ -825,7 +826,7 @@ var clm = {
 		}
 		
 		// part two of meanshift calculation
-		var gpopt2 = function(responseWidth, vecpos, updatePosition, vecProbs, vpsum, opj0, opj1) {
+		var gpopt2 = function(responseWidth, vecpos, updatePosition, vecProbs, vpsum, opj0, opj1, scaling) {
 			//for debugging
 			//var vecmatrix = [];
 			
@@ -834,9 +835,9 @@ var clm = {
 			vecpos[0] = 0;
 			vecpos[1] = 0;
 			for (var k = 0;k < responseWidth;k++) {
-				updatePosition[1] = opj1+k;
+				updatePosition[1] = opj1+(k*scaling);
 				for (var l = 0;l < responseWidth;l++) {
-					updatePosition[0] = opj0+l;
+					updatePosition[0] = opj0+(l*scaling);
 					vecsum = vecProbs[pos_idx]/vpsum;
 					
 					//for debugging
