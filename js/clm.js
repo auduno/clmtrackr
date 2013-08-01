@@ -23,12 +23,11 @@ var clm = {
 		var currentParameters = [];
 		var currentPositions = [];
 		var previousParameters = [];
+		var previousPositions = [];
 		
 		var patches = [];
 		var responses = [];
 		var meanShape = [];
-		
-		var movementSums = [];
 		
 		/*
 		It's possible to experiment with the sequence of variances used for the finding the maximum in the KDE.
@@ -560,16 +559,9 @@ var clm = {
 				previousParameters.splice(0, previousParameters.length == 3 ? 1 : 0);
 			}
 			
-			// get the sum of the movements, for checking convergence
-			var movementSum = 0;
-			var mssq_x, mssq_y;
-			for (var i = 0;i < originalPositions.length;i++) {
-				mssq_x = (originalPositions[i][0]-oldPositions[i][0]);
-				mssq_y = (originalPositions[i][1]-oldPositions[i][1]);
-				movementSum += ((mssq_x*mssq_x) + (mssq_y*mssq_y));
-			}
-			movementSums.splice(0, movementSums.length == 10 ? 1 : 0);
-			movementSums.push(movementSum);
+			// store positions, for checking convergence
+			previousPositions.splice(0, previousPositions.length == 10 ? 1 : 0);
+			previousPositions.push(currentPositions.slice(0));
 			
 			// send an event on each iteration
 			var evt = document.createEvent("Event");
@@ -669,13 +661,38 @@ var clm = {
 		 *	Used for checking whether model fit has converged
 		 */
 		this.getConvergence = function() {
-			if (movementSums.length < 10) return 999999;
-			//calc average
-			var msavg = 0;
-			for (var i = 0;i < movementSums.length;i++) {
-				msavg += movementSums[i];
+			if (previousPositions.length < 10) return 999999;
+			
+			var prevX = 0.0;
+			var prevY = 0.0;
+			var currX = 0.0;
+			var currY = 0.0;
+			
+			// average 5 previous positions 
+			for (var i = 0;i < 5;i++) {
+				for (var j = 0;j < numPatches;j++) {
+					prevX += previousPositions[i][j][0];
+					prevY += previousPositions[i][j][1];
+				}
 			}
-			msavg /= movementSums.length
+			prevX /= 5;
+			prevY /= 5;
+			
+			// average 5 positions before that
+			for (var i = 5;i < 10;i++) {
+				for (var j = 0;j < numPatches;j++) {
+					currX += previousPositions[i][j][0];
+					currY += previousPositions[i][j][1];
+				}
+			}
+			currX /= 5;
+			currY /= 5;
+
+			// calculate difference
+			var diffX = currX-prevX;
+			var diffY = currY-prevY;
+			var msavg = ((diffX*diffX) + (diffY*diffY));
+			msavg /= previousPositions.length
 			return msavg;
 		}
 
