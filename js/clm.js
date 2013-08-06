@@ -83,6 +83,8 @@ var clm = {
 		
 		var pointWeights;
 
+		var halfPI = Math.PI/2;
+		
 		/*
 		 *	load model data, initialize filters, etc.
 		 *
@@ -313,7 +315,11 @@ var clm = {
 				}
 				
 				// change translation, rotation and scale parameters
-				scaling = 1+currentParameters[0];
+				rotation = halfPI - Math.atan((currentParameters[0]+1)/currentParameters[1]);
+				if (rotation > halfPI) {
+					rotation -= Math.PI;
+				}
+				scaling = currentParameters[1] / Math.sin(rotation);
 				translateX = currentParameters[2];
 				translateY = currentParameters[3];
 			}
@@ -325,7 +331,7 @@ var clm = {
 			sketchCC.clearRect(0, 0, sketchW, sketchH);
 			
 			sketchCC.scale(1/scaling, 1/scaling);
-			sketchCC.rotate(-Math.asin(currentParameters[1]/scaling));
+			sketchCC.rotate(-rotation);
 			sketchCC.translate(-translateX, -translateY);
 			
 			sketchCC.drawImage(element, 0, 0, element.width, element.height);
