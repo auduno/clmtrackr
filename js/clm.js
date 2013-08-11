@@ -6,9 +6,12 @@ var clm = {
 		
 		if (!params) params = {};
 		if (params.constantVelocity === undefined) params.constantVelocity = true;
-		if (params.searchWindow === undefined) params.searchWindow = 10;
+		if (params.searchWindow === undefined) params.searchWindow = 11;
 		if (params.useWebGL === undefined) params.useWebGL = true;
-		if (params.scoreThreshold === undefined) params.scoreThreshold = 0.25;
+		if (params.scoreThreshold === undefined) params.scoreThreshold = 0.30;
+		if (params.stopOnConvergence === undefined) params.stopOnConvergence = false;
+		if (params.weightPoints === undefined) params.weightPoints = undefined;
+		if (params.sharpenResponse === undefined) params.sharpenResponse = false;
 		
 		var numPatches, patchSize, numParameters, patchType;
 		var gaussianPD;
@@ -20,26 +23,20 @@ var clm = {
 		var currentParameters = [];
 		var currentPositions = [];
 		var previousParameters = [];
+		var previousPositions = [];
 		
 		var patches = [];
 		var responses = [];
 		var meanShape = [];
 		
-		var movementSums = [];
-		
 		/*
 		It's possible to experiment with the sequence of variances used for the finding the maximum in the KDE.
 		This sequence is pretty arbitrary, but was found to be okay using some manual testing.
-		In Saragih's paper he used the sequence [20,10,5,1], this was however found to be slower and equally precise.
 		*/
-		var varianceSeq = [3,1.5,0.75];
-		
-		/*
-		The PDM variance determines how the PDM models parameters can vary when fitting.
-		A low variance puts very little constraint on the parameters, a high variance puts a lot of constraint.
-		According to the formula in Saragih's paper, this parameter should be around 0.00005, however a higher variance was found to work better for this model.
-		*/
-		var PDMVariance = 0.05;
+		var varianceSeq = [10,5,1];
+		//var varianceSeq = [3,1.5,0.75];
+		//var varianceSeq = [6,3,0.75];
+		var PDMVariance = 0.7;
 		
 		var relaxation = 0.1;
 		
@@ -82,6 +79,11 @@ var clm = {
 		var left_eye_position = [0.0,0.0];
 		var nose_position = [0.0,0.0];
 		var lep, rep, mep;
+		var runnerTimeout, runnerElement, runnerBox;
+		
+		var pointWeights;
+
+		var halfPI = Math.PI/2;
 		
 		/*
 		 *	load model data, initialize filters, etc.
@@ -104,12 +106,13 @@ var clm = {
 			numParameters = model.shapeModel.numEvalues;
 			modelWidth = model.patchModel.canvasSize[0];
 			modelHeight = model.patchModel.canvasSize[1];
-      
-      		// set up canvas to work on
+			
+			// set up canvas to work on
 			sketchCanvas = document.createElement('canvas');
 			sketchCC = sketchCanvas.getContext('2d');
-			sketchW = sketchCanvas.width = modelWidth + searchWindow + patchSize-1;
-			sketchH = sketchCanvas.height = modelHeight + searchWindow + patchSize-1;
+
+			sketchW = sketchCanvas.width = modelWidth + (searchWindow-1) + patchSize-1;
+			sketchH = sketchCanvas.height = modelHeight + (searchWindow-1) + patchSize-1;
 			
 			if (model.hints && mosseFilter && left_eye_filter && right_eye_filter && nose_filter) {
 				//var mossef_lefteye = new mosseFilter({drawResponse : document.getElementById('overlay2')});
@@ -190,7 +193,7 @@ var clm = {
 				
 				if (webGLContext && params.useWebGL && (typeof(webglFilter) !== "undefined")) {
 					webglFi = new webglFilter();
-					webglFi.init(weights, numPatches, searchWindow+patchSize, searchWindow+patchSize, patchSize, patchSize, true);
+					webglFi.init(weights, numPatches, searchWindow+patchSize-1, searchWindow+patchSize-1, patchSize, patchSize, true);
 				} else if (typeof(svmFilter) !== "undefined") {
 					// use fft convolution if no webGL is available
 					svmFi = new svmFilter();
@@ -204,12 +207,12 @@ var clm = {
 			}
 			
 			if (patchType == "SVM") {
-				pw = pl = patchSize+searchWindow;
+				pw = pl = patchSize+searchWindow-1;
 			} else {
 				pw = pl = searchWindow;
 			}
 			pdataLength = pw*pl;
-			halfSearchWindow = searchWindow/2;
+			halfSearchWindow = (searchWindow-1)/2;
 			responsePixels = searchWindow*searchWindow;
 			if(typeof Float64Array !== 'undefined') {
 				vecProbs = new Float64Array(responsePixels);
@@ -227,8 +230,488 @@ var clm = {
 				learningRate[i] = 1.0;
 				prevCostFunc[i] = 0.0;
 			}
+
+			if (params.weightPoints) {
+				// weighting of points 
+				pointWeights = [];
+				for (var i = 0;i < numPatches;i++) {
+					if (i in params.weightPoints) {
+						pointWeights[(i*2)] = params.weightPoints[i];
+						pointWeights[(i*2)+1] = params.weightPoints[i];
+					} else {
+						pointWeights[(i*2)] = 1;
+						pointWeights[(i*2)+1] = 1;
+					}
+				}
+				pointWeights = numeric.diag(pointWeights);
+			}
 		}
 		
+		/*
+		 *	starts the tracker to run on a regular interval
+		 */
+		this.start = function(element, box) {
+			// check if model is initalized, else return false
+			if (typeof(model) === "undefined") {
+				console.log("tracker needs to be initalized before starting to track.");
+				return false;
+			}
+			//check if a runnerelement already exists, if not, use passed parameters
+			if (typeof(runnerElement) === "undefined") {
+				runnerElement = element;
+				runnerBox = box;
+			}
+			// start named timeout function
+			runnerTimeout = requestAnimFrame(runnerFunction);
+		}
+
+		/*
+		 *	stop the running tracker
+		 */
+		this.stop = function() {
+			// stop the running tracker if any exists
+			cancelRequestAnimFrame(runnerTimeout);
+		}
+
+		/*
+		 *  element : canvas or video element
+		 *  TODO: should be able to take img element as well
+		 */
+		this.track = function(element, box) {
+			
+			var scaling, translateX, translateY, rotation;
+			var croppedPatches = [];
+			var ptch, px, py;
+						
+			if (first) {
+				// do viola-jones on canvas to get initial guess, if we don't have any points
+				var gi = getInitialPosition(element, box);
+				if (!gi) {
+					// send an event on no face found
+					var evt = document.createEvent("Event");
+					evt.initEvent("clmtrackrNotFound", true, true);
+					document.dispatchEvent(evt)
+					
+					return false;
+				}
+				scaling = gi[0];
+				rotation = gi[1];
+				translateX = gi[2];
+				translateY = gi[3];
+				
+				first = false;
+			} else {
+				facecheck_count += 1;
+				
+				// TODO : do cross-correlation/correlation-filter or similar to find translation of face
+				if (params.constantVelocity) {
+					// calculate where to get patches via constant velocity prediction
+					if (previousParameters.length >= 2) {
+						for (var i = 0;i < currentParameters.length;i++) {
+							currentParameters[i] = (relaxation)*previousParameters[1][i] + (1-relaxation)*((2*previousParameters[1][i]) - previousParameters[0][i]);
+							//currentParameters[i] = (3*previousParameters[2][i]) - (3*previousParameters[1][i]) + previousParameters[0][i];
+						}
+					}
+				}
+				
+				// change translation, rotation and scale parameters
+				rotation = halfPI - Math.atan((currentParameters[0]+1)/currentParameters[1]);
+				if (rotation > halfPI) {
+					rotation -= Math.PI;
+				}
+				scaling = currentParameters[1] / Math.sin(rotation);
+				translateX = currentParameters[2];
+				translateY = currentParameters[3];
+			}
+			
+			// copy canvas to a new dirty canvas
+			sketchCC.save();
+			
+			// clear canvas
+			sketchCC.clearRect(0, 0, sketchW, sketchH);
+			
+			sketchCC.scale(1/scaling, 1/scaling);
+			sketchCC.rotate(-rotation);
+			sketchCC.translate(-translateX, -translateY);
+			
+			sketchCC.drawImage(element, 0, 0, element.width, element.height);
+			
+			sketchCC.restore();
+			//	get cropped images around new points based on model parameters (not scaled and translated)
+			var patchPositions = calculatePositions(currentParameters, false);
+			
+			// check whether tracking is ok
+			if (scoringWeights && (facecheck_count % 10 == 0)) {
+				if (!checkTracking()) {
+					// reset all parameters
+					first = true;
+					scoringHistory = [];
+					for (var i = 0;i < currentParameters.length;i++) {
+						currentParameters[i] = 0;
+						previousParameters = [];
+					}
+					
+					// send event to signal that tracking was lost
+					var evt = document.createEvent("Event");
+					evt.initEvent("clmtrackrLost", true, true);
+					document.dispatchEvent(evt)
+					
+					return false;
+				}
+			}
+
+
+			var pdata, pmatrix, grayscaleColor;
+			for (var i = 0; i < numPatches; i++) {
+				px = patchPositions[i][0]-((pw-1)/2);
+				py = patchPositions[i][1]-((pl-1)/2);
+				ptch = sketchCC.getImageData(Math.round(px), Math.round(py), pw, pl);
+				pdata = ptch.data;
+				
+				// convert to grayscale
+				pmatrix = patches[i];
+				for (var j = 0;j < pdataLength;j++) {
+					grayscaleColor = pdata[j*4]*0.3 + pdata[(j*4)+1]*0.59 + pdata[(j*4)+2]*0.11;
+					pmatrix[j] = grayscaleColor;
+				}
+			}
+			
+			/*print weights*/
+			/*sketchCC.clearRect(0, 0, sketchW, sketchH);
+			var nuWeights;
+			for (var i = 0;i < numPatches;i++) {
+				nuWeights = weights[i].map(function(x) {return x*2000+127;});
+				drawData(sketchCC, nuWeights, patchSize, patchSize, false, patchPositions[i][0]-(patchSize/2), patchPositions[i][1]-(patchSize/2));
+			}*/
+			
+			// print patches
+			/*sketchCC.clearRect(0, 0, sketchW, sketchH);
+			for (var i = 0;i < numPatches;i++) {
+				if ([27,32,44,50].indexOf(i) > -1) {
+					drawData(sketchCC, patches[i], pw, pl, false, patchPositions[i][0]-(pw/2), patchPositions[i][1]-(pl/2));
+				}
+			}*/
+			
+			if (patchType == "SVM") {
+				if (typeof(webglFi) !== "undefined") {
+					var responses = webglFi.getResponses(patches, true);
+				} else if (typeof(svmFi) !== "undefined"){
+					var responses = svmFi.getResponses(patches);
+				} else {
+					throw "SVM-filters do not seem to be initiated properly."
+				}
+			} else if (patchType == "MOSSE") {
+				var responses = mosseCalc.getResponses(patches);
+			}
+
+			// option to increase sharpness of responses
+			if (params.sharpenResponse) {
+				for (var i = 0;i < numPatches;i++) {
+					for (var j = 0;j < responses[i].length;j++) {
+						responses[i][j] = Math.pow(responses[i][j], params.sharpenResponse);
+					}
+				}
+			}
+
+			// print responses
+			/*sketchCC.clearRect(0, 0, sketchW, sketchH);
+			var nuWeights;
+			for (var i = 0;i < numPatches;i++) {
+		
+				nuWeights = [];
+				for (var j = 0;j < responses[i].length;j++) {
+					nuWeights.push(responses[i][j]*255);
+				}
+				
+				//drawData(sketchCC, nuWeights, searchWindow, searchWindow, false, patchPositions[i][0]-((searchWindow-1)/2), patchPositions[i][1]-((searchWindow-1)/2));
+				if ([27,32,44,50].indexOf(i) > -1) {
+					drawData(sketchCC, nuWeights, searchWindow, searchWindow, false, patchPositions[i][0]-((searchWindow-1)/2), patchPositions[i][1]-((searchWindow-1)/2));
+				}
+			}*/
+			
+			// iterate until convergence or max 10, 20 iterations?:
+			var originalPositions = currentPositions;
+			var jac;
+			var meanshiftVectors = [];
+			
+			for (var i = 0; i < varianceSeq.length; i++) {
+				
+				// calculate jacobian
+				jac = createJacobian(currentParameters, eigenVectors);
+
+				// for debugging
+				//var debugMVs = [];
+				//
+				
+				var opj0, opj1;
+				
+				for (var j = 0;j < numPatches;j++) {
+					opj0 = originalPositions[j][0]-((searchWindow-1)*scaling/2);
+					opj1 = originalPositions[j][1]-((searchWindow-1)*scaling/2);
+					
+					// calculate PI x gaussians
+					var vpsum = gpopt(searchWindow, currentPositions[j], updatePosition, vecProbs, responses, opj0, opj1, j, varianceSeq[i], scaling);
+					
+					// calculate meanshift-vector
+					gpopt2(searchWindow, vecpos, updatePosition, vecProbs, vpsum, opj0, opj1, scaling);
+					
+					// for debugging
+					//var debugMatrixMV = gpopt2(searchWindow, vecpos, updatePosition, vecProbs, vpsum, opj0, opj1);
+					
+					// evaluate here whether to increase/decrease stepSize
+					/*if (vpsum >= prevCostFunc[j]) {
+						learningRate[j] *= stepParameter;
+					} else {
+						learningRate[j] = 1.0;
+					}
+					prevCostFunc[j] = vpsum;*/
+					
+					// compute mean shift vectors
+					// extrapolate meanshiftvectors
+					/*var msv = [];
+					msv[0] = learningRate[j]*(vecpos[0] - currentPositions[j][0]);
+					msv[1] = learningRate[j]*(vecpos[1] - currentPositions[j][1]);
+					meanshiftVectors[j] = msv;*/
+					meanshiftVectors[j] = [vecpos[0] - currentPositions[j][0], vecpos[1] - currentPositions[j][1]];
+					
+					//if (isNaN(msv[0]) || isNaN(msv[1])) debugger;
+					
+					//for debugging
+					//debugMVs[j] = debugMatrixMV;
+					//
+				}
+				
+				// draw meanshiftVector
+				/*sketchCC.clearRect(0, 0, sketchW, sketchH);
+				var nuWeights;
+				for (var npidx = 0;npidx < numPatches;npidx++) {
+					nuWeights = debugMVs[npidx].map(function(x) {return x*255*500;});
+					drawData(sketchCC, nuWeights, searchWindow, searchWindow, false, patchPositions[npidx][0]-((searchWindow-1)/2), patchPositions[npidx][1]-((searchWindow-1)/2));
+				}*/
+				
+				var meanShiftVector = numeric.rep([numPatches*2, 1],0.0);
+				for (var k = 0;k < numPatches;k++) {
+					meanShiftVector[k*2][0] = meanshiftVectors[k][0];
+					meanShiftVector[(k*2)+1][0] = meanshiftVectors[k][1];
+				}
+				
+				// compute pdm parameter update
+				//var prior = numeric.mul(gaussianPD, PDMVariance);
+				var prior = numeric.mul(gaussianPD, varianceSeq[i]);
+				if (params.weightPoints) {
+					var jtj = numeric.dot(numeric.transpose(jac), numeric.dot(pointWeights, jac));
+				} else {
+					var jtj = numeric.dot(numeric.transpose(jac), jac);
+				}
+				var cpMatrix = numeric.rep([numParameters+4, 1],0.0);
+				for (var l = 0;l < (numParameters+4);l++) {
+					cpMatrix[l][0] = currentParameters[l];
+				}
+				var priorP = numeric.dot(prior, cpMatrix);
+				if (params.weightPoints) {
+					var jtv = numeric.dot(numeric.transpose(jac), numeric.dot(pointWeights, meanShiftVector));
+				} else {
+					var jtv = numeric.dot(numeric.transpose(jac), meanShiftVector);
+				}
+				var paramUpdateLeft = numeric.add(prior, jtj);
+				var paramUpdateRight = numeric.sub(priorP, jtv);
+				var paramUpdate = numeric.dot(numeric.inv(paramUpdateLeft), paramUpdateRight);
+				//var paramUpdate = numeric.solve(paramUpdateLeft, paramUpdateRight, true);
+				
+				var oldPositions = currentPositions;
+				
+				// update estimated parameters
+				for (var k = 0;k < numParameters+4;k++) {
+					currentParameters[k] -= paramUpdate[k];
+				}
+				
+				// clipping of parameters if they're too high
+				var clip;
+				for (var k = 0;k < numParameters;k++) {
+					clip = Math.abs(3*Math.sqrt(eigenValues[k]));
+					if (Math.abs(currentParameters[k+4]) > clip) {
+						if (currentParameters[k+4] > 0) {
+							currentParameters[k+4] = clip;
+						} else {
+							currentParameters[k+4] = -clip;
+						}
+					}
+					
+				}
+				
+				// update current coordinates
+				currentPositions = calculatePositions(currentParameters, true);
+				
+				// check if converged
+				// calculate norm of parameterdifference
+				var positionNorm = 0;
+				var pnsq_x, pnsq_y;
+				for (var k = 0;k < currentPositions.length;k++) {
+					pnsq_x = (currentPositions[k][0]-oldPositions[k][0]);
+					pnsq_y = (currentPositions[k][1]-oldPositions[k][1]);
+					positionNorm += ((pnsq_x*pnsq_x) + (pnsq_y*pnsq_y));
+				}
+				//console.log("positionnorm:"+positionNorm);
+				
+				// if norm < limit, then break
+				if (positionNorm < convergenceLimit) {
+					break;
+				}
+			
+			}
+			
+			if (params.constantVelocity) {
+				// add current parameter to array of previous parameters
+				previousParameters.push(currentParameters.slice());
+				previousParameters.splice(0, previousParameters.length == 3 ? 1 : 0);
+			}
+			
+			// store positions, for checking convergence
+			previousPositions.splice(0, previousPositions.length == 10 ? 1 : 0);
+			previousPositions.push(currentPositions.slice(0));
+			
+			// send an event on each iteration
+			var evt = document.createEvent("Event");
+			evt.initEvent("clmtrackrIteration", true, true);
+			document.dispatchEvent(evt)
+			
+			if (this.getConvergence() < 0.5) {
+				if (params.stopOnConvergence) {
+					this.stop();
+				}
+				var evt = document.createEvent("Event");
+				evt.initEvent("clmtrackrConverged", true, true);
+				document.dispatchEvent(evt)
+			}
+			
+			// return new points
+			return currentPositions;
+		}
+
+		/*
+		 *	reset tracking, so that track() will start a new detection
+		 */
+		this.reset = function() {
+			first = true;
+			scoringHistory = [];
+			for (var i = 0;i < currentParameters.length;i++) {
+				currentParameters[i] = 0;
+				previousParameters = [];
+			}
+			runnerElement = undefined;
+			runnerBox = undefined;
+		}
+
+		/*
+		 *	draw model on given canvas
+		 */
+		this.draw = function(canvas, pv) {
+			// if no previous points, just draw in the middle of canvas
+			
+			var params;
+			if (pv === undefined) {
+				params = currentParameters.slice(0);
+			} else {
+				params = pv.slice(0);
+			}
+			
+			var cc = canvas.getContext('2d');
+			cc.fillStyle = "rgb(200,200,200)";
+			cc.strokeStyle = "rgb(130,255,50)";
+			//cc.lineWidth = 1;
+			
+			var paths = model.path.normal;
+			for (var i = 0;i < paths.length;i++) {
+				if (typeof(paths[i]) == 'number') {
+					drawPoint(cc, paths[i], params);
+				} else {
+					drawPath(cc, paths[i], params);
+				}
+			}
+		}
+
+		/*
+		 * 	get the score of the current model fit
+		 *	(based on svm of face according to current model)
+		 */
+		this.getScore = function() {
+			return meanscore;
+		}
+
+		/*
+		 *	calculate positions based on parameters
+		 */
+		this.calculatePositions = function(parameters) {
+			return calculatePositions(parameters, true);
+		}
+		
+		/*
+		 *	get coordinates of current model fit
+		 */
+		this.getCurrentPosition = function() {
+			if (first) {
+				return false;
+			} else {
+				return currentPositions;
+			}
+		}
+		
+		/*
+		 *	get parameters of current model fit
+		 */
+		this.getCurrentParameters = function() {
+			return currentParameters;
+		}
+
+		/*
+		 *	Get the average of recent model movements
+		 *	Used for checking whether model fit has converged
+		 */
+		this.getConvergence = function() {
+			if (previousPositions.length < 10) return 999999;
+			
+			var prevX = 0.0;
+			var prevY = 0.0;
+			var currX = 0.0;
+			var currY = 0.0;
+			
+			// average 5 previous positions 
+			for (var i = 0;i < 5;i++) {
+				for (var j = 0;j < numPatches;j++) {
+					prevX += previousPositions[i][j][0];
+					prevY += previousPositions[i][j][1];
+				}
+			}
+			prevX /= 5;
+			prevY /= 5;
+			
+			// average 5 positions before that
+			for (var i = 5;i < 10;i++) {
+				for (var j = 0;j < numPatches;j++) {
+					currX += previousPositions[i][j][0];
+					currY += previousPositions[i][j][1];
+				}
+			}
+			currX /= 5;
+			currY /= 5;
+
+			// calculate difference
+			var diffX = currX-prevX;
+			var diffY = currY-prevY;
+			var msavg = ((diffX*diffX) + (diffY*diffY));
+			msavg /= previousPositions.length
+			return msavg;
+		}
+
+		var runnerFunction = function() {
+			runnerTimeout = requestAnimFrame(runnerFunction);
+			// schedule as many iterations as we can during each request
+			var startTime = (new Date()).getTime();
+			while (((new Date()).getTime() - startTime) < 16) {
+				var tracking = this.track(runnerElement, runnerBox);
+				if (!tracking) continue;
+			}
+		}.bind(this);
 
 		// generates the jacobian matrix used for optimization calculations
 		var createJacobian = function(parameters, eigenVectors) {
@@ -272,7 +755,7 @@ var clm = {
 			return jacobian;
 		}
 		
-      	// calculate positions from parameters
+		// calculate positions from parameters
 		var calculatePositions = function(parameters, useTransforms) {
 			var x, y, a, b;
 			var numParameters = parameters.length;
@@ -294,13 +777,6 @@ var clm = {
 			}
 			
 			return positions;
-		}
-		
-		/*
-		 *	calculate positions based on parameters
-		 */
-		this.calculatePositions = function(parameters) {
-			return calculatePositions(parameters, true);
 		}
 		
 		// detect position of face on canvas/video element
@@ -333,33 +809,19 @@ var clm = {
 			return candidate;
 		}
 		
-		/*
-		 *	get coordinates of current model fit
-		 */
-		this.getCurrentPosition = function() {
-			return currentPositions;
-		}
-		
-		/*
-		 *	get parameters of current model fit
-		 */
-		this.getCurrentParameters = function() {
-			return currentParameters;
-		}
-		
 		// part one of meanshift calculation
-		var gpopt = function(responseWidth, currentPositionsj, updatePosition, vecProbs, responses, opj0, opj1, j, variance) {
+		var gpopt = function(responseWidth, currentPositionsj, updatePosition, vecProbs, responses, opj0, opj1, j, variance, scaling) {
 			var pos_idx = 0;
 			var vpsum = 0;
 			var dx, dy;
 			for (var k = 0;k < responseWidth;k++) {
-				updatePosition[1] = opj1+k;
+				updatePosition[1] = opj1+(k*scaling);
 				for (var l = 0;l < responseWidth;l++) {
-					updatePosition[0] = opj0+l;
-					
+					updatePosition[0] = opj0+(l*scaling);
+
 					dx = currentPositionsj[0] - updatePosition[0];
 					dy = currentPositionsj[1] - updatePosition[1];
-					vecProbs[pos_idx] = responses[j][pos_idx] * Math.exp(-0.5*((dx*dx)+(dy*dy))/variance);
+					vecProbs[pos_idx] = responses[j][pos_idx] * Math.exp(-0.5*((dx*dx)+(dy*dy))/(variance*scaling));
 					
 					vpsum += vecProbs[pos_idx];
 					pos_idx++;
@@ -370,7 +832,7 @@ var clm = {
 		}
 		
 		// part two of meanshift calculation
-		var gpopt2 = function(responseWidth, vecpos, updatePosition, vecProbs, vpsum, opj0, opj1) {
+		var gpopt2 = function(responseWidth, vecpos, updatePosition, vecProbs, vpsum, opj0, opj1, scaling) {
 			//for debugging
 			//var vecmatrix = [];
 			
@@ -379,9 +841,9 @@ var clm = {
 			vecpos[0] = 0;
 			vecpos[1] = 0;
 			for (var k = 0;k < responseWidth;k++) {
-				updatePosition[1] = opj1+k;
+				updatePosition[1] = opj1+(k*scaling);
 				for (var l = 0;l < responseWidth;l++) {
-					updatePosition[0] = opj0+l;
+					updatePosition[0] = opj0+(l*scaling);
 					vecsum = vecProbs[pos_idx]/vpsum;
 					
 					//for debugging
@@ -457,26 +919,18 @@ var clm = {
 			}
 			return true;
 		}
-
-		/*
-		 * 	get the score of the current model fit
-		 *	(based on svm of face according to current model)
-		 */
-		this.getScore = function() {
-			return meanscore;
-		}
 		
 		// get initial starting point for model
 		var getInitialPosition = function(element, box) {
-      var translateX, translateY, scaling, rotation;
+			var translateX, translateY, scaling, rotation;
 			if (box) {
-        candidate = {x : box[0], y : box[1], width : box[2], height : box[3]};
+				candidate = {x : box[0], y : box[1], width : box[2], height : box[3]};
 			} else {
-        var det = detectPosition(element);
-        if (!det) {
-          // if no face found, stop.
-          return false;
-        }
+				var det = detectPosition(element);
+				if (!det) {
+					// if no face found, stop.
+					return false;
+				}
 			}
 			
 			if (model.hints && mosseFilter && left_eye_filter && right_eye_filter && nose_filter) {
@@ -600,296 +1054,6 @@ var clm = {
 			return [scaling, rotation, translateX, translateY];
 		}
 		
-		/*
-		 *  element : canvas or video element
-		 *  TODO: should be able to take img element as well
-		 */
-		this.track = function(element, box) {
-			
-			var scaling, translateX, translateY, rotation;
-			var croppedPatches = [];
-			var ptch, px, py;
-			
-			if (first) {
-				// do viola-jones on canvas to get initial guess, if we don't have any points
-				var gi = getInitialPosition(element, box);
-				if (!gi) {
-					return false;
-				}
-				scaling = gi[0];
-				rotation = gi[1];
-				translateX = gi[2];
-				translateY = gi[3];
-				
-				first = false;
-			} else {
-				facecheck_count += 1;
-				
-				// TODO : do cross-correlation/correlation-filter or similar to find translation of face
-				if (params.constantVelocity) {
-					// calculate where to get patches via constant velocity prediction
-					if (previousParameters.length >= 2) {
-						for (var i = 0;i < currentParameters.length;i++) {
-							currentParameters[i] = (relaxation)*previousParameters[1][i] + (1-relaxation)*((2*previousParameters[1][i]) - previousParameters[0][i]);
-							//currentParameters[i] = (3*previousParameters[2][i]) - (3*previousParameters[1][i]) + previousParameters[0][i];
-						}
-					}
-				}
-				
-				// change translation, rotation and scale parameters
-				scaling = 1+currentParameters[0];
-				translateX = currentParameters[2];
-				translateY = currentParameters[3];
-			}
-			
-			// copy canvas to a new dirty canvas
-			sketchCC.save();
-			
-			// clear canvas
-			sketchCC.clearRect(0, 0, sketchW, sketchH);
-			
-			sketchCC.scale(1/scaling, 1/scaling);
-			sketchCC.rotate(-Math.asin(currentParameters[1]/scaling));
-			sketchCC.translate(-translateX, -translateY);
-			
-			sketchCC.drawImage(element, 0, 0, element.width, element.height);
-			
-			sketchCC.restore();
-			//	get cropped images around new points based on model parameters (not scaled and translated)
-			var patchPositions = calculatePositions(currentParameters, false);
-			
-			// check whether tracking is ok
-			if (scoringWeights && (facecheck_count % 10 == 0)) {
-				if (!checkTracking()) {
-					first = true;
-					scoringHistory = [];
-					for (var i = 0;i < currentParameters.length;i++) {
-						currentParameters[i] = 0;
-						previousParameters = [];
-					}
-					return false;
-				}
-			}
-
-
-			var pdata, pmatrix, grayscaleColor;
-			for (var i = 0; i < numPatches; i++) {
-				px = patchPositions[i][0]-(pw/2);
-				py = patchPositions[i][1]-(pl/2);
-				ptch = sketchCC.getImageData(px >> 0, py >> 0, pw, pl);
-				pdata = ptch.data;
-				
-				// convert to grayscale
-				pmatrix = patches[i];
-				for (var j = 0;j < pdataLength;j++) {
-					grayscaleColor = pdata[j*4]*0.3 + pdata[(j*4)+1]*0.59 + pdata[(j*4)+2]*0.11;
-					pmatrix[j] = grayscaleColor;
-				}
-			}
-			
-			/*print weights*/
-			/*sketchCC.clearRect(0, 0, sketchW, sketchH);
-			var nuWeights;
-			for (var i = 0;i < numPatches;i++) {
-				nuWeights = weights[i].map(function(x) {return x*2000+127;});
-				drawData(sketchCC, nuWeights, patchSize, patchSize, false, patchPositions[i][0]-(patchSize/2), patchPositions[i][1]-(patchSize/2));
-			}*/
-			
-			// print patches
-			/*sketchCC.clearRect(0, 0, sketchW, sketchH);
-			for (var i = 0;i < numPatches;i++) {
-				drawData(sketchCC, patches[i], pw, pl, false, patchPositions[i][0]-(pw/2), patchPositions[i][1]-(pl/2));
-			}*/
-			
-			if (patchType == "SVM") {
-				if (typeof(webglFi) !== "undefined") {
-					var responses = webglFi.getResponses(patches, true);
-				} else if (typeof(svmFi) !== "undefined"){
-					var responses = svmFi.getResponses(patches);
-				} else {
-					throw "SVM-filters do not seem to be initiated properly."
-				}
-			} else if (patchType == "MOSSE") {
-				var responses = mosseCalc.getResponses(patches);
-			}
-			
-			// print responses
-			/*sketchCC.clearRect(0, 0, sketchW, sketchH);
-			var nuWeights;
-			for (var i = 0;i < numPatches;i++) {
-				nuWeights = responses[i].map(function(x) {return x*255});
-				drawData(sketchCC, nuWeights, searchWindow, searchWindow, false, patchPositions[i][0]-(searchWindow/2), patchPositions[i][1]-(searchWindow/2));
-			}*/
-			
-			// iterate until convergence or max 10, 20 iterations?:
-			var originalPositions = currentPositions;
-			var jac;
-			var meanshiftVectors = [];
-			
-			for (var i = 0; i < varianceSeq.length; i++) {
-				
-				// calculate jacobian
-				jac = createJacobian(currentParameters, eigenVectors);
-
-				// for debugging
-				//var debugMVs = [];
-				//
-				
-				var opj0, opj1;
-				
-				for (var j = 0;j < numPatches;j++) {
-					
-					opj0 = originalPositions[j][0]-halfSearchWindow;
-					opj1 = originalPositions[j][1]-halfSearchWindow;
-					
-					// calculate PI x gaussians
-					var vpsum = gpopt(searchWindow, currentPositions[j], updatePosition, vecProbs, responses, opj0, opj1, j, varianceSeq[i]);
-					
-					// calculate meanshift-vector
-					gpopt2(searchWindow, vecpos, updatePosition, vecProbs, vpsum, opj0, opj1);
-					
-					// for debugging
-					//var debugMatrixMV = gpopt2(searchWindow, vecpos, updatePosition, vecProbs, vpsum, opj0, opj1);
-					
-					// evaluate here whether to increase/decrease stepSize
-					/*if (vpsum >= prevCostFunc[j]) {
-						learningRate[j] *= stepParameter;
-					} else {
-						learningRate[j] = 1.0;
-					}
-					prevCostFunc[j] = vpsum;*/
-					
-					// compute mean shift vectors
-					// extrapolate meanshiftvectors
-					/*var msv = [];
-					msv[0] = learningRate[j]*(vecpos[0] - currentPositions[j][0]);
-					msv[1] = learningRate[j]*(vecpos[1] - currentPositions[j][1]);
-					meanshiftVectors[j] = msv;*/
-					meanshiftVectors[j] = [vecpos[0] - currentPositions[j][0], vecpos[1] - currentPositions[j][1]];
-					
-					//if (isNaN(msv[0]) || isNaN(msv[1])) debugger;
-					
-					//for debugging
-					//debugMVs[j] = debugMatrixMV;
-					//
-				}
-				
-				// draw meanshiftVector
-				/*sketchCC.clearRect(0, 0, sketchW, sketchH);
-				var nuWeights;
-				for (var npidx = 0;npidx < numPatches;npidx++) {
-					nuWeights = debugMVs[npidx].map(function(x) {return x*255*500;});
-					drawData(sketchCC, nuWeights, searchWindow, searchWindow, false, patchPositions[npidx][0]-(searchWindow/2), patchPositions[npidx][1]-(searchWindow/2));
-				}*/
-				
-				var meanShiftVector = numeric.rep([numPatches*2, 1],0.0);
-				for (var k = 0;k < numPatches;k++) {
-					meanShiftVector[k*2][0] = meanshiftVectors[k][0];
-					meanShiftVector[(k*2)+1][0] = meanshiftVectors[k][1];
-				}
-				
-				// compute pdm parameter update
-				//var prior = numeric.mul(gaussianPD, PDMVariance);
-				var prior = numeric.mul(gaussianPD, varianceSeq[i]);
-				var jtj = numeric.dot(numeric.transpose(jac), jac);
-				var cpMatrix = numeric.rep([numParameters+4, 1],0.0);
-				for (var l = 0;l < (numParameters+4);l++) {
-					cpMatrix[l][0] = currentParameters[l];
-				}
-				var priorP = numeric.dot(prior, cpMatrix);
-				var jtv = numeric.dot(numeric.transpose(jac), meanShiftVector);
-				var paramUpdateLeft = numeric.add(prior, jtj);
-				var paramUpdateRight = numeric.sub(priorP, jtv);
-				var paramUpdate = numeric.dot(numeric.inv(paramUpdateLeft), paramUpdateRight);
-				//var paramUpdate = numeric.solve(paramUpdateLeft, paramUpdateRight, true);
-				
-				var oldPositions = currentPositions;
-				
-				// update estimated parameters
-				for (var k = 0;k < numParameters+4;k++) {
-					currentParameters[k] -= paramUpdate[k];
-				}
-				
-				// clipping of parameters if they're too high
-				var clip;
-				for (var k = 0;k < numParameters;k++) {
-					clip = Math.abs(3*Math.sqrt(eigenValues[k]));
-					if (Math.abs(currentParameters[k+4]) > clip) {
-						if (currentParameters[k+4] > 0) {
-							currentParameters[k+4] = clip;
-						} else {
-							currentParameters[k+4] = -clip;
-						}
-					}
-				}
-				
-				// update current coordinates
-				currentPositions = calculatePositions(currentParameters, true);
-				
-				// check if converged
-				// calculate norm of parameterdifference
-				var positionNorm = 0;
-				var pnsq_x, pnsq_y;
-				for (var k = 0;k < currentPositions.length;k++) {
-					pnsq_x = (currentPositions[k][0]-oldPositions[k][0]);
-					pnsq_y = (currentPositions[k][1]-oldPositions[k][1]);
-					positionNorm += ((pnsq_x*pnsq_x) + (pnsq_y*pnsq_y));
-				}
-				//console.log("positionnorm:"+positionNorm);
-				
-				// if norm < limit, then break
-				if (positionNorm < convergenceLimit) {
-					break;
-				}
-			
-			}
-			
-			if (params.constantVelocity) {
-				// add current parameter to array of previous parameters
-				previousParameters.push(currentParameters.slice());
-				previousParameters.splice(0, previousParameters.length == 3 ? 1 : 0);
-			}
-			
-			// get the sum of the movements, for checking convergence
-			var movementSum = 0;
-			var mssq_x, mssq_y;
-			for (var i = 0;i < originalPositions.length;i++) {
-			  mssq_x = (originalPositions[i][0]-oldPositions[i][0]);
-			  mssq_y = (originalPositions[i][1]-oldPositions[i][1]);
-			  movementSum += ((mssq_x*mssq_x) + (mssq_y*mssq_y));
-			}
-			movementSums.splice(0, movementSums.length == 10 ? 1 : 0);
-			movementSums.push(movementSum);
-			
-			// return new points
-			return currentPositions;
-		}
-		
-		this.reset = function() {
-      // reset tracking, so that track() will start a new detection
-      first = true;
-      scoringHistory = [];
-      for (var i = 0;i < currentParameters.length;i++) {
-        currentParameters[i] = 0;
-        previousParameters = [];
-      }
-		}
-		
-		/*
-		 *	Get the average of recent model movements
-		 *	Used for checking whether model fit has converged
-		 */
-		this.getMovementSum = function() {
-		  if (movementSums.length < 10) return 999999;
-		  //calc average
-		  var msavg = 0;
-		  for (var i = 0;i < movementSums.length;i++) {
-		    msavg += movementSums[i];
-		  }
-		  msavg /= movementSums.length
-		  return msavg;
-		}
-		
 		// draw a parametrized line on a canvas
 		var drawPath = function(canvasContext, path, dp) {
 			canvasContext.beginPath();
@@ -936,36 +1100,6 @@ var clm = {
 			canvasContext.arc(x, y, 1, 0, Math.PI*2, true);
 			canvasContext.closePath();
 			canvasContext.fill();
-		}
-		
-
-		
-		/*
-		 *	draw model on given canvas
-		 */
-		this.draw = function(canvas, pv) {
-			// if no previous points, just draw in the middle of canvas
-			
-			var params;
-			if (pv === undefined) {
-				params = currentParameters.slice(0);
-			} else {
-				params = pv.slice(0);
-			}
-			
-			var cc = canvas.getContext('2d');
-			cc.fillStyle = "rgb(200,200,200)";
-			cc.strokeStyle = "rgb(130,255,50)";
-			//cc.lineWidth = 1;
-			
-			var paths = model.path.normal;
-			for (var i = 0;i < paths.length;i++) {
-				if (typeof(paths[i]) == 'number') {
-					drawPoint(cc, paths[i], params);
-				} else {
-					drawPath(cc, paths[i], params);
-				}
-			}
 		}
 		
 		// procrustes analysis
@@ -1058,20 +1192,40 @@ var clm = {
 			var psci = canvasContext.createImageData(width, height);
 			var pscidata = psci.data;
 			for (var j = 0;j < width*height;j++) {
-			if (!transposed) {
-				var val = data[(j%width)+((j/width) >> 0)*width];
-			} else {
-				var val = data[(j%height)*height+((j/height) >> 0)];
-			}
-			val = val > 255 ? 255 : val;
-			val = val < 0 ? 0 : val;
-			pscidata[j*4] = val;
-			pscidata[(j*4)+1] = val;
-			pscidata[(j*4)+2] = val;
-			pscidata[(j*4)+3] = 255;
+				if (!transposed) {
+					var val = data[(j%width)+((j/width) >> 0)*width];
+				} else {
+					var val = data[(j%height)*height+((j/height) >> 0)];
+				}
+				val = val > 255 ? 255 : val;
+				val = val < 0 ? 0 : val;
+				pscidata[j*4] = val;
+				pscidata[(j*4)+1] = val;
+				pscidata[(j*4)+2] = val;
+				pscidata[(j*4)+3] = 255;
 			}
 			canvasContext.putImageData(psci, drawX, drawY);
 		}
+		
+		var requestAnimFrame = (function() {
+			return window.requestAnimationFrame ||
+			window.webkitRequestAnimationFrame ||
+			window.mozRequestAnimationFrame ||
+			window.oRequestAnimationFrame ||
+			window.msRequestAnimationFrame ||
+			function(/* function FrameRequestCallback */ callback, /* DOMElement Element */ element) {
+				return window.setTimeout(callback, 1000/60);
+			};
+		})();
+		
+		var cancelRequestAnimFrame = (function() {
+			return window.cancelCancelRequestAnimationFrame ||
+				window.webkitCancelRequestAnimationFrame ||
+				window.mozCancelRequestAnimationFrame ||
+				window.oCancelRequestAnimationFrame ||
+				window.msCancelRequestAnimationFrame ||
+				window.clearTimeout;
+		})();
 		
 		return true;
 	}

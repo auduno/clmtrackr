@@ -3,7 +3,6 @@
 var webglFilter = function() {
   var gl, canvas;
   var filterWidth, filterHeight, patchWidth, patchHeight, numPatches, canvasWidth, canvasHeight;
-  var corrFilterWidth, corrFilterHeight;
   var patchResponseProgram, patchDrawProgram;
   var fbo, numBlocks, patchTex;
   var first = true;
@@ -11,53 +10,39 @@ var webglFilter = function() {
   var texCoordBuffer, texCoordLocation, apositionBuffer;
   var newCanvasWidth, newCanvasBlockHeight, newCanvasHeight;
   var drawOutRectangles, drawOutImages, drawOutLayer;
+  var patchCells, textureWidth, textureHeight, patchSize, patchArray;
   
   this.init = function(filterVector, nP, pW, pH, fW, fH, drawOut) {
-    // we assume filterVector goes from left to right, rowwise
+    // we assume filterVector goes from left to right, rowwise, i.e. row-major order
+    
     if (fW != fH) {
       alert("filter width and height must be same size!");
       return;
     }
     
-    // if filter width is not odd, we pad it with 0s on bottom and right side
+    // if filter width is not odd, alert
     if (fW % 2 == 0 || fH % 2 == 0) {
-      var newFilter = [];
-      filterWidth = fW + 1;
-      filterHeight = fH + 1;
-      var nfsize = filterWidth * filterHeight;
-      
-      for (var i = 0;i < nP;i++) {
-        for (var j = 0;j < fW;j++) {
-          filterVector[i].splice((fW*fH)+j, 0, 0);
-        }
-        for (var j = fH+1;j > 0;j--) {
-          filterVector[i].splice((j*fW), 0, 0);
-        }
-      }
-      corrFilterWidth = filterWidth-1;
-      corrFilterHeight = filterHeight-1;
-    } else {
-      filterWidth = fW;
-      filterHeight = fH;
-      corrFilterWidth = filterWidth;
-      corrFilterHeight = filterHeight;
+      alert("filters used in svm must be of odd dimensions!")
+      return;
     }
-
+    
+    filterWidth = fW;
+    filterHeight = fH;
     patchWidth = pW;
     patchHeight = pH;
     numPatches = nP;
-    
+
     patchResponseFS = [
       "precision mediump float;",
       "",
       "uniform vec2 u_onePixelFilters;",
       "uniform vec2 u_onePixelPatches;",
-      "const float u_filterwidth = "+corrFilterWidth.toFixed(1)+";",
-      "const float u_filterheight = "+corrFilterHeight.toFixed(1)+";",
-      "const float u_halffilterwidth = "+(corrFilterWidth/2).toFixed(1)+";",
-      "const float u_halffilterheight = "+(corrFilterHeight/2).toFixed(1)+";",
-      "const float u_filtersize = "+(corrFilterWidth*corrFilterHeight)+".0;",
-      "const float u_divfiltersize = "+(1/(corrFilterWidth*corrFilterHeight)).toFixed(10)+";",
+      "const float u_filterwidth = "+filterWidth.toFixed(1)+";",
+      "const float u_filterheight = "+filterHeight.toFixed(1)+";",
+      "const float u_halffilterwidth = "+((filterWidth-1.0)/2).toFixed(1)+";",
+      "const float u_halffilterheight = "+((filterHeight-1.0)/2).toFixed(1)+";",
+      "const float u_filtersize = "+(filterWidth*filterHeight)+".0;",
+      "const float u_divfiltersize = "+(1/(filterWidth*filterHeight)).toFixed(10)+";",
       "",
       "// our patches",
       "uniform sampler2D u_patches;",
@@ -70,29 +55,27 @@ var webglFilter = function() {
       "",
       "void main() {",
       "  vec4 colorSum = vec4(0.0, 0.0, 0.0, 0.0);",
-      "  // normalize the selection we take first",
-      "  vec4 msum = vec4(0.0, 0.0, 0.0, 0.0);",
-      "  vec4 msumsq = vec4(0.0, 0.0, 0.0, 0.0);",
-      "  vec4 mean = vec4(0.0, 0.0, 0.0, 0.0);",
+      "  vec4 maxn = vec4(0.0, 0.0, 0.0, 0.0);",
+      "  vec4 minn = vec4(256.0, 256.0, 256.0, 256.0);",
+      "  vec4 scale = vec4(0.0, 0.0, 0.0, 0.0);",
+      "  vec4 value = vec4(0.0, 0.0, 0.0, 0.0);",
       "  for (float w = 0.0;w < u_filterwidth;w++) {",
       "    for (float h = 0.0;h < u_filterheight;h++) {",
-      "      mean = texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(w-u_halffilterwidth, h-u_halffilterheight));",
-      "      msum += mean;",
-      "      msumsq += (mean * mean);",
+      "      value = texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(w-u_halffilterwidth, h-u_halffilterheight));",
+      "      maxn = max(value, maxn);",
+      "      minn = min(value, minn);",
       "    } ",
       "  }",
-      "  mean = msum * u_divfiltersize;",
-      "  vec4 sd = sqrt((msumsq * u_divfiltersize) - (mean * mean));",
-      "  ",
+      "  scale = maxn-minn;",
       "  for (float w = 0.0;w < u_filterwidth;w++) {",
       "    for (float h = 0.0;h < u_filterheight;h++) {",
       "      colorSum += ",
-      "        ((texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(w-u_halffilterwidth, h-u_halffilterheight))-mean)/(sd)) * ",
+      "        ((texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(w-u_halffilterwidth, h-u_halffilterheight))-minn)/(scale)) * ",
       "        texture2D(u_filters, v_texCoordFilters + u_onePixelFilters * vec2(w-u_halffilterwidth, h-u_halffilterheight)); ",
       "    } ",
       "  }",
-      "  // logit",
-      "  colorSum = 1.0-(1.0/(1.0 + exp(colorSum)));",
+      "  // logistic transformation",
+      "  colorSum = 1.0/(1.0 + exp(- (colorSum-1.0) ));",
       "  gl_FragColor = colorSum;",
       "}"
     ].join('\n');
@@ -100,11 +83,14 @@ var webglFilter = function() {
     numBlocks = Math.floor(numPatches / 4) + Math.ceil(numPatches % 4);
     canvasWidth = patchWidth;
     canvasHeight = patchHeight*numBlocks;
+    newCanvasWidth = patchWidth-filterWidth+1;
+    newCanvasBlockHeight = patchHeight-filterWidth+1;
+    newCanvasHeight = newCanvasBlockHeight*numPatches;
     
     //create canvas
     canvas = document.createElement('canvas')
-    canvas.setAttribute('width', (patchWidth-corrFilterWidth)+"px");
-    canvas.setAttribute('height', ((patchHeight-corrFilterHeight)*numPatches)+"px");
+    canvas.setAttribute('width', (patchWidth-filterWidth+1)+"px");
+    canvas.setAttribute('height', ((patchHeight-filterHeight+1)*numPatches)+"px");
     canvas.setAttribute('id', 'renderCanvas');
     canvas.setAttribute('style', 'display:none;');
     document.body.appendChild(canvas);
@@ -123,8 +109,9 @@ var webglFilter = function() {
     
     // calculate position of vertex rectangles to draw out
     var rectangles = [];
-    var halfFilter = corrFilterWidth/2;
+    var halfFilter = (filterWidth-1)/2;
     var yOffset;
+    
     for (var i = 0;i < numBlocks;i++) {
       yOffset = i*patchHeight;
       //first triangle
@@ -153,16 +140,28 @@ var webglFilter = function() {
     }
     irectangles = new Float32Array(irectangles);
     
+    // setup patchdraw program
+    var drVertexShader = loadShader(gl, drawResponsesVS, gl.VERTEX_SHADER);
+    var drFragmentShader = loadShader(gl, drawResponsesFS, gl.FRAGMENT_SHADER);
+    patchDrawProgram = createProgram(gl, [drVertexShader, drFragmentShader]);
+    gl.useProgram(patchDrawProgram);
+    
+    // set the resolution/dimension of the canvas
+    var resolutionLocation = gl.getUniformLocation(patchDrawProgram, "u_resolutiondraw");
+    gl.uniform2f(resolutionLocation, newCanvasWidth, newCanvasHeight);
+    
+    // set u_responses
+    var responsesLocation = gl.getUniformLocation(patchDrawProgram, "u_responses");
+    gl.uniform1i(responsesLocation, 2);
+    
+    
+    
+    
     // setup patchresponse program
     var prVertexShader = loadShader(gl, patchResponseVS, gl.VERTEX_SHADER);
     var prFragmentShader = loadShader(gl, patchResponseFS, gl.FRAGMENT_SHADER);
     patchResponseProgram = createProgram(gl, [prVertexShader, prFragmentShader]);
     gl.useProgram(patchResponseProgram);
-    
-    // setup patchdraw program
-    var drVertexShader = loadShader(gl, drawResponsesVS, gl.VERTEX_SHADER);
-    var drFragmentShader = loadShader(gl, drawResponsesFS, gl.FRAGMENT_SHADER);
-    patchDrawProgram = createProgram(gl, [drVertexShader, drFragmentShader]);
     
     // set the resolution/dimension of the canvas
     var resolutionLocation = gl.getUniformLocation(patchResponseProgram, "u_resolution");
@@ -211,7 +210,7 @@ var webglFilter = function() {
     // insert filters into float32array and pass to texture via this mechanism:
     // http://stackoverflow.com/questions/7709689/webgl-pass-array-shader
     var filterSize = filterWidth*filterHeight;
-    var filterArray = new Float32Array(filterSize*(numBlocks+1)*4);
+    var filterArray = new Float32Array(filterSize*(numBlocks)*4);
     for (var i = 0;i < numBlocks;i++) {
       for (var j = 0;j < filterHeight;j++) {
         for (var k = 0;k < filterWidth;k++) {
@@ -273,9 +272,6 @@ var webglFilter = function() {
     
     // preinitialization of drawOut variables
     
-    newCanvasWidth = patchWidth-corrFilterWidth;
-    newCanvasBlockHeight = patchHeight-corrFilterWidth;
-    newCanvasHeight = newCanvasBlockHeight*numPatches;
     // drawOutRectangles
     drawOutRectangles = new Float32Array(12*numPatches);
     var yOffset, indexOffset;
@@ -302,9 +298,9 @@ var webglFilter = function() {
     
     // images
     drawOutImages = new Float32Array(numPatches*12);
-    var patchCells = (Math.floor(numPatches / 4) + Math.ceil(numPatches % 4));
-    var halfFilterWidth = (corrFilterWidth/2)/patchWidth;
-    var halfFilterHeight = (corrFilterWidth/2)/(patchHeight*patchCells);
+    patchCells = (Math.floor(numPatches / 4) + Math.ceil(numPatches % 4));
+    var halfFilterWidth = ((filterWidth-1)/2)/patchWidth;
+    var halfFilterHeight = ((filterWidth-1)/2)/(patchHeight*patchCells);
     var patchHeightT = patchHeight / (patchHeight*patchCells);
     for (var i = 0;i < numPatches;i++) {
       yOffset = Math.floor(i / 4)*patchHeightT;
@@ -340,6 +336,13 @@ var webglFilter = function() {
       drawOutLayer[indexOffset+4] = layernum;
       drawOutLayer[indexOffset+5] = layernum;
     }
+    
+    // initialize patchvariables
+    textureWidth = patchWidth;
+    textureHeight = patchHeight*patchCells;
+    patchSize = patchWidth*patchHeight;
+    patchArray = new Float32Array(patchSize*patchCells*4);
+    
   }
 
   this.getResponses = function(patches, drawOut) {
@@ -369,13 +372,6 @@ var webglFilter = function() {
     }
     
     // pass patches into texture, each patch in either r, g, b or a
-    var numPatches = patches.length;
-    var patchCells = (Math.floor(numPatches / 4) + Math.ceil(numPatches % 4));
-    var textureWidth = patchWidth;
-    var textureHeight = patchHeight*patchCells;
-    var patchSize = patchWidth*patchHeight;
-    var patchArray = new Float32Array(patchSize*(patchCells+1)*4);
-    
     var patchArrayIndex = 0;
     var patchesIndex1 = 0;
     var patchesIndex2 = 0;
@@ -446,14 +442,6 @@ var webglFilter = function() {
       
       gl.clearColor(0.0, 0.0, 0.0, 1.0);
       gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER)
-      
-      // set the resolution/dimension of the canvas
-      var resolutionLocation = gl.getUniformLocation(patchDrawProgram, "u_resolutiondraw");
-      gl.uniform2f(resolutionLocation, newCanvasWidth, newCanvasHeight);
-      
-      // set u_responses
-      var responsesLocation = gl.getUniformLocation(patchDrawProgram, "u_responses");
-      gl.uniform1i(responsesLocation, 2);
       
       if (first) {
         drawRectBuffer = gl.createBuffer();

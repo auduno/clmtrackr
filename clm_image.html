@@ -111,7 +111,7 @@
 				<p>This is an example of precise face-tracking in an image using the javascript library <a href="https://github.com/auduno/clmtrackr"><em>clmtrackr</em></a>. To try it out, simply click start.</p>
 				<span id="loadimagetext"><p>To try it out with your own image, choose a file above by clicking "choose file". If the tracking has problems, try selecting the face in the image manually by clicking "manually select face", and click and hold to drag a square around the face in the image.</p></span>
 			</div>
-			<p>The image is from the <a href="www-prima.inrialpes.fr/FGnet/data/01-TalkingFace/talking_face.html‎">FG-net Talking Face</a> project</p>
+			<p>The image is from the <a href="http://www-prima.inrialpes.fr/FGnet/data/01-TalkingFace/talking_face.html‎">FG-net Talking Face</a> project</p>
 			<a href="https://github.com/auduno/clmtrackr"><img style="position: absolute; top: 0; left: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_left_green_007200.png" alt="Fork me on GitHub"></a>
 
 			<script>
@@ -125,43 +125,53 @@
 				};
 				img.src = './media/franck_02159.jpg';
 			
-				var ctrack = new clm.tracker({constantVelocity : true});
+				var ctrack = new clm.tracker({stopOnConvergence : true});
 				ctrack.init(pModel);
 			
 				stats = new Stats();
 				stats.domElement.style.position = 'absolute';
 				stats.domElement.style.top = '0px';
 				document.getElementById('container').appendChild( stats.domElement );
-			
-				function animate() {
-					var position = ctrack.track(document.getElementById('image'));
-					if (!position) {
-						alert("The tracking had problems with either finding a face in this image, or problems converging. Try selecting the face in the image manually.")
-					} else {
-						overlayCC.clearRect(0, 0, 720, 576);
-						ctrack.draw(overlay);
-						if (ctrack.getMovementSum() < 0.5) {
-							document.getElementById('convergence').innerHTML = "CONVERGED";
-							document.getElementById('convergence').style.backgroundColor = "#00FF00";
-						} else {
-							requestAnimFrame(animate);
-						}
-						stats.update();
-					}
+				
+				var drawRequest;
+				
+				function animate(box) {
+					ctrack.start(document.getElementById('image'), box);
+					drawLoop();
 				}
-
-				function animate2(box) {
-					ctrack.track(document.getElementById('image'), box);
+				
+				function drawLoop() {
+					drawRequest = requestAnimFrame(drawLoop);
 					overlayCC.clearRect(0, 0, 720, 576);
-					ctrack.draw(overlay);
-					if (ctrack.getMovementSum() < 0.5) {
-						document.getElementById('convergence').innerHTML = "CONVERGED";
-						document.getElementById('convergence').style.backgroundColor = "#00FF00";
-					} else {
-						requestAnimFrame(animate);
+					if (ctrack.getCurrentPosition()) {
+						ctrack.draw(overlay);
 					}
-					stats.update();
 				}
+				
+				// detect if tracker fails to find a face
+				document.addEventListener("clmtrackrNotFound", function(event) {
+					ctrack.stop();
+					alert("The tracking had problems with finding a face in this image. Try selecting the face in the image manually.")
+				}, false);
+				
+				// detect if tracker loses tracking of face
+				document.addEventListener("clmtrackrLost", function(event) {
+					ctrack.stop();
+					alert("The tracking had problems converging on a face in this image. Try selecting the face in the image manually.")
+				}, false);
+				
+				// detect if tracker has converged
+				document.addEventListener("clmtrackrConverged", function(event) {
+					document.getElementById('convergence').innerHTML = "CONVERGED";
+					document.getElementById('convergence').style.backgroundColor = "#00FF00";
+					// stop drawloop
+					cancelRequestAnimFrame(drawRequest);
+				}, false);
+				
+				// update stats on iteration
+				document.addEventListener("clmtrackrIteration", function(event) {
+					stats.update();
+				}, false);
 
 				// manual selection of faces (with jquery imgareaselect plugin)
 				function selectBox() {
@@ -176,7 +186,7 @@
 							var box = [selection.x1, selection.y1, selection.width, selection.height];
 							
 							// do fitting
-							animate2(box);
+							animate(box);
 							$('#overlay').removeClass('hide');
 						},
 						autoHide : true
