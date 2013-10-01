@@ -1,3 +1,4 @@
+"use strict";
 /*
  * MOSSE correlation filter
  *
@@ -246,7 +247,7 @@ function mosseFilter(params) {
         // find max and min
         var max = 0;
         var min = 0;
-        maxpos = [];
+        var maxpos = [];
         
         //method using centered gaussian prior
         if (gaussianPrior) {

@@ -39,7 +39,7 @@ Download the minified library [clmtrackr.js](https://github.com/auduno/clmtrackr
 The following code initiates the clmtrackr with the model we included, and starts the tracker running on a video element.
 
 ```html
-<video id="inputVideo" width="400", height="300" autoplay loop>
+<video id="inputVideo" width="400" height="300" autoplay loop>
   <source src="./media/somevideo.ogv" type="video/ogg"/>
 </video>
 <script type="text/javascript">

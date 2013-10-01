@@ -3,15 +3,18 @@ module.exports = function(grunt) {
 		concat: {
 			dist: {
 				src: [
-						'../examples/ext_js/jsfeat_detect.js',
-						'../examples/ext_js/mosse.js',
-						'../examples/ext_js/left_eye_filter.js',
-						'../examples/ext_js/right_eye_filter.js',
-						'../examples/ext_js/nose_filter.js',
+						'./license.js',
 						'./clm.js',
 						'./svmfilter_webgl.js',
 						'./svmfilter_fft.js',
-						'./svmfilter_mosse.js',
+						'./mossefilter.js',
+						'../examples/ext_js/left_eye_filter.js',
+						'../examples/ext_js/right_eye_filter.js',
+						'../examples/ext_js/nose_filter.js',
+						'../examples/ext_js/numeric-1.2.6.js',
+						'../examples/ext_js/ccv.js',
+						'../examples/ext_js/cascade.js',
+						'../examples/ext_js/mosse.js',
 						],
 				dest: './clmtrackr.js'
 			}

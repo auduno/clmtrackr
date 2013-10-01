@@ -1,5 +1,5 @@
 "use strict";
-//requires: jsfeat, numeric.js
+//requires: ccv.js, numeric.js
 
 var clm = {
 	tracker : function(params) {
@@ -605,7 +605,7 @@ var clm = {
 		/*
 		 *	draw model on given canvas
 		 */
-		this.draw = function(canvas, pv) {
+		this.draw = function(canvas, pv, path) {
 			// if no previous points, just draw in the middle of canvas
 			
 			var params;
@@ -620,7 +620,13 @@ var clm = {
 			cc.strokeStyle = "rgb(130,255,50)";
 			//cc.lineWidth = 1;
 			
-			var paths = model.path.normal;
+			var paths;
+			if (path === undefined) {
+				paths = model.path.normal;
+			} else {
+				paths = model.path[path];
+			}
+
 			for (var i = 0;i < paths.length;i++) {
 				if (typeof(paths[i]) == 'number') {
 					drawPoint(cc, paths[i], params);
@@ -788,11 +794,12 @@ var clm = {
 			cc.drawImage(el, 0, 0, el.width, el.height);
 			
 			// do viola-jones on canvas to get initial guess, if we don't have any points
-			/*var comp = ccv.detect_objects(
+			var comp = ccv.detect_objects(
 				ccv.grayscale(canvas), ccv.cascade, 5, 1
-			);*/
-			var jf = new jsfeat_face(canvas);
-			var comp = jf.findFace();
+			);
+			
+			//var jf = new jsfeat_face(canvas);
+			//var comp = jf.findFace();
 			
 			if (comp.length > 0) {
 				candidate = comp[0];
@@ -800,11 +807,11 @@ var clm = {
 				return false;
 			}
 			
-			/*for (var i = 1; i < comp.length; i++) {
+			for (var i = 1; i < comp.length; i++) {
 				if (comp[i].confidence > candidate.confidence) {
 					candidate = comp[i];
 				}
-			}*/
+			}
 			
 			return candidate;
 		}
