@@ -3,15 +3,17 @@ clmtrackr
 
 ![tracked face](http://auduno.github.com/clmtrackr/media/clmtrackr_03.jpg)
 
-**clmtrackr** is a javascript library for precise tracking of facial features in videos or images. It currently is an implementation of *constrained local models* fitted by *regularized landmark mean-shift*, as described in [Jason M. Saragih's paper](http://dl.acm.org/citation.cfm?id=1938021). **clmtrackr** tracks a face and outputs the coordinate positions of the facial features as an array, following the numbering of the model below:
+**clmtrackr** is a javascript library for fitting facial models to faces in videos or images. It currently is an implementation of *constrained local models* fitted by *regularized landmark mean-shift*, as described in [Jason M. Saragih's paper](http://dl.acm.org/citation.cfm?id=1938021). **clmtrackr** tracks a face and outputs the coordinate positions of the face model as an array, following the numbering of the model below:
 
 [![facemodel_numbering](http://auduno.github.com/clmtrackr/media/facemodel_numbering_new_small.png)](http://auduno.github.com/clmtrackr/media/facemodel_numbering_new.png)
 
-The library provides some generic face models that were trained on [the MUCT database](http://www.milbo.org/muct/). The aim is to provide a model that is trained on a larger set of facial expressions, as well as a model builder for building your own models.
+The library provides some generic face models that were trained on [the MUCT database](http://www.milbo.org/muct/) and some additional self-annotated images. The aim is to also provide a model builder for building your own facial models.
 
-The library requires [jsfeat](https://github.com/inspirit/jsfeat) (for initial face detection) and [numeric.js](http://numericjs.com) (for matrix math).
+The library requires [ccv.js](https://github.com/liuliu/ccv) (for initial face detection) and [numeric.js](http://numericjs.com) (for matrix math).
 
 For tracking in video, it is recommended to use a browser with WebGL support, though the library should work on any modern browser.
+
+[Reference](http://auduno.github.io/clmtrackr/docs/reference.html)
 
 For some more information about Constrained Local Models, take a look at Xiaoguang Yan's [excellent tutorial](https://sites.google.com/site/xgyanhome/home/projects/clm-implementation/ConstrainedLocalModel-tutorial%2Cv0.7.pdf?attredirects=0), which was of great help in implementing this library.
 
@@ -24,13 +26,9 @@ For some more information about Constrained Local Models, take a look at Xiaogua
 
 ### Usage ###
 
-Download the minified library [clmtrackr.js](https://github.com/auduno/clmtrackr/raw/dev/clmtrackr.js) and one of the models, and include them in your webpage. Since **clmtrackr** uses [*numeric.js*](https://github.com/sloisel/numeric/) for matrix calculations and [*jsfeat*](https://github.com/inspirit/jsfeat) for initial face detection, remember to also include these libraries, as well as a trained jsfeat facedetection model [*frontalface.js*](https://github.com/inspirit/jsfeat/blob/master/cascades/frontalface.js).
+Download the minified library [clmtrackr.js](https://github.com/auduno/clmtrackr/raw/dev/clmtrackr.js) and one of the models, and include them in your webpage. **clmtrackr** depends on [*numeric.js*](https://github.com/sloisel/numeric/) and [*ccv.js*](https://github.com/liuliu/ccv), but these are included in the minified library.
 
 ```html
-/* external libraries */
-<script src="js/jsfeat-min.js"></script>
-<script src="js/numeric-1.2.6.min.js"></script>
-<script src="js/frontalface.js"></script>
 /* clmtrackr libraries */
 <script src="js/clmtrackr.js"></script>
 <script src="js/model_pca_20_svm.js"></script>
