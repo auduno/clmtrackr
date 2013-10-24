@@ -162,9 +162,41 @@ ctracker.draw(drawCanvas);</code></pre>
   <li><strong>clmtrackr.js</strong> : minified version of the above files plus external libraries</li>
   </ul>
 
+  <h2>Utility libraries</h2>
+
+  <p><em>face_deformer.js</em> is a small library for deforming a face from an image or video, and output it on a webgl canvas. This is used in the <a href="http://auduno.github.com/clmtrackr/face_mask.html">face masking</a> and <a href="http://auduno.github.com/clmtrackr/face_deformation_video.html">face deformation</a> demos. </p>
+  <p>Example usage:</p>
+
+  <pre><code>var fd = new faceDeformer();
+// initialize the facedeformer with the webgl canvas to draw on
+fd.init(webGLCanvas);
+// load the image element where the face should be copied from
+// along with the position of the face
+fd.load(imageElement, points, model);
+// draw the deformed face on the webgl canvas
+fd.draw(points);</code></pre>
+  
+  <p>These are the functions that the <code>faceDeformer</code> object exposes:</p>
+
   <ul>
-  <li><strong>face_deformer.js</strong> : face deformer library used in <a href="http://auduno.github.com/clmtrackr/face_deformation_video.html">face deformation</a> example
-  </li>
+    <li><strong><em>init</em></strong>( <em>canvas</em> ) : initialize the face deformer with a webGL canvas.</li>
+      <ul>
+        <li><em>canvas</em> : a webgl canvas element</li>
+      </ul>
+    <li><strong><em>load</em></strong>( <em>element</em>, <em>points</em>, <em>model</em> ) : load the face to deform from an image, video or canvas element.</li>
+      <ul>
+        <li><em>element</em> : a <em>canvas</em>, <em>image</em> or <em>video</em> element</li>
+        <li><em>points</em> : the position of the face on the element, according to the face model above, as an array of positions <code>[[x<sub>0</sub>, y<sub>0</sub>], ... , [x<sub>n</sub>, y<sub>n</sub>]]</code>.</li>
+      </ul>
+    <li><strong><em>draw</em></strong>( <em>points</em> ) : draw the deformed face on the webgl canvas.</li>
+      <ul>
+        <li><em>points</em> : the new points to deform the face to, as an array of positions <code>[[x<sub>0</sub>, y<sub>0</sub>], ... , [x<sub>n</sub>, y<sub>n</sub>]]</code>.</li>
+      </ul>
+    <li><strong><em>drawGrid</em></strong>( <em>points</em> ) : draw the grid of the vertices which are used to deform the face on the webgl canvas.</li>
+      <ul>
+        <li><em>points</em> : the new points to deform the face to, as an array of positions <code>[[x<sub>0</sub>, y<sub>0</sub>], ... , [x<sub>n</sub>, y<sub>n</sub>]]</code>.</li>
+      </ul>
+    <li><strong><em>clear</em></strong>( ) : clear the webgl canvas.</li>
   </ul>
 
   <h2>License</h2>
