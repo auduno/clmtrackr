@@ -159,7 +159,7 @@
 					startbutton.disabled = null;
 				}
 				
-				var insertAltVideo = function(video) {
+				/*var insertAltVideo = function(video) {
 					if (supports_video()) {
 						if (supports_ogg_theora_video()) {
 							video.src = "../media/cap12_edit.ogv";
@@ -171,7 +171,7 @@
 						//video.play();
 						return true;
 					} else return false;
-				}
+				}*/
 				navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
 				window.URL = window.URL || window.webkitURL || window.msURL || window.mozURL;
 
@@ -195,12 +195,12 @@
 						}
 						vid.play();
 					}, function() {
-						insertAltVideo(vid);
-						alert("There was some problem trying to fetch video from your webcam, using a fallback video instead.");
+						//insertAltVideo(vid);
+						alert("There was some problem trying to fetch video from your webcam. If you have a webcam, please make sure to accept when the browser asks for access to your webcam.");
 					});
 				} else {
-					insertAltVideo(vid);
-					alert("Your browser does not seem to support getUserMedia, using a fallback video instead.");
+					//insertAltVideo(vid);
+					alert("This demo depends on getUserMedia, which your browser does not seem to support. :(");
 				}
 
 				vid.addEventListener('canplay', enablestart, false);
