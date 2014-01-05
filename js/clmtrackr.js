@@ -375,8 +375,8 @@ var clm = {
 
 			var pdata, pmatrix, grayscaleColor;
 			for (var i = 0; i < numPatches; i++) {
-				px = patchPositions[i][0]-((pw-1)/2);
-				py = patchPositions[i][1]-((pl-1)/2);
+				px = patchPositions[i][0]-(pw/2);
+				py = patchPositions[i][1]-(pl/2);
 				ptch = sketchCC.getImageData(Math.round(px), Math.round(py), pw, pl);
 				pdata = ptch.data;
 				

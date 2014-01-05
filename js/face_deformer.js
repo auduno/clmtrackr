@@ -19,9 +19,13 @@ var faceDeformer = function() {
     gl = getWebGLContext(canvas); 
   }
 
-  this.load = function(element, points, pModel) {
+  this.load = function(element, points, pModel, vertices) {
     pdmModel = pModel;
-    verticeMap = pdmModel.path.vertices;
+    if (vertices) {
+      verticeMap = vertices;
+    } else {
+      verticeMap = pdmModel.path.vertices;
+    }
     numTriangles = verticeMap.length;
     
     // get cropping
@@ -35,6 +39,10 @@ var faceDeformer = function() {
       if (points[i][1] > maxy) maxy = points[i][1];
       if (points[i][1] < miny) miny = points[i][1];
     }
+    minx = Math.floor(minx);
+    maxx = Math.ceil(maxx);
+    miny = Math.floor(miny);
+    maxy = Math.ceil(maxy);
     width = maxx-minx;
     height = maxy-miny;
 
@@ -47,7 +55,7 @@ var faceDeformer = function() {
     } else if (element.tagName == 'CANVAS') {
       var cc = element.getContext('2d');
     }
-    var image = cc.getImageData(minx, miny, width+1, height+1);
+    var image = cc.getImageData(minx, miny, width, height);
     
     // correct points
     var nupoints = [];
