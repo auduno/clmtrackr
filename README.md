@@ -7,22 +7,23 @@ clmtrackr
 
 [![facemodel_numbering](http://auduno.github.com/clmtrackr/media/facemodel_numbering_new_small.png)](http://auduno.github.com/clmtrackr/media/facemodel_numbering_new.png)
 
+[Reference](http://auduno.github.io/clmtrackr/docs/reference.html) - [Overview](http://auduno.tumblr.com/post/61888277175/fitting-faces)
+
 The library provides some generic face models that were trained on [the MUCT database](http://www.milbo.org/muct/) and some additional self-annotated images. The aim is to also provide a model builder for building your own facial models.
 
 The library requires [ccv.js](https://github.com/liuliu/ccv) (for initial face detection) and [numeric.js](http://numericjs.com) (for matrix math).
 
 For tracking in video, it is recommended to use a browser with WebGL support, though the library should work on any modern browser.
 
-[Reference](http://auduno.github.io/clmtrackr/docs/reference.html)
-
 For some more information about Constrained Local Models, take a look at Xiaoguang Yan's [excellent tutorial](https://sites.google.com/site/xgyanhome/home/projects/clm-implementation/ConstrainedLocalModel-tutorial%2Cv0.7.pdf?attredirects=0), which was of great help in implementing this library.
 
 ### Examples ###
 
-* [Tracking in image](http://auduno.github.com/clmtrackr/clm_image.html)
-* [Tracking in video](http://auduno.github.com/clmtrackr/clm_video.html)
-* [Face masking](http://auduno.github.com/clmtrackr/face_mask.html)
-* [Face deformation](http://auduno.github.com/clmtrackr/face_deformation_video.html)
+* [Tracking in image](http://auduno.github.io/clmtrackr/clm_image.html)
+* [Tracking in video](http://auduno.github.io/clmtrackr/clm_video.html)
+* [Face substitution](http://auduno.github.io/clmtrackr/examples/facesubstitution.html)
+* [Face masking](http://auduno.github.io/clmtrackr/face_mask.html)
+* [Face deformation](http://auduno.github.io/clmtrackr/face_deformation_video.html)
 * [Emotion detection](http://auduno.github.io/clmtrackr/examples/clm_emotiondetection.html)
 
 ### Usage ###
