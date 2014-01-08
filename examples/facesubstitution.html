@@ -253,7 +253,10 @@
 
 				function updateMask(el) {
 					currentMask = parseInt(el.target.value, 10);
-					switchMasks(ctrack.getCurrentPosition(vid));
+					var positions = ctrack.getCurrentPosition(vid);
+					if (positions) {
+						switchMasks(positions);
+					}
 				}
 
 				function startVideo() {
@@ -380,6 +383,7 @@
 				function drawGridLoop() {
 					// get position of face
 					positions = ctrack.getCurrentPosition(vid);
+
 					overlayCC.clearRect(0, 0, 500, 375);
 					if (positions) {
 						// draw current grid
