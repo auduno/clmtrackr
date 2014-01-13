@@ -867,7 +867,7 @@ var clm = {
 		
 		// calculate score of current fit
 		var checkTracking = function() {			
-			scoringContext.drawImage(sketchCanvas, msxmin, msymin, msmodelwidth, msmodelheight, 0, 0, 20, 22);
+			scoringContext.drawImage(sketchCanvas, Math.round(msxmin), Math.round(msymin), Math.round(msmodelwidth), Math.round(msmodelheight), 0, 0, 20, 22);
 			// getImageData of canvas
 			var imgData = scoringContext.getImageData(0,0,20,22);
 			// convert data to grayscale
