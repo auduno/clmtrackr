@@ -22,7 +22,7 @@ var webglFilter = function() {
     
     // if filter width is not odd, alert
     if (fW % 2 == 0 || fH % 2 == 0) {
-      alert("filters used in svm must be of odd dimensions!")
+      alert("filters used in svm must be of odd dimensions!");
       return;
     }
     
@@ -31,18 +31,20 @@ var webglFilter = function() {
     patchWidth = pW;
     patchHeight = pH;
     numPatches = nP;
+    numBlocks = Math.floor(numPatches / 4) + Math.ceil(numPatches % 4);
+    canvasWidth = patchWidth;
+    canvasHeight = patchHeight*numBlocks;
+    newCanvasWidth = patchWidth-filterWidth+1;
+    newCanvasBlockHeight = patchHeight-filterWidth+1;
+    newCanvasHeight = newCanvasBlockHeight*numPatches;
 
     patchResponseFS = [
       "precision mediump float;",
       "",
-      "uniform vec2 u_onePixelFilters;",
-      "uniform vec2 u_onePixelPatches;",
-      "const float u_filterwidth = "+filterWidth.toFixed(1)+";",
-      "const float u_filterheight = "+filterHeight.toFixed(1)+";",
+      "const vec2 u_onePixelPatches = vec2("+(1/patchWidth).toFixed(10)+","+(1/(patchHeight*numBlocks)).toFixed(10)+");",
+      "const vec2 u_onePixelFilters = vec2("+(1/filterWidth).toFixed(10)+","+(1/(filterHeight*numBlocks)).toFixed(10)+");",
       "const float u_halffilterwidth = "+((filterWidth-1.0)/2).toFixed(1)+";",
       "const float u_halffilterheight = "+((filterHeight-1.0)/2).toFixed(1)+";",
-      "const float u_filtersize = "+(filterWidth*filterHeight)+".0;",
-      "const float u_divfiltersize = "+(1/(filterWidth*filterHeight)).toFixed(10)+";",
       "",
       "// our patches",
       "uniform sampler2D u_patches;",
@@ -59,19 +61,19 @@ var webglFilter = function() {
       "  vec4 minn = vec4(256.0, 256.0, 256.0, 256.0);",
       "  vec4 scale = vec4(0.0, 0.0, 0.0, 0.0);",
       "  vec4 value = vec4(0.0, 0.0, 0.0, 0.0);",
-      "  for (float w = 0.0;w < u_filterwidth;w++) {",
-      "    for (float h = 0.0;h < u_filterheight;h++) {",
-      "      value = texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(w-u_halffilterwidth, h-u_halffilterheight));",
+      "  for (int w = 0;w < "+filterWidth+";w++) {",
+      "    for (int h = 0;h < "+filterHeight+";h++) {",
+      "      value = texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(float(w)-u_halffilterwidth, float(h)-u_halffilterheight));",
       "      maxn = max(value, maxn);",
       "      minn = min(value, minn);",
       "    } ",
       "  }",
       "  scale = maxn-minn;",
-      "  for (float w = 0.0;w < u_filterwidth;w++) {",
-      "    for (float h = 0.0;h < u_filterheight;h++) {",
+      "  for (int w = 0;w < "+filterWidth+";w++) {",
+      "    for (int h = 0;h < "+filterHeight+";h++) {",
       "      colorSum += ",
-      "        ((texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(w-u_halffilterwidth, h-u_halffilterheight))-minn)/(scale)) * ",
-      "        texture2D(u_filters, v_texCoordFilters + u_onePixelFilters * vec2(w-u_halffilterwidth, h-u_halffilterheight)); ",
+      "        ((texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(float(w)-u_halffilterwidth, float(h)-u_halffilterheight))-minn)/(scale)) * ",
+      "        texture2D(u_filters, v_texCoordFilters + u_onePixelFilters * vec2(float(w)-u_halffilterwidth, float(h)-u_halffilterheight)); ",
       "    } ",
       "  }",
       "  // logistic transformation",
@@ -80,12 +82,38 @@ var webglFilter = function() {
       "}"
     ].join('\n');
     
-    numBlocks = Math.floor(numPatches / 4) + Math.ceil(numPatches % 4);
-    canvasWidth = patchWidth;
-    canvasHeight = patchHeight*numBlocks;
-    newCanvasWidth = patchWidth-filterWidth+1;
-    newCanvasBlockHeight = patchHeight-filterWidth+1;
-    newCanvasHeight = newCanvasBlockHeight*numPatches;
+    patchResponseVS = [
+      "attribute vec2 a_texCoord;",
+      "attribute vec2 a_position;",
+      "",
+      "const vec2 u_resolution = vec2("+canvasWidth.toFixed(1)+","+canvasHeight.toFixed(1)+");",
+      "const float u_patchHeight = "+(1/numBlocks).toFixed(10)+";",
+      "const float u_filterHeight = "+(1/numBlocks).toFixed(10)+";",
+      "const vec2 u_midpoint = vec2(0.5 ,"+(1/(numBlocks*2)).toFixed(10)+");",
+      "",
+      "varying vec2 v_texCoord;",
+      "varying vec2 v_texCoordFilters;",
+      "",
+      "void main() {",
+      "   // convert the rectangle from pixels to 0.0 to 1.0",
+      "   vec2 zeroToOne = a_position / u_resolution;",
+      "",
+      "   // convert from 0->1 to 0->2",
+      "   vec2 zeroToTwo = zeroToOne * 2.0;",
+      "",
+      "   // convert from 0->2 to -1->+1 (clipspace)",
+      "   vec2 clipSpace = zeroToTwo - 1.0;",
+      "   ",
+      "   // transform coordinates to regular coordinates",
+      "   gl_Position = vec4(clipSpace * vec2(1.0, 1.0), 0, 1);",
+      " ",
+      "   // pass the texCoord to the fragment shader",
+      "   v_texCoord = a_texCoord;",
+      "   ",
+      "   // set the filtertexture coordinate based on number filter to use",
+      "   v_texCoordFilters = u_midpoint + vec2(0.0, u_filterHeight * floor(a_texCoord[1]/u_patchHeight));",
+      "}"
+    ].join('\n');
     
     //create canvas
     canvas = document.createElement('canvas')
@@ -103,9 +131,6 @@ var webglFilter = function() {
       alert("Your graphics card does not support floating point textures! :(");
       return;
     }
-    
-    // TODO : alternatively set up fallback to packing and unpacking floats:
-    //   http://stackoverflow.com/questions/9882716/packing-float-into-vec4-how-does-this-code-work
     
     // calculate position of vertex rectangles to draw out
     var rectangles = [];
@@ -162,30 +187,6 @@ var webglFilter = function() {
     var prFragmentShader = loadShader(gl, patchResponseFS, gl.FRAGMENT_SHADER);
     patchResponseProgram = createProgram(gl, [prVertexShader, prFragmentShader]);
     gl.useProgram(patchResponseProgram);
-    
-    // set the resolution/dimension of the canvas
-    var resolutionLocation = gl.getUniformLocation(patchResponseProgram, "u_resolution");
-    gl.uniform2f(resolutionLocation, canvasWidth, canvasHeight);
-    
-    // set the patchHeight
-    var patchHeightLocation = gl.getUniformLocation(patchResponseProgram, "u_patchHeight");
-    gl.uniform1f(patchHeightLocation, 1/numBlocks);
-    
-    // set the filterHeight
-    var filterHeightLocation = gl.getUniformLocation(patchResponseProgram, "u_filterHeight");
-    gl.uniform1f(filterHeightLocation, 1/numBlocks);
-    
-    // set the midpoint
-    var midpointLocation = gl.getUniformLocation(patchResponseProgram, "u_midpoint");
-    gl.uniform2f(midpointLocation, 0.5, (1/(numBlocks*2.0)) );
-    
-    // set the onepixel size for patches
-    var onePixelPatchLocation = gl.getUniformLocation(patchResponseProgram, "u_onePixelPatches");
-    gl.uniform2f(onePixelPatchLocation, 1/patchWidth, 1/(patchHeight*numBlocks));
-    
-    // set the onepixel size for filters
-    var onePixelFilterLocation = gl.getUniformLocation(patchResponseProgram, "u_onePixelFilters");
-    gl.uniform2f(onePixelFilterLocation, 1/filterWidth, 1/(filterHeight*numBlocks));
     
     // set up vertices with rectangles
     var positionLocation = gl.getAttribLocation(patchResponseProgram, "a_position");
@@ -561,39 +562,7 @@ var webglFilter = function() {
     return response
   }
   
-  var patchResponseVS = [
-    "attribute vec2 a_texCoord;",
-    "attribute vec2 a_position;",
-    "",
-    "uniform vec2 u_resolution;",
-    "uniform float u_patchHeight;",
-    "uniform float u_filterHeight;",
-    "uniform vec2 u_midpoint;",
-    "",
-    "varying vec2 v_texCoord;",
-    "varying vec2 v_texCoordFilters;",
-    "",
-    "void main() {",
-    "   // convert the rectangle from pixels to 0.0 to 1.0",
-    "   vec2 zeroToOne = a_position / u_resolution;",
-    "",
-    "   // convert from 0->1 to 0->2",
-    "   vec2 zeroToTwo = zeroToOne * 2.0;",
-    "",
-    "   // convert from 0->2 to -1->+1 (clipspace)",
-    "   vec2 clipSpace = zeroToTwo - 1.0;",
-    "   ",
-    "   // transform coordinates to regular coordinates",
-    "   gl_Position = vec4(clipSpace * vec2(1.0, 1.0), 0, 1);",
-    " ",
-    "   // pass the texCoord to the fragment shader",
-    "   v_texCoord = a_texCoord;",
-    "   ",
-    "   // set the filtertexture coordinate based on number filter to use",
-    "   v_texCoordFilters = u_midpoint + vec2(0.0, u_filterHeight * floor(a_texCoord[1]/u_patchHeight));",
-    "}"
-  ].join('\n');
-  
+  var patchResponseVS;
   var patchResponseFS;
   
   var drawResponsesVS = [
