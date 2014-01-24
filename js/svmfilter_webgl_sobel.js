@@ -164,7 +164,7 @@ var webglFilter = function() {
     document.body.appendChild(canvas);
     
     // TODO : isolate this library from webgl-util.js
-    gl = setupWebGL(canvas, {premultipliedAlpha: false, preserveDrawingBuffer : true});
+    gl = setupWebGL(canvas, {premultipliedAlpha: false, preserveDrawingBuffer : true, antialias : false});
     
     // check for float textures support and fail if not
     if (!gl.getExtension("OES_texture_float")) {
