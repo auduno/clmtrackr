@@ -3,10 +3,8 @@
 var webglFilter = function() {
   var gl, canvas;
   var filterWidth, filterHeight, patchWidth, patchHeight, numPatches, canvasWidth, canvasHeight;
-  var corrFilterWidth, corrFilterHeight;
   var patchResponseProgram, patchDrawProgram;
   var fbo, numBlocks, patchTex;
-  var first = true;
   var drawRectBuffer, drawLayerBuffer, drawImageBuffer, rttTexture, filters;
   var texCoordBuffer, texCoordLocation, apositionBuffer;
   var newCanvasWidth, newCanvasBlockHeight, newCanvasHeight;
@@ -15,8 +13,11 @@ var webglFilter = function() {
   var gradientResponseProgram;
   var gbo, gradTexCoordLocation, gradTexCoordBuffer, gradPositionLocation, gradAPositionBuffer;
   
-  this.init = function(filterVector, nP, pW, pH, fW, fH, drawOut) {
+  var first = true;
+  
+  this.init = function(filterVector, nP, pW, pH, fW, fH) {
     // we assume filterVector goes from left to right, rowwise
+    
     if (fW != fH) {
       alert("filter width and height must be same size!");
       return;
@@ -26,11 +27,10 @@ var webglFilter = function() {
     if (fW % 2 == 0 || fH % 2 == 0) {
       alert("filters used in svm must be of odd dimensions");
       return;
-    } else {
-      filterWidth = fW;
-      filterHeight = fH;
     }
 
+    filterWidth = fW;
+    filterHeight = fH;
     patchWidth = pW;
     patchHeight = pH;
     numPatches = nP;
@@ -118,8 +118,8 @@ var webglFilter = function() {
     ].join('\n');
     
     //onePixelPatches
-      var opp = [1/patchWidth, 1/(patchHeight*numBlocks)];
-      
+    var opp = [1/patchWidth, 1/(patchHeight*numBlocks)];
+    
     gradientResponseFS = [
       "precision mediump float;",
       "",
@@ -171,9 +171,6 @@ var webglFilter = function() {
       alert("Your graphics card does not support floating point textures! :(");
       return;
     }
-    
-    // TODO : alternatively set up fallback to packing and unpacking floats:
-    //   http://stackoverflow.com/questions/9882716/packing-float-into-vec4-how-does-this-code-work
     
     // calculate position of vertex rectangles to draw out
     var rectangles = [];
@@ -463,7 +460,7 @@ var webglFilter = function() {
     textureWidth = patchWidth;
     textureHeight = patchHeight*patchCells;
     patchSize = patchWidth*patchHeight;
-    patchArray = new Float32Array(patchSize*(patchCells+1)*4);
+    patchArray = new Float32Array(patchSize*patchCells*4);
     
     gl.useProgram(patchResponseProgram);
     gl.uniform1i(gl.getUniformLocation(patchResponseProgram, "u_patches"), 3);
@@ -860,6 +857,7 @@ var webglFilter = function() {
         window.console.log(msg);
       }
     }
+    throw msg;
   };
 
   /**
@@ -1022,7 +1020,7 @@ var webglFilter = function() {
     var compiled = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
     if (!compiled) {
       // Something went wrong during compilation; get the error
-      lastError = gl.getShaderInfoLog(shader);
+      var lastError = gl.getShaderInfoLog(shader);
       errFn("*** Error compiling shader '" + shader + "':" + lastError);
       gl.deleteShader(shader);
       return null;
@@ -1057,7 +1055,7 @@ var webglFilter = function() {
     var linked = gl.getProgramParameter(program, gl.LINK_STATUS);
     if (!linked) {
         // something went wrong with the link
-        lastError = gl.getProgramInfoLog (program);
+        var lastError = gl.getProgramInfoLog (program);
         error("Error in program linking:" + lastError);
 
         gl.deleteProgram(program);
