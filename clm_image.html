@@ -233,7 +233,7 @@
 
 				// set up file selector and variables to hold selections
 				var fileList, fileIndex;
-				if (window.File && window.FileReader && window.FileList && window.FileError) {
+				if (window.File && window.FileReader && window.FileList) {
 					function handleFileSelect(evt) {
 						var files = evt.target.files;
 						fileList = [];
