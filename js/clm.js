@@ -193,7 +193,15 @@ var clm = {
 				
 				if (webGLContext && params.useWebGL && (typeof(webglFilter) !== "undefined")) {
 					webglFi = new webglFilter();
-					webglFi.init(weights, numPatches, searchWindow+patchSize-1, searchWindow+patchSize-1, patchSize, patchSize, true);
+					try {
+						webglFi.init(weights, numPatches, searchWindow+patchSize-1, searchWindow+patchSize-1, patchSize, patchSize, true);
+					} 
+					catch(err) {
+						alert("There was a problem setting up webGL programs, falling back to slightly slower javascript version. :(");
+						webglFi = undefined;
+						svmFi = new svmFilter();
+						svmFi.init(weights, numPatches, patchSize, searchWindow);
+					}
 				} else if (typeof(svmFilter) !== "undefined") {
 					// use fft convolution if no webGL is available
 					svmFi = new svmFilter();
