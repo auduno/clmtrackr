@@ -18,7 +18,10 @@ var clm = {
 		var eigenVectors, eigenValues;
 		var sketchCC, sketchW, sketchH, sketchCanvas;
 		var candidate;
-		var weights, model;
+		var weights, model, biases;
+		
+		var sobelInit = false;
+		var lbpInit = false;
 		
 		var currentParameters = [];
 		var currentPositions = [];
@@ -28,6 +31,10 @@ var clm = {
 		var patches = [];
 		var responses = [];
 		var meanShape = [];
+		
+		var responseMode = 'single';
+		var responseList = ['raw'];
+		var responseIndex = 0;
 		
 		/*
 		It's possible to experiment with the sequence of variances used for the finding the maximum in the KDE.
@@ -165,6 +172,7 @@ var clm = {
 			eigenValues = model.shapeModel.eigenValues;
 			
 			weights = model.patchModel.weights;
+			biases = model.patchModel.bias;
 			
 			// precalculate gaussianPriorDiagonal
 			gaussianPD = numeric.rep([numParameters+4, numParameters+4],0);
@@ -194,18 +202,20 @@ var clm = {
 				if (webGLContext && params.useWebGL && (typeof(webglFilter) !== "undefined")) {
 					webglFi = new webglFilter();
 					try {
-						webglFi.init(weights, numPatches, searchWindow+patchSize-1, searchWindow+patchSize-1, patchSize, patchSize, true);
+						webglFi.init(weights, biases, numPatches, searchWindow+patchSize-1, searchWindow+patchSize-1, patchSize, patchSize);
+						if ('lbp' in weights) lbpInit = true;
+						if ('sobel' in weights) sobelInit = true;
 					} 
 					catch(err) {
 						alert("There was a problem setting up webGL programs, falling back to slightly slower javascript version. :(");
 						webglFi = undefined;
 						svmFi = new svmFilter();
-						svmFi.init(weights, numPatches, patchSize, searchWindow);
+						svmFi.init(weights['raw'], biases['raw'], numPatches, patchSize, searchWindow);
 					}
 				} else if (typeof(svmFilter) !== "undefined") {
 					// use fft convolution if no webGL is available
 					svmFi = new svmFilter();
-					svmFi.init(weights, numPatches, patchSize, searchWindow);
+					svmFi.init(weights['raw'], biases['raw'], numPatches, patchSize, searchWindow);
 				} else {
 					throw "Could not initiate filters, please make sure that svmfilter.js or svmfilter_conv_js.js is loaded."
 				}
@@ -399,17 +409,16 @@ var clm = {
 					drawData(sketchCC, patches[i], pw, pl, false, patchPositions[i][0]-(pw/2), patchPositions[i][1]-(pl/2));
 				}
 			}*/
-			
 			if (patchType == "SVM") {
 				if (typeof(webglFi) !== "undefined") {
-					var responses = webglFi.getResponses(patches, true);
+					responses = getWebGLResponses(patches);
 				} else if (typeof(svmFi) !== "undefined"){
-					var responses = svmFi.getResponses(patches);
+					responses = svmFi.getResponses(patches);
 				} else {
 					throw "SVM-filters do not seem to be initiated properly."
 				}
 			} else if (patchType == "MOSSE") {
-				var responses = mosseCalc.getResponses(patches);
+				responses = mosseCalc.getResponses(patches);
 			}
 
 			// option to increase sharpness of responses
@@ -431,10 +440,10 @@ var clm = {
 					nuWeights.push(responses[i][j]*255);
 				}
 				
-				//drawData(sketchCC, nuWeights, searchWindow, searchWindow, false, patchPositions[i][0]-((searchWindow-1)/2), patchPositions[i][1]-((searchWindow-1)/2));
-				if ([27,32,44,50].indexOf(i) > -1) {
-					drawData(sketchCC, nuWeights, searchWindow, searchWindow, false, patchPositions[i][0]-((searchWindow-1)/2), patchPositions[i][1]-((searchWindow-1)/2));
-				}
+				//if ([27,32,44,50].indexOf(i) > -1) {
+				//	drawData(sketchCC, nuWeights, searchWindow, searchWindow, false, patchPositions[i][0]-((searchWindow-1)/2), patchPositions[i][1]-((searchWindow-1)/2));
+				//}
+				drawData(sketchCC, nuWeights, searchWindow, searchWindow, false, patchPositions[i][0]-((searchWindow-1)/2), patchPositions[i][1]-((searchWindow-1)/2));
 			}*/
 			
 			// iterate until convergence or max 10, 20 iterations?:
@@ -716,6 +725,49 @@ var clm = {
 			msavg /= previousPositions.length
 			return msavg;
 		}
+		
+		/*
+		 * Set response mode (only useful if webGL is available)
+		 * mode : either "single", "blend" or "cycle"
+		 * list : array of values "raw", "sobel", "lbp"
+		 */
+		this.setResponseMode = function(mode, list) {
+			// clmtrackr must be initialized with model first
+			if (typeof(model) === "undefined") {
+				console.log("Clmtrackr has not been initialized with a model yet. No changes made.");
+				return;
+			}
+			// must check whether webGL or not
+			if (typeof(webglFi) === "undefined") {
+				console.log("Responsemodes are only allowed when using webGL. In pure JS, only 'raw' mode is available.");
+				return;
+			}
+			if (['single', 'blend', 'cycle'].indexOf(mode) < 0) {
+				console.log("Tried to set an unknown responsemode : '"+mode+"'. No changes made.");
+				return;
+			}
+			if (!(list instanceof Array)) {
+				console.log("List in setResponseMode must be an array of strings! No changes made.");
+				return;
+			} else {
+				for (var i = 0;i < list.length;i++) {
+					if (['raw', 'sobel', 'lbp'].indexOf(list[i]) < 0) {
+						console.log("Unknown element in responsemode list : '"+list[i]+"'. No changes made.");
+					}
+					// check whether filters are initialized 
+					if (list[i] == 'sobel' && sobelInit == false) {
+						console.log("The sobel filters have not been initialized! No changes made.");
+					}
+					if (list[i] == 'lbp' && lbpInit == false) {
+						console.log("The LBP filters have not been initialized! No changes made.");
+					}
+				}
+			}
+			// reset index
+			responseIndex = 0;
+			responseMode = mode;
+			responseList = list;
+		}
 
 		var runnerFunction = function() {
 			runnerTimeout = requestAnimFrame(runnerFunction);
@@ -726,6 +778,45 @@ var clm = {
 				if (!tracking) continue;
 			}
 		}.bind(this);
+		
+		var getWebGLResponsesType = function(type, patches) {
+			if (type == 'lbp') {
+				return webglFi.getLBPResponses(patches);
+			} else if (type == 'raw') {
+				return webglFi.getRawResponses(patches);
+			} else if (type == 'sobel') {
+				return webglFi.getSobelResponses(patches);
+			}
+		}
+		
+		var getWebGLResponses = function(patches) {
+			if (responseMode == 'single') {
+				return getWebGLResponsesType(responseList[0], patches);
+			} else if (responseMode == 'cycle') {
+				var response = getWebGLResponsesType(responseList[responseIndex], patches);
+				responseIndex++;
+				if (responseIndex >= responseList.length) responseIndex = 0;
+				return response;
+			} else {
+				// blend
+				var responses = [];
+				for (var i = 0;i < responseList.length;i++) {
+					responses[i] = getWebGLResponsesType(responseList[i], patches);
+				}
+				var blendedResponses = [];
+				for (var i = 0;i < numPatches;i++) {
+					var response = Array(searchWindow*searchWindow);
+					for (var k = 0;k < searchWindow*searchWindow;k++) response[k] = 0;
+					for (var j = 0;j < responseList.length;j++) {
+						for (var k = 0;k < searchWindow*searchWindow;k++) {
+							response[k] += (responses[j][i][k]/responseList.length);
+						}
+					}
+					blendedResponses[i] = response;
+				}
+				return blendedResponses;
+			}
+		}
 
 		// generates the jacobian matrix used for optimization calculations
 		var createJacobian = function(parameters, eigenVectors) {
@@ -884,9 +975,9 @@ var clm = {
 			var scmax = 0;
 			var scmin = 255;
 			for (var i = 0;i < 20*22;i++) {
-			  scoringData[i] = scdata[i*4]*0.3 + scdata[(i*4)+1]*0.59 + scdata[(i*4)+2]*0.11;
-			  if (scoringData[i] > scmax) scmax = scoringData[i];
-			  if (scoringData[i] < scmin) scmin = scoringData[i];
+				scoringData[i] = scdata[i*4]*0.3 + scdata[(i*4)+1]*0.59 + scdata[(i*4)+2]*0.11;
+				if (scoringData[i] > scmax) scmax = scoringData[i];
+				if (scoringData[i] < scmin) scmin = scoringData[i];
 			}
 			
 			if (scmax > 0) {
