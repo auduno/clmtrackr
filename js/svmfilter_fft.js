@@ -2,7 +2,7 @@
 
 var svmFilter = function() {
   
-  var _fft, fft_filters, responses;
+  var _fft, fft_filters, responses, biases;
   var fft_size, filterLength, filter_width, search_width, num_patches;
   var temp_imag_part, temp_real_part;
   
@@ -40,7 +40,7 @@ var svmFilter = function() {
       }
   }
   
-  this.init = function(filter_input, numPatches, filterWidth, searchWidth) {
+  this.init = function(filter_input, bias_input, numPatches, filterWidth, searchWidth) {
     
     var temp, fft, offset;
     
@@ -78,6 +78,13 @@ var svmFilter = function() {
       // fft it and store
       fft_filter = this.fft_inplace(flar_fi0, flar_fi1);
       fft_filters[i] = fft_filter;
+
+    }
+    
+    // set up biases
+    biases = new Float64Array(numPatches);
+    for (var i = 0;i < numPatches;i++) {
+      biases[i] = bias_input[i];
     }
     
     responses = Array(numPatches);
@@ -129,6 +136,11 @@ var svmFilter = function() {
         for (var k = 0;k < search_width;k++) {
           responses[i][j + (k*search_width)] = response[edge + k + ((j+edge)*(fft_size))];
         }
+      }
+
+      // add bias
+      for (var j = 0;j < search_width*search_width;j++) {
+        responses[i][j] -= biases[i];
       }
       
       // logistic transformation
