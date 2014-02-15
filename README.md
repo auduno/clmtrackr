@@ -9,7 +9,7 @@ clmtrackr
 
 [Reference](http://auduno.github.io/clmtrackr/docs/reference.html) - [Overview](http://auduno.tumblr.com/post/61888277175/fitting-faces)
 
-The library provides some generic face models that were trained on [the MUCT database](http://www.milbo.org/muct/) and some additional self-annotated images. The aim is to also provide a model builder for building your own facial models.
+The library provides some generic face models that were trained on [the MUCT database](http://www.milbo.org/muct/) and some additional self-annotated images. Check out [clmtools](https://github.com/auduno/clmtools) for building your own models.
 
 The library requires [jsfeat.js](https://github.com/inspirit/jsfeat) (for initial face detection) and [numeric.js](http://numericjs.com) (for matrix math).
 
