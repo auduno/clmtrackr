@@ -140,7 +140,7 @@ var svmFilter = function() {
 
       // add bias
       for (var j = 0;j < search_width*search_width;j++) {
-        responses[i][j] -= biases[i];
+        responses[i][j] += biases[i];
       }
       
       // logistic transformation

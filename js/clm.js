@@ -321,7 +321,6 @@ var clm = {
 			} else {
 				facecheck_count += 1;
 				
-				// TODO : do cross-correlation/correlation-filter or similar to find translation of face
 				if (params.constantVelocity) {
 					// calculate where to get patches via constant velocity prediction
 					if (previousParameters.length >= 2) {
@@ -893,12 +892,12 @@ var clm = {
 			cc.drawImage(el, 0, 0, el.width, el.height);
 			
 			// do viola-jones on canvas to get initial guess, if we don't have any points
-			var comp = ccv.detect_objects(
+			/*var comp = ccv.detect_objects(
 				ccv.grayscale(canvas), ccv.cascade, 5, 1
-			);
+			);*/
 			
-			//var jf = new jsfeat_face(canvas);
-			//var comp = jf.findFace();
+			var jf = new jsfeat_face(canvas);
+			var comp = jf.findFace();
 			
 			if (comp.length > 0) {
 				candidate = comp[0];
@@ -1051,7 +1050,7 @@ var clm = {
 				canvasContext.clearRect(0,0,500,375);
 				canvasContext.strokeRect(candidate.x, candidate.y, candidate.width, candidate.height);*/
 				//
-				
+
 				var nose_result = mossef_nose.track(element, Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2)), Math.round(candidate.y+candidate.height*(5/8)-(noseFilterWidth/2)), noseFilterWidth, noseFilterWidth, false);
 				var right_result = mossef_righteye.track(element, Math.round(candidate.x+(candidate.width*3/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth, false);
 				var left_result = mossef_lefteye.track(element, Math.round(candidate.x+(candidate.width/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth, false);
