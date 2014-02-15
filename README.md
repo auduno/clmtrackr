@@ -11,7 +11,7 @@ clmtrackr
 
 The library provides some generic face models that were trained on [the MUCT database](http://www.milbo.org/muct/) and some additional self-annotated images. The aim is to also provide a model builder for building your own facial models.
 
-The library requires [ccv.js](https://github.com/liuliu/ccv) (for initial face detection) and [numeric.js](http://numericjs.com) (for matrix math).
+The library requires [jsfeat.js](https://github.com/inspirit/jsfeat) (for initial face detection) and [numeric.js](http://numericjs.com) (for matrix math).
 
 For tracking in video, it is recommended to use a browser with WebGL support, though the library should work on any modern browser.
 
@@ -28,7 +28,7 @@ For some more information about Constrained Local Models, take a look at Xiaogua
 
 ### Usage ###
 
-Download the minified library [clmtrackr.js](https://github.com/auduno/clmtrackr/raw/dev/clmtrackr.js) and one of the models, and include them in your webpage. **clmtrackr** depends on [*numeric.js*](https://github.com/sloisel/numeric/) and [*ccv.js*](https://github.com/liuliu/ccv), but these are included in the minified library.
+Download the minified library [clmtrackr.js](https://github.com/auduno/clmtrackr/raw/dev/clmtrackr.js) and one of the models, and include them in your webpage. **clmtrackr** depends on [*numeric.js*](https://github.com/sloisel/numeric/) and [*jsfeat.js*](https://github.com/inspirit/jsfeat), but these are included in the minified library.
 
 ```html
 /* clmtrackr libraries */

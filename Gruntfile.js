@@ -15,8 +15,9 @@ module.exports = function(grunt) {
 						'examples/ext_js/right_eye_filter.js',
 						'examples/ext_js/nose_filter.js',
 						'examples/ext_js/numeric-1.2.6.js',
-						'examples/ext_js/ccv.js',
-						'examples/ext_js/cascade.js',
+						'examples/ext_js/jsfeat-min.js',
+						'examples/ext_js/frontalface.js',
+						'examples/ext_js/jsfeat_detect.js',
 						'examples/ext_js/mosse.js',
 						],
 				dest: './clmtrackr.js'
