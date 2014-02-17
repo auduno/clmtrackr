@@ -20,7 +20,7 @@ var clm = {
 		if (params.constantVelocity === undefined) params.constantVelocity = true;
 		if (params.searchWindow === undefined) params.searchWindow = 11;
 		if (params.useWebGL === undefined) params.useWebGL = true;
-		if (params.scoreThreshold === undefined) params.scoreThreshold = 0.30;
+		if (params.scoreThreshold === undefined) params.scoreThreshold = 0.5;
 		if (params.stopOnConvergence === undefined) params.stopOnConvergence = false;
 		if (params.weightPoints === undefined) params.weightPoints = undefined;
 		if (params.sharpenResponse === undefined) params.sharpenResponse = false;
@@ -604,12 +604,16 @@ var clm = {
 			document.dispatchEvent(evt)
 			
 			if (this.getConvergence() < 0.5) {
-				if (params.stopOnConvergence) {
-					this.stop();
+				// we must get a score before we can say we've converged
+				if (scoringHistory.length >= 5) {
+					if (params.stopOnConvergence) {
+						this.stop();
+					}
+
+					var evt = document.createEvent("Event");
+					evt.initEvent("clmtrackrConverged", true, true);
+					document.dispatchEvent(evt)
 				}
-				var evt = document.createEvent("Event");
-				evt.initEvent("clmtrackrConverged", true, true);
-				document.dispatchEvent(evt)
 			}
 			
 			// return new points
@@ -977,48 +981,40 @@ var clm = {
 		
 		// calculate score of current fit
 		var checkTracking = function() {			
-			scoringContext.drawImage(sketchCanvas, Math.round(msxmin), Math.round(msymin), Math.round(msmodelwidth), Math.round(msmodelheight), 0, 0, 20, 22);
+			scoringContext.drawImage(sketchCanvas, Math.round(msxmin+(msmodelwidth/4.5)), Math.round(msymin-(msmodelheight/12)), Math.round(msmodelwidth-(msmodelwidth*2/4.5)), Math.round(msmodelheight-(msmodelheight/12)), 0, 0, 20, 22);
 			// getImageData of canvas
 			var imgData = scoringContext.getImageData(0,0,20,22);
 			// convert data to grayscale
 			var scoringData = new Array(20*22);
 			var scdata = imgData.data;
 			var scmax = 0;
-			var scmin = 255;
 			for (var i = 0;i < 20*22;i++) {
 				scoringData[i] = scdata[i*4]*0.3 + scdata[(i*4)+1]*0.59 + scdata[(i*4)+2]*0.11;
+				scoringData[i] = Math.log(scoringData[i]+1);
 				if (scoringData[i] > scmax) scmax = scoringData[i];
-				if (scoringData[i] < scmin) scmin = scoringData[i];
 			}
-			
+
 			if (scmax > 0) {
 				// normalize & multiply by svmFilter
+				var mean = 0;
+				for (var i = 0;i < 20*22;i++) {
+					mean += scoringData[i];
+				}
+				mean /= (20*22);
+				var sd = 0;
+				for (var i = 0;i < 20*22;i++) {
+					sd += (scoringData[i]-mean)*(scoringData[i]-mean);
+				}
+				sd /= (20*22 - 1)
+				sd = Math.sqrt(sd);
+				
 				var score = 0;
-				var newim = scoringContext.createImageData(20,22);
-				var newimdata = newim.data;
-				var scdaata = new Array(20*22);
-				var scdamin = 10000000;
-				var scdamax = -10000000;
 				for (var i = 0;i < 20*22;i++) {
-					scoringData[i] = (scoringData[i]-scmin)/(scmax-scmin);
-					scdaata[i] = scoringData[i]*scoringWeights[i];
-					if (scdaata[scdamin] < i) scdamin = scdaata[i];
-					if (scdaata[i] > scdamax) scdamax = scdaata[i];
-				}
-
-				for (var i = 0;i < 20*22;i++) {
-					var nid = 255*((scdaata[i]-scdamin)/(scdamax-scdamin));
-					newimdata[i*4] = nid;
-					newimdata[(i*4)+1] = nid;
-					newimdata[(i*4)+2] = nid;
-					newimdata[(i*4)+3] = 255;
-				}
-				scoringContext.putImageData(newim,0,0);
-
-				for (var i = 0;i < 20*22;i++) {
-					score += (scoringData[i])*-scoringWeights[i];
+					scoringData[i] = (scoringData[i]-mean)/sd;
+					score += (scoringData[i])*scoringWeights[i];
 				}
 				score += scoringBias;
+				score = 1/(1+Math.exp(-score));
 
 				scoringHistory.splice(0, scoringHistory.length == 5 ? 1 : 0);
 				scoringHistory.push(score);
