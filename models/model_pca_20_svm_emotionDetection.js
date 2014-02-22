@@ -1,3 +1,5 @@
+// the only difference between this and the regular model, is that we've set
+// eigenvector 9 and 11 to not be regularized. This is to better detect motion of the eyebrows
 var pModel = {
   "scoring": {
     "size": [20, 22], 
@@ -540,7 +542,7 @@ var pModel = {
       2.4414195196560233
     ], 
     "numPtsPerSample": 71, 
-    "nonRegularizedVectors": [0], 
+    "nonRegularizedVectors": [0,9,11], 
     "meanShape": [
       [25.011254225136952, 34.815173567571549], 
       [24.381567267455893, 45.626763203908808], 
