@@ -23,8 +23,9 @@ For some more information about Constrained Local Models, take a look at Xiaogua
 * [Tracking in video](http://auduno.github.io/clmtrackr/clm_video.html)
 * [Face substitution](http://auduno.github.io/clmtrackr/examples/facesubstitution.html)
 * [Face masking](http://auduno.github.io/clmtrackr/face_mask.html)
-* [Face deformation](http://auduno.github.io/clmtrackr/face_deformation_video.html)
+* [Realtime face deformation](http://auduno.github.io/clmtrackr/examples/facedeform.html)
 * [Emotion detection](http://auduno.github.io/clmtrackr/examples/clm_emotiondetection.html)
+* [Caricature](http://auduno.github.io/clmtrackr/examples/caricature.html)
 
 ### Usage ###
 
