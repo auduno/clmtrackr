@@ -164,13 +164,13 @@ var webglFilter = function() {
     patchWidth = pW;
     patchHeight = pH;
     numPatches = nP;
-    numBlocks = Math.floor(numPatches / 4) + Math.ceil(numPatches % 4);
+    numBlocks = Math.floor(numPatches / 4) + Math.ceil((numPatches % 4)/4);
     canvasWidth = patchWidth;
     canvasHeight = patchHeight*numBlocks;
     newCanvasWidth = patchWidth-filterWidth+1;
     newCanvasBlockHeight = patchHeight-filterWidth+1;
     newCanvasHeight = newCanvasBlockHeight*numPatches;
-    patchCells = (Math.floor(numPatches / 4) + Math.ceil(numPatches % 4));
+    patchCells = (Math.floor(numPatches / 4) + Math.ceil((numPatches % 4)/4));
     textureWidth = patchWidth;
     textureHeight = patchHeight*patchCells;
     patchSize = patchWidth*patchHeight;
@@ -391,38 +391,36 @@ var webglFilter = function() {
     if ('lbp' in filters || 'sobel' in filters) {
       // calculate position of vertex rectangles for gradient/lbp program
       var gradRectangles = [];
-      for (var i = 0;i < numBlocks;i++) {
-        //first triangle
-        gradRectangles = gradRectangles.concat(
-          [-1.0, 1.0, 
-          1.0, 1.0,
-          -1.0, -1.0]
-        );
-        //second triangle
-        gradRectangles = gradRectangles.concat(
-          [-1.0, -1.0, 
-          1.0, 1.0,
-          1.0, -1.0]
-        );
-      }
+      //first triangle
+      gradRectangles = gradRectangles.concat(
+        [-1.0, 1.0, 
+        1.0, 1.0,
+        -1.0, -1.0]
+      );
+      //second triangle
+      gradRectangles = gradRectangles.concat(
+        [-1.0, -1.0, 
+        1.0, 1.0,
+        1.0, -1.0]
+      );
+      
       gradRectangles = new Float32Array(gradRectangles);
       
       // calculate position of image rectangles to draw out
       var gradIRectangles = [];
-      for (var i = 0;i < numBlocks;i++) {
-        //first triangle
-        gradIRectangles = gradIRectangles.concat(
-          [0.0, 1.0, 
-          1.0, 1.0,
-          0.0, 0.0]
-        );
-        //second triangle
-        gradIRectangles = gradIRectangles.concat(
-          [0.0, 0.0, 
-          1.0, 1.0,
-          1.0, 0.0]
-        );
-      }
+      //first triangle
+      gradIRectangles = gradIRectangles.concat(
+        [0.0, 1.0, 
+        1.0, 1.0,
+        0.0, 0.0]
+      );
+      //second triangle
+      gradIRectangles = gradIRectangles.concat(
+        [0.0, 0.0, 
+        1.0, 1.0,
+        1.0, 0.0]
+      );
+      
       gradIRectangles = new Float32Array(gradIRectangles);
     }
 
@@ -699,7 +697,7 @@ var webglFilter = function() {
     gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER)
 
     // draw to framebuffer
-    gl.drawArrays(gl.TRIANGLES, 0, patchCells*6);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
 
     /* calculate responses */
 
