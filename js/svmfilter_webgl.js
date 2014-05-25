@@ -395,6 +395,7 @@ var webglFilter = function() {
       // calculate position of vertex rectangles for gradient/lbp program
       var gradRectangles = [];
       for (var i = 0;i < numBlocks;i++) {
+	yOffset = i * (2/numBlocks);
         //first triangle
         gradRectangles = gradRectangles.concat(
           [-1.0, topCoord - yOffset, 
@@ -414,6 +415,7 @@ var webglFilter = function() {
       bottomCoord = 1.0 - 1/numBlocks + 1/(patchHeight*numBlocks);
       // calculate position of image rectangles to draw out
       var gradIRectangles = [];
+      yOffset = i * (1/numBlocks);
       for (var i = 0;i < numBlocks;i++) {
         //first triangle
         gradIRectangles = gradIRectangles.concat(
