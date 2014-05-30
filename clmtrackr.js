@@ -1761,7 +1761,7 @@ var webglFilter = function() {
       // calculate position of image rectangles to draw out
       var gradIRectangles = [];
       for (var i = 0;i < numBlocks;i++) {
-	yOffset = i * (1/numBlocks);
+        yOffset = i * (1/numBlocks);
         //first triangle
         gradIRectangles = gradIRectangles.concat(
           [0.0, topCoord - yOffset, 
