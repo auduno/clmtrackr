@@ -1509,13 +1509,13 @@ var webglFilter = function() {
     patchWidth = pW;
     patchHeight = pH;
     numPatches = nP;
-    numBlocks = Math.floor(numPatches / 4) + Math.ceil(numPatches % 4);
+    numBlocks = Math.floor(numPatches / 4) + Math.ceil((numPatches % 4)/4)
     canvasWidth = patchWidth;
     canvasHeight = patchHeight*numBlocks;
     newCanvasWidth = patchWidth-filterWidth+1;
     newCanvasBlockHeight = patchHeight-filterWidth+1;
     newCanvasHeight = newCanvasBlockHeight*numPatches;
-    patchCells = (Math.floor(numPatches / 4) + Math.ceil(numPatches % 4));
+    patchCells = (Math.floor(numPatches / 4) + Math.ceil((numPatches % 4)/4));
     textureWidth = patchWidth;
     textureHeight = patchHeight*patchCells;
     patchSize = patchWidth*patchHeight;
@@ -1734,38 +1734,45 @@ var webglFilter = function() {
     irectangles = new Float32Array(irectangles);
 
     if ('lbp' in filters || 'sobel' in filters) {
+      var topCoord = 1.0 - 2/(patchHeight*numBlocks);
+      var bottomCoord = 1.0 - 2/numBlocks + 2/(patchHeight*numBlocks);
+      var yOffset;
       // calculate position of vertex rectangles for gradient/lbp program
       var gradRectangles = [];
       for (var i = 0;i < numBlocks;i++) {
+	yOffset = i * (2/numBlocks);
         //first triangle
         gradRectangles = gradRectangles.concat(
-          [-1.0, 1.0, 
-          1.0, 1.0,
-          -1.0, -1.0]
+          [-1.0, topCoord - yOffset, 
+          1.0, topCoord - yOffset,
+          -1.0, bottomCoord - yOffset]
         );
         //second triangle
         gradRectangles = gradRectangles.concat(
-          [-1.0, -1.0, 
-          1.0, 1.0,
-          1.0, -1.0]
+          [-1.0, bottomCoord - yOffset, 
+          1.0, topCoord - yOffset,
+          1.0, bottomCoord - yOffset]
         );
       }
       gradRectangles = new Float32Array(gradRectangles);
       
+      topCoord = 1.0 - 1/(patchHeight*numBlocks);
+      bottomCoord = 1.0 - 1/numBlocks + 1/(patchHeight*numBlocks);
       // calculate position of image rectangles to draw out
       var gradIRectangles = [];
       for (var i = 0;i < numBlocks;i++) {
+        yOffset = i * (1/numBlocks);
         //first triangle
         gradIRectangles = gradIRectangles.concat(
-          [0.0, 1.0, 
-          1.0, 1.0,
-          0.0, 0.0]
+          [0.0, topCoord - yOffset, 
+          1.0, topCoord - yOffset,
+          0.0, bottomCoord - yOffset]
         );
         //second triangle
         gradIRectangles = gradIRectangles.concat(
-          [0.0, 0.0, 
-          1.0, 1.0,
-          1.0, 0.0]
+          [0.0, bottomCoord - yOffset, 
+          1.0, topCoord - yOffset,
+          1.0, bottomCoord - yOffset]
         );
       }
       gradIRectangles = new Float32Array(gradIRectangles);
