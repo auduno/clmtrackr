@@ -395,7 +395,7 @@ var webglFilter = function() {
       // calculate position of vertex rectangles for gradient/lbp program
       var gradRectangles = [];
       for (var i = 0;i < numBlocks;i++) {
-	yOffset = i * (2/numBlocks);
+        yOffset = i * (2/numBlocks);
         //first triangle
         gradRectangles = gradRectangles.concat(
           [-1.0, topCoord - yOffset, 
