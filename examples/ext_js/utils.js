@@ -18,7 +18,7 @@ window.requestAnimFrame = (function() {
  * Provides cancelRequestAnimationFrame in a cross browser way.
  */
 window.cancelRequestAnimFrame = (function() {
-  return window.cancelCancelRequestAnimationFrame ||
+  return window.cancelAnimationFrame ||
          window.webkitCancelRequestAnimationFrame ||
          window.mozCancelRequestAnimationFrame ||
          window.oCancelRequestAnimationFrame ||
