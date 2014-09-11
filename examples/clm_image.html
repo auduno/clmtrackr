@@ -101,7 +101,7 @@
 				<canvas id="overlay" width="625" height="500"></canvas>
 			</div>
 			<br/>
-			<input type="button" class="btn" value="start" onclick="animate()"></input>
+			<input type="button" class="btn" value="start" onclick="animateClean()"></input>
 			<input type="button" class="btn" value="manually select face" onclick="selectBox()"></input>
 			<input type="file" class="btn" id="files" name="files[]" />
 			<p id="convergence"></p>
@@ -133,6 +133,11 @@
 				
 				var drawRequest;
 				
+				function animateClean() {
+					ctrack.start(document.getElementById('image'));
+					drawLoop();
+				}
+
 				function animate(box) {
 					ctrack.start(document.getElementById('image'), box);
 					drawLoop();
