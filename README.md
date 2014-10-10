@@ -44,7 +44,7 @@ The following code initiates the clmtrackr with the model we included, and start
   <source src="./media/somevideo.ogv" type="video/ogg"/>
 </video>
 <script type="text/javascript">
-  var videoInput = document.getElementById('video');
+  var videoInput = document.getElementById('inputVideo');
   
   var ctracker = new clm.tracker();
   ctracker.init(pModel);
