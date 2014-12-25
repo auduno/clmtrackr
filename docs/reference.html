@@ -42,7 +42,7 @@
 
   <p style="text-align:center"><a href="./media/facemodel_numbering_new.png" rel="lightbox" title="Facemodel numbering"><img src="./media/facemodel_numbering_new_small.png" width="300px" height="310px"></img></a></p>
 
-  <p>Once started, <em>clmtrackr</em> will try to detect a face on the given element. If a face is found, <em>clmtrackr</em> will start to fit the facial model, and the positions can be returned via <code>getCurrentPositions()</code>.</p>
+  <p>Once started, <em>clmtrackr</em> will try to detect a face on the given element. If a face is found, <em>clmtrackr</em> will start to fit the facial model, and the positions can be returned via <code>getCurrentPosition()</code>.</p>
 
   <p>The fitting algorithm is based on <a href="http://www.ri.cmu.edu/pub_files/2009/9/CameraReady-6.pdf">a paper</a> by Jason Saragih & Simon Lucey. The models are trained on annotated data from <a href="http://www.milbo.org/muct/">the MUCT database</a> plus some self-annotated images.</p>
 
@@ -59,7 +59,7 @@ ctracker.init(pModel);</code></pre>
 
   <p>Getting the points of the currently fitted model:</p>
 
-  <pre><code>var positions = ctracker.getCurrentPositions();</code></pre>
+  <pre><code>var positions = ctracker.getCurrentPosition();</code></pre>
 
   <p>Drawing the currently fitted model on a given canvas:</p>
 
@@ -98,7 +98,7 @@ ctracker.draw(drawCanvas);</code></pre>
       <ul>
         <li><em>parameters</em> : The model parameters as an array</li>
       </ul>-->
-    <li><strong><em>getCurrentPositions</em></strong>( ) : Get the current positions of the fitted facial model. Returns the positions as an array <code>[[x<sub>0</sub>, y<sub>0</sub>], ... , [x<sub>n</sub>, y<sub>n</sub>]]</code>.</li>
+    <li><strong><em>getCurrentPosition</em></strong>( ) : Get the current positions of the fitted facial model. Returns the positions as an array <code>[[x<sub>0</sub>, y<sub>0</sub>], ... , [x<sub>n</sub>, y<sub>n</sub>]]</code>.</li>
     <li><strong><em>getCurrentParameters</em></strong>( ) : Get the current parameters for the fitted facial model. Returns the model parameters as an array <code>[p<sub>0</sub>, p<sub>1</sub>, ... , p<sub>n</sub>]</code></li>
     <li><strong><em>getConvergence</em></strong>( ) : Get the mean model movements (summed over all points) over the last 10 iterations. A number below 0.5 signifies the model probably has converged.</li>
     <li><strong><em>setResponseMode</em></strong>( <em>type</em>, <em>list</em> ) : Set how the responses are calculated (see below).</li>
