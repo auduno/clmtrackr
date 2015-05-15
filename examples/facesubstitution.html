@@ -138,24 +138,27 @@
 			</div>
 			<a href="https://github.com/auduno/clmtrackr"><img style="position: absolute; top: 0; left: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_left_green_007200.png" alt="Fork me on GitHub"></a>
 			<canvas id="webgl2" width="400" height="300"></canvas>
-			<img id="average" class="masks" src="./media/average2_crop.jpg"></img>
-			<img id="monalisa" class="masks" src="./media/joconde_crop.jpg"></img>
-			<img id="bieber" class="masks" src="./media/Justin-Bieber2_crop.jpg"></img>
-			<img id="kim" class="masks" src="./media/kim1_crop.jpg"></img>
-			<img id="bill" class="masks" src="./media/bill-murray-snl_crop.jpg"></img>
-			<img id="clooney2" class="masks" src="./media/fragrance-George-Clooney-main_crop.jpg"></img>
-			<img id="connery2" class="masks" src="./media/sean_guru2_crop.jpg"></img>
-			<img id="cage3" class="masks" src="./media/cage2_crop.jpg"></img>
-			<img id="rihanna" class="masks" src="./media/ri_1_crop.jpg"></img>
-			<img id="audrey" class="masks" src="./media/audrey_crop.jpg"></img>
-			<img id="queen" class="masks" src="./media/queen20_crop.jpg"></img>
-			<img id="obama4" class="masks" src="./media/obama4_crop.jpg"></img>
-			<img id="picasso1" class="masks" src="./media/picasso_drawing_crop.jpg"></img>
-			<img id="scream" class="masks" src="./media/scream_crop.jpg"></img>
-			<img id="terminator" class="masks" src="./media/terminator_crop.jpg"></img>
-			<img id="chuck" class="masks" src="./media/chuck_crop.jpg"></img>
-			<img id="walter2" class="masks" src="./media/walter2_crop.jpg"></img>
 			<script>
+			var images = [
+					{"id":"average", 	"path":"./media/average2_crop.jpg"},
+					{"id":"terminator", "path":"./media/terminator_crop.jpg"},
+					{"id":"walter2", 	"path":"./media/walter2_crop.jpg"},
+					{"id":"clooney2", 	"path":"./media/fragrance-George-Clooney-main_crop.jpg"},
+					{"id":"bieber", 	"path":"./media/Justin-Bieber2_crop.jpg"},
+					{"id":"kim", 		"path":"./media/kim1_crop.jpg"},
+					{"id":"rihanna", 	"path":"./media/ri_1_crop.jpg"},
+					{"id":"audrey", 	"path":"./media/audrey_crop.jpg"},
+					{"id":"bill", 		"path":"./media/bill-murray-snl_crop.jpg"},
+					{"id":"connery2", 	"path":"./media/sean_guru2_crop.jpg"},
+					{"id":"cage3", 		"path":"./media/cage2_crop.jpg"},
+					{"id":"queen", 		"path":"./media/queen20_crop.jpg"},
+					{"id":"obama4", 	"path":"./media/obama4_crop.jpg"},
+					{"id":"chuck", 		"path":"./media/chuck_crop.jpg"},
+					{"id":"monalisa", 	"path":"./media/joconde_crop.jpg"},
+					{"id":"picasso1", 	"path":"./media/picasso_drawing_crop.jpg"},
+					{"id":"scream", 	"path":"./media/scream_crop.jpg"}
+					];
+
 				// when everything is ready, automatically start everything ?
 
 				var vid = document.getElementById('videoel');
@@ -176,7 +179,6 @@
 				}
 
 				$(window).load(function() {
-    				imagesReady = true;
     				enablestart();
 				});
 				
@@ -297,7 +299,7 @@
 					"walter2" : [[21.060764903593935, 23.625922265374243], [24.306589250104111, 82.418736978583837], [29.887480558415291, 123.52324050386761], [39.831216823892362, 169.58896662877407], [56.335070257713795, 208.02264871738436], [80.83703098412272, 239.09972028159933], [112.71581076572778, 260.86442641371349], [148.15849351544631, 266.69887307481594], [187.92956781495144, 259.94808309698487], [224.28242219428836, 232.92409488998584], [248.61360434331704, 197.4132216415324], [267.6255386426007, 159.22848713841142], [274.06946800796993, 115.04205523453288], [279.57264995946605, 75.577994810142314], [274.8147191886797, 27.93465035602847], [243.21321805049308, 34.977887137176154], [222.77074074138181, 27.896989700591064], [190.0620481119081, 30.307609477713669], [159.27010163455151, 35.824855447032391], [51.033153870664592, 38.112001064409583], [75.392081525881991, 35.207713004503645], [102.74022206320058, 37.331330371284338], [124.56616025441463, 38.787179979952285], [67.451381950900242, 57.279940574514285], [90.044614607889713, 50.578228454933793], [111.78861952878373, 57.042466275764184], [90.903644751441476, 61.901327302928138], [90.715389774152072, 55.427091197335699], [223.99115821955013, 52.230403503055442], [205.18136904851377, 47.795771446298119], [184.90200898390299, 54.36443314080293], [204.67995257670333, 57.277939005103178], [204.92195881859544, 50.712535873236902], [146.50907007729293, 46.432109337738268], [115.95255333726485, 107.46593045529727], [109.22792349913794, 119.47849063536196], [117.00821443824393, 134.84341026421072], [145.67296091894715, 139.65462387898862], [173.67398162073596, 137.75538299827045], [185.00619633858076, 121.44588720141769], [180.64955597511778, 108.4547161320798], [147.27934367148265, 85.136485659341048], [124.32188592953989, 129.20306658959251], [167.29393856301289, 130.98984492081911], [101.59640357940233, 178.49694962096316], [118.21488930910681, 170.49617831223611], [139.18293919359641, 169.52754924913722], [151.13320163675684, 173.77693897734923], [167.32315821430757, 170.41084550370888], [182.37144722622213, 172.04427561978318], [198.17756373260085, 178.48935722147763], [184.440295252439, 186.17852019611308], [168.46308888233028, 189.07826517145685], [149.98168191113766, 189.67271148067312], [131.94804230553046, 187.67924933109754], [115.53452060145878, 185.3486212656689], [126.11701238101571, 180.30913427171828], [151.51451552828283, 182.42858464837599], [175.33473635294803, 181.769054498201], [176.96189091245589, 177.03898480289513], [151.40990278903843, 177.58200927291426], [127.15568541835768, 176.24970135595123], [147.26055194223767, 122.55189537474888], [74.747311503817315, 52.428814802906686], [103.91716767645684, 51.310986682531166], [102.84404568037712, 59.974636811905299], [76.675078380855666, 60.093874542162325], [216.58585024902322, 47.512012033316537], [190.54061564242585, 48.580342228676585], [191.79112935486376, 55.322342001097468], [214.83596488608993, 56.255513236279938]],
 					"audrey" : [[29.74201740403646, 63.58838131299683], [32.135740245991599, 98.613580728522948], [39.926486700973527, 142.66741859878613], [46.051376346280165, 185.19751106090678], [63.623885970848306, 221.21082623221213], [92.686071409745011, 246.75195165866961], [124.31266068980059, 268.32269819176895], [159.08115584618832, 276.8182094669599], [193.01372611356055, 271.19451253588267], [220.73964850426626, 251.23315855606597], [249.37653785044409, 220.99473411123051], [262.56272926082778, 184.02931054521218], [274.46785237450297, 145.09243674243754], [286.71422071660493, 100.2191807024135], [287.7724614993711, 67.093735883445845], [273.08419909909355, 58.949447547158684], [250.35119471727239, 46.547177746833199], [227.88483875688155, 51.863141039656796], [201.92763554902524, 54.635918821225715], [50.207093876417957, 43.532664996747542], [78.106228477816103, 39.524315405279566], [110.54774174250323, 45.635392409130048], [135.80324104447095, 54.83859321342041], [80.208953800441719, 83.486704599142797], [103.2843062554636, 71.77563604011084], [130.37335751351947, 93.351828892065782], [101.37155395907916, 97.268693939422747], [103.77768051230873, 78.554240071733545], [246.69639088723869, 90.839855800811847], [225.25431248616547, 79.371020311284838], [200.21435196089101, 98.005155765703194], [227.73999275494873, 103.13681628226215], [226.06528007794577, 84.737881341868274], [170.2704842069295, 87.241173044027562], [136.73140157570418, 155.55089637183414], [132.09382016348263, 166.28137163294355], [141.43437220076765, 179.71853115783472], [168.84018353954804, 185.51893631975383], [195.57024175323983, 180.96444682513931], [200.63701169781223, 171.50291787670471], [196.03834636609736, 155.55926335687627], [171.53575860945466, 129.05860619902546], [151.91223102812063, 171.32412239283428], [186.99889102154822, 171.94139857304066], [117.36179100195926, 210.57248720067804], [132.24409741439899, 205.79192498435566], [151.95455263416062, 203.25064014467529], [165.61565000621329, 208.18658812822247], [181.73633661629219, 204.11786374216797], [194.71091994807995, 208.09809058994574], [208.15078953905629, 212.57790820835453], [193.07898694502654, 226.67843340292291], [179.59750146882573, 236.19115922247897], [163.22005286691325, 238.45845823523985], [145.14731000170292, 234.92524246489165], [132.35629580062368, 227.3232920714367], [145.46895415593832, 215.5609803328374], [164.98592388769322, 216.32998112652183], [182.14032562432749, 217.3077976017484], [183.73772138569666, 217.00947047307966], [164.55379748244519, 216.51396287362655], [145.7179313684785, 215.79854206584145], [171.13908085531165, 165.20445766092308], [88.246693449260022, 75.136292959533421], [119.33001418358253, 80.065297266301059], [116.37014577148472, 95.815825381060108], [88.287291370337073, 92.88465259927068], [240.47641466360238, 82.609923128584455], [208.73309300337735, 86.192129111264819], [212.47694784065465, 102.57941207015807], [240.22165570085622, 99.99430087462639]]
 				};
-				var images = ["average", "terminator", "walter2", "clooney2", "bieber", "kim", "rihanna", "audrey", "bill", "connery2","cage3", "queen", "obama4", "chuck", "monalisa", "picasso1", "scream"];
+				
 				var currentMask = 0;
 				
 				// canvas for copying the warped face to
@@ -311,12 +313,15 @@
 				// canvas for masking
 				var maskcanvas = document.createElement('CANVAS');
 				maskcanvas.width = vid.width;
-				maskcanvas.height = vid.height;	
+				maskcanvas.height = vid.height;
+
 				// create canvases for all the faces
 				var imageCanvases = {};
-				for (var i = 0;i < images.length;i++) {
-					$("#"+images[i]).load(function(obj) {
-						var elementId = obj.target.id;
+				loadMask = function(index){
+					var mask = new Image();
+              		mask.src = images[index].path;
+					mask.onload = function(obj){
+						var elementId = images[index].id;
 
 						// copy the images to canvases
 						imagecanvas = document.createElement('CANVAS');
@@ -324,8 +329,17 @@
 						imagecanvas.height = obj.target.height;
 						imagecanvas.getContext('2d').drawImage(obj.target,0,0);
 						imageCanvases[elementId] = imagecanvas;
-					});
+
+						//console.log("mask loaded: "+elementId);
+						//load next mask
+						if(index<images.length-1)
+							loadMask(index+1);
+						else
+							imagesReady = true;
+					}
 				}
+				//load masks
+				loadMask(0);
 
 				var extended_vertices = [
 				  [0,71,72,0],
@@ -404,7 +418,7 @@
 					videocanvas.getContext('2d').drawImage(vid,0,0,videocanvas.width,videocanvas.height);
 					
 					// we need to extend the positions with new estimated points in order to get pixels immediately outside mask
-					var newMaskPos = masks[images[currentMask]].slice(0);
+					var newMaskPos = masks[images[currentMask].id].slice(0);
 					var newFacePos = pos.slice(0);
 					var extInd = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,22,21,20,19];
 					var newp;
@@ -422,7 +436,7 @@
 					var newVertices = pModel.path.vertices.concat(extended_vertices);
 
 					// deform the mask we want to use to face form
-					fd2.load(imageCanvases[images[currentMask]], newMaskPos, pModel, newVertices);
+					fd2.load(imageCanvases[images[currentMask].id], newMaskPos, pModel, newVertices);
 					fd2.draw(newFacePos);
 					// and copy onto new canvas
 					newcanvas.getContext('2d').drawImage(document.getElementById('webgl2'),0,0);
