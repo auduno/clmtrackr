@@ -317,6 +317,7 @@
 
 				// create canvases for all the faces
 				var imageCanvases = {};
+				var imageCount = 0;
 				loadMask = function(index){
 					var mask = new Image();
 					mask.onload = function(obj){
@@ -329,11 +330,8 @@
 						imagecanvas.getContext('2d').drawImage(obj.target,0,0);
 						imageCanvases[elementId] = imagecanvas;
 
-						//console.log("mask loaded: "+elementId);
-						//load next mask
-						if (index < images.length-1) {
-							loadMask(index+1);
-						} else {
+						imageCount += 1;
+						if (imageCount == images.length) {
 							imagesReady = true;
 						}
 						enablestart();
@@ -341,7 +339,9 @@
               		mask.src = images[index].path;
 				}
 				//load masks
-				loadMask(0);
+				for (var i = 0;i < images.length;i++) {
+					loadMask(i);
+				}
 
 				var extended_vertices = [
 				  [0,71,72,0],
