@@ -139,7 +139,7 @@
 			<a href="https://github.com/auduno/clmtrackr"><img style="position: absolute; top: 0; left: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_left_green_007200.png" alt="Fork me on GitHub"></a>
 			<canvas id="webgl2" width="400" height="300"></canvas>
 			<script>
-			var images = [
+				var images = [
 					{"id":"average", 	"path":"./media/average2_crop.jpg"},
 					{"id":"terminator", "path":"./media/terminator_crop.jpg"},
 					{"id":"walter2", 	"path":"./media/walter2_crop.jpg"},
@@ -157,7 +157,7 @@
 					{"id":"monalisa", 	"path":"./media/joconde_crop.jpg"},
 					{"id":"picasso1", 	"path":"./media/picasso_drawing_crop.jpg"},
 					{"id":"scream", 	"path":"./media/scream_crop.jpg"}
-					];
+				];
 
 				// when everything is ready, automatically start everything ?
 
@@ -319,7 +319,6 @@
 				var imageCanvases = {};
 				loadMask = function(index){
 					var mask = new Image();
-              		mask.src = images[index].path;
 					mask.onload = function(obj){
 						var elementId = images[index].id;
 
@@ -332,11 +331,14 @@
 
 						//console.log("mask loaded: "+elementId);
 						//load next mask
-						if(index<images.length-1)
+						if (index < images.length-1) {
 							loadMask(index+1);
-						else
+						} else {
 							imagesReady = true;
+						}
+						enablestart();
 					}
+              		mask.src = images[index].path;
 				}
 				//load masks
 				loadMask(0);
