@@ -19,13 +19,13 @@ For some more information about Constrained Local Models, take a look at Xiaogua
 
 ### Examples ###
 
-* [Tracking in image](http://auduno.github.io/clmtrackr/clm_image.html)
-* [Tracking in video](http://auduno.github.io/clmtrackr/clm_video.html)
-* [Face substitution](http://auduno.github.io/clmtrackr/examples/facesubstitution.html)
-* [Face masking](http://auduno.github.io/clmtrackr/face_mask.html)
-* [Realtime face deformation](http://auduno.github.io/clmtrackr/examples/facedeform.html)
-* [Emotion detection](http://auduno.github.io/clmtrackr/examples/clm_emotiondetection.html)
-* [Caricature](http://auduno.github.io/clmtrackr/examples/caricature.html)
+* [Tracking in image](https://auduno.github.io/clmtrackr/clm_image.html)
+* [Tracking in video](https://auduno.github.io/clmtrackr/clm_video.html)
+* [Face substitution](https://auduno.github.io/clmtrackr/examples/facesubstitution.html)
+* [Face masking](https://auduno.github.io/clmtrackr/face_mask.html)
+* [Realtime face deformation](https://auduno.github.io/clmtrackr/examples/facedeform.html)
+* [Emotion detection](https://auduno.github.io/clmtrackr/examples/clm_emotiondetection.html)
+* [Caricature](https://auduno.github.io/clmtrackr/examples/caricature.html)
 
 ### Usage ###
 
@@ -82,7 +82,7 @@ You can also use the built in function ```draw()``` to draw the tracked facial m
 </script>
 ```
 
-See the complete example [here](http://auduno.github.com/clmtrackr/example.html).
+See the complete example [here](https://auduno.github.com/clmtrackr/example.html).
 
 ### License ###
 
