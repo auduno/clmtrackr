@@ -13,7 +13,7 @@
 				margin: 0px auto;
 				max-width: 1150px;
 			}
-			
+
 			#overlay, #canvasel {
 				position: absolute;
 				top: 0px;
@@ -39,18 +39,18 @@
 				height : 346px;
 				/*margin : 0px auto;*/
 			}
-			
+
 			#content {
 				margin-top : 70px;
 				margin-left : 100px;
 				margin-right : 100px;
 				max-width: 950px;
 			}
-			
+
 			#sketch {
 				display: none;
 			}
-			
+
 			#filter {
 				display: none;
 			}
@@ -58,11 +58,11 @@
 			h2 {
 				font-weight : 400;
 			}
-			
+
 			.nogum {
 				display : none;
 			}
-			
+
 			.btn {
 				font-family: 'Lato';
 				font-size: 16px;
@@ -89,13 +89,12 @@
 			})();
 
 		</script>
-	</head>	
+	</head>
 	<body>
 		<script src="./ext_js/dat.gui.min.js"></script>
 		<script src="./ext_js/utils.js"></script>
 		<script src="./ext_js/jsfeat-min.js"></script>
 		<script src="./ext_js/frontalface.js"></script>
-		<script src="./ext_js/jsfeat_detect.js"></script>
 		<script src="./ext_js/numeric-1.2.6.min.js"></script>
 		<script src="./ext_js/mosse.js"></script>
 		<script src="./ext_js/left_eye_filter.js"></script>
@@ -103,6 +102,8 @@
 		<script src="./ext_js/nose_filter.js"></script>
 		<script src="../models/model_pca_20_svm.js"></script>
 		<script src="../js/clm.js"></script>
+		<script src="../js/jsfeat_detect.js"></script>
+		<script src="../js/jsfeat_detect_worker.js"></script>
 		<script src="../js/svmfilter_webgl.js"></script>
 		<script src="../js/svmfilter_fft.js"></script>
 		<script src="../js/mossefilter.js"></script>
@@ -153,15 +154,15 @@
 				var vid = document.getElementById('videoel');
 				var overlay = document.getElementById('overlay');
 				var overlayCC = overlay.getContext('2d');
-				
+
 				var ctrack = new clm.tracker();
 				ctrack.init(pModel);
-				
+
 				stats = new Stats();
 				stats.domElement.style.position = 'absolute';
 				stats.domElement.style.top = '0px';
 				document.getElementById('container').appendChild( stats.domElement );
-				
+
 				function enablestart() {
 					var startbutton = document.getElementById('startbutton');
 					startbutton.value = "start";
@@ -169,7 +170,7 @@
 				}
 
 				var insertAltVideo = function(video) {
-					
+
 					if (supports_video()) {
 						if (supports_ogg_theora_video()) {
 							video.src = "./media/franck.ogv";
@@ -183,7 +184,7 @@
 						return true;
 					} else return false;
 				}
-				
+
 				var insertAltImage = function() {
 					var canvas = document.getElementById('canvasel');
 					var cc = canvas.getContext('2d');
@@ -191,11 +192,11 @@
 					img.onload = function() {
 						cc.drawImage(img, 0, 0, 370, 288);
 					};
-					img.src = './media/franck_02221.jpg';  
+					img.src = './media/franck_02221.jpg';
 					vid.className = "hide";
 					vid = canvas;
 					canvas.className = "nohide";
-					
+
 					var startbutton = document.getElementById('startbutton');
 					startbutton.onclick = function() {
 						ctrack.start(vid);
@@ -204,7 +205,7 @@
 					startbutton.value = "start";
 					startbutton.disabled = null;
 				}
-				
+
 				// check whether browser supports webGL
 				var webGLContext;
 				var webGLTestCanvas = document.createElement('canvas');
@@ -217,13 +218,13 @@
 				if (webGLContext == null) {
 					alert("Your browser does not seem to support WebGL. Unfortunately this face deformation example depends on WebGL, so you'll have to try it in another browser. :(");
 				}
-				
+
 				navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
 				window.URL = window.URL || window.webkitURL || window.msURL || window.mozURL;
 				// check for camerasupport
 				if (navigator.getUserMedia) {
 					// set up stream
-					
+
 					var videoSelector = {video : true};
 					if (window.navigator.appVersion.match(/Chrome\/(.*?) /)) {
 						var chromeVersion = parseInt(window.navigator.appVersion.match(/Chrome\/(\d+)\./)[1], 10);
@@ -231,7 +232,7 @@
 							videoSelector = "video";
 						}
 					};
-				
+
 					navigator.getUserMedia(videoSelector, function( stream ) {
 						if (vid.mozCaptureStream) {
 							vid.mozSrcObject = stream;
@@ -253,7 +254,7 @@
 					document.getElementById('nogum').className = "nohide";
 					alert("Your browser does not seem to support getUserMedia, using a static image instead.");
 				}
-				
+
 				vid.addEventListener('canplay', enablestart, false);
 
 				function startVideo() {
@@ -268,11 +269,11 @@
 				var positions;
 				var fd = new faceDeformer();
 				fd.init(document.getElementById('webgl'));
-				
+
 				document.addEventListener("clmtrackrIteration", function(event) {
 					stats.update();
 				}, false);
-				
+
 				function drawLoop() {
 					// track in video
 					positions = ctrack.getCurrentPosition();
@@ -280,14 +281,14 @@
 					if (positions) {
 						ctrack.draw(overlay);
 					}
-					
+
 					// hide buttons
 					elem = document.getElementById('buttons');
 					elem.setAttribute('class', 'hide');
 					// show message
 					var scoreel = document.getElementById('score');
 					scoreel.innerHTML = "Please keep head still while model fits";
-					
+
 					var pn = ctrack.getConvergence();
 					if (pn < 1.8) {
 						requestAnimFrame(setupFaceDeformation);
@@ -299,7 +300,7 @@
 						requestAnimFrame(drawLoop);
 					}
 				}
-				
+
 				var ph, gui;
 				var rotation = 0;
 				var scale = 3;
@@ -313,7 +314,7 @@
 					ctrack.draw(overlay);
 					fd.load(vid, positions, pModel);
 					fd.draw(positions);
-					
+
 					// hide video
 					var elem = document.getElementById('container');
 					elem.setAttribute('class', 'hide');
@@ -349,7 +350,7 @@
 					var gui20 = gui.add(ph, 'param20', -20, 20).listen();
 					var guiGrid = gui.add(ph, 'draw_grid', false);
 					var guiFace = gui.add(ph, 'draw_face', true);
-					
+
 					gui1.onChange(drawDeformedFace);
 					gui2.onChange(drawDeformedFace);
 					gui3.onChange(drawDeformedFace);

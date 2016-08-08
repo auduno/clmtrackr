@@ -6,14 +6,14 @@
 		<link href="./styles/bootstrap.min.css" rel="stylesheet" type="text/css">
 		<style>
 			@import url(https://fonts.googleapis.com/css?family=Lato:300italic,700italic,300,700);
-			
+
 			body {
 				font-family: 'Lato';
 				background-color: #f0f0f0;
 				margin: 0px auto;
 				max-width: 1150px;
 			}
-			
+
 			#overlay {
 				position: absolute;
 				top: 0px;
@@ -32,28 +32,28 @@
 				-ms-filter : fliph; /*IE*/
 				filter : fliph; /*IE*/
 			}
-			
+
 			#container {
 				position : relative;
 				width : 370px;
 				/*margin : 0px auto;*/
 			}
-			
+
 			#content {
 				margin-top : 70px;
 				margin-left : 100px;
 				margin-right : 100px;
 				max-width: 950px;
 			}
-			
+
 			#sketch {
 				display: block;
 			}
-			
+
 			#filter {
 				display: none;
 			}
-			
+
 			h2 {
 				font-weight : 400;
 			}
@@ -61,7 +61,7 @@
 			.nogum {
 				display : none;
 			}
-			
+
 			.btn {
 				font-family: 'Lato';
 				font-size: 16px;
@@ -91,9 +91,6 @@
 	</head>
 	<body>
 		<script src="./ext_js/utils.js"></script>
-		<script src="./ext_js/jsfeat-min.js"></script>
-		<script src="./ext_js/frontalface.js"></script>
-		<script src="./ext_js/jsfeat_detect.js"></script>
 		<script src="./ext_js/numeric-1.2.6.min.js"></script>
 		<script src="./ext_js/mosse.js"></script>
 		<script src="./ext_js/left_eye_filter.js"></script>
@@ -101,6 +98,8 @@
 		<script src="./ext_js/nose_filter.js"></script>
 		<script src="../models/model_pca_20_svm.js"></script>
 		<script src="../js/clm.js"></script>
+		<script src="../js/jsfeat_detect.js"></script>
+		<script src="../js/jsfeat_detect_worker.js"></script>
 		<script src="../js/svmfilter_webgl.js"></script>
 		<script src="../js/svmfilter_fft.js"></script>
 		<script src="../js/mossefilter.js"></script>
@@ -144,21 +143,21 @@
 				var vid = document.getElementById('videoel');
 				var overlay = document.getElementById('overlay');
 				var overlayCC = overlay.getContext('2d');
-				
+
 				var ctrack = new clm.tracker({useWebGL : true});
 				ctrack.init(pModel);
-				
+
 				stats = new Stats();
 				stats.domElement.style.position = 'absolute';
 				stats.domElement.style.top = '0px';
 				document.getElementById('container').appendChild( stats.domElement );
-				
+
 				function enablestart() {
 					var startbutton = document.getElementById('startbutton');
 					startbutton.value = "start";
 					startbutton.disabled = null;
 				}
-				
+
 				var insertAltVideo = function(video) {
 					if (supports_video()) {
 						if (supports_ogg_theora_video()) {
@@ -178,7 +177,7 @@
 				// check for camerasupport
 				if (navigator.getUserMedia) {
 					// set up stream
-					
+
 					var videoSelector = {video : true};
 					if (window.navigator.appVersion.match(/Chrome\/(.*?) /)) {
 						var chromeVersion = parseInt(window.navigator.appVersion.match(/Chrome\/(\d+)\./)[1], 10);
@@ -186,7 +185,7 @@
 							videoSelector = "video";
 						}
 					};
-				
+
 					navigator.getUserMedia(videoSelector, function( stream ) {
 						if (vid.mozCaptureStream) {
 							vid.mozSrcObject = stream;
@@ -208,7 +207,7 @@
 				}
 
 				vid.addEventListener('canplay', enablestart, false);
-				
+
 				function startVideo() {
 					// start video
 					vid.play();
@@ -217,7 +216,7 @@
 					// start loop to draw face
 					drawLoop();
 				}
-				
+
 				function drawLoop() {
 					requestAnimFrame(drawLoop);
 					overlayCC.clearRect(0, 0, 400, 300);
@@ -226,12 +225,12 @@
 						ctrack.draw(overlay);
 					}
 				}
-				
+
 				// update stats on every iteration
 				document.addEventListener('clmtrackrIteration', function(event) {
 					stats.update();
 				}, false);
-				
+
 			</script>
 		</div>
 	</body>
