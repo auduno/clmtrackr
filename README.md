@@ -71,7 +71,7 @@ You can also use the built in function ```draw()``` to draw the tracked facial m
 ```html
 <canvas id="drawCanvas" width="400" height="300"></canvas>
 <script type="text/javascript">
-  var canvasInput = document.getElementById('canvas');
+  var canvasInput = document.getElementById('drawCanvas');
   var cc = canvasInput.getContext('2d');
   function drawLoop() {
     requestAnimationFrame(drawLoop);
