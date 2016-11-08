@@ -1,0 +1,3 @@
+[submodule "lib/stats.js"]
+	path = lib/stats.js
+	url = https://github.com/jsio-private/stats.js

@@ -1,0 +1,42 @@
+@import 'nib'
+
+
+html
+body
+#main
+.app-cmpt
+  height 100%
+
+body
+  font-family Roboto, sans-serif
+
+
+.app-cmpt
+  display flex
+
+  // *
+  //   flex-shrink 0
+
+  .example-wrapper
+    padding 20px
+    max-width 750px
+    min-width 400px
+    flex 1
+
+    display flex
+    justify-content center
+
+  .coming-soon-wrapper
+    width 100%
+    height 100%
+    display flex
+    flex-direction column
+    justify-content center
+
+    iframe
+      width 100%
+      height 100%
+
+  .menu-drawer-cmpt
+    width 256px
+    height 100%
