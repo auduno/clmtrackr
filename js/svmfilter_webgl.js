@@ -1348,3 +1348,5 @@ var webglFilter = function() {
   window.loadShader = loadShader;
 
 }());
+
+module.exports = webglFilter;

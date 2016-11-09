@@ -732,3 +732,5 @@ function FFT() {
     }
   }
 }
+
+module.exports = mosseFilter;

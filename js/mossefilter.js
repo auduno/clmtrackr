@@ -1,5 +1,7 @@
 // requires mosse.js
 
+var mosseFilter = require('./mosse.js');
+
 var mosseFilterResponses = function() {
   
   var filters = [];
@@ -72,3 +74,5 @@ var mosseFilterResponses = function() {
     return response
   }
 }
+
+module.exports = mosseFilterResponses;

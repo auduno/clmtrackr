@@ -1,5 +1,10 @@
 // simple wrapper for jsfeat face detector
-// requires jsfeat
+var jsfeat = require('jsfeat');
+/**
+ * this cascade is derived from https://github.com/mtschirs/js-objectdetect implementation
+ * @author Martin Tschirsich / http://www.tu-darmstadt.de/~m_t
+ */
+var frontalface = require('./filters/frontalface.json');
 
 var jsfeat_face = function(image) {
   
@@ -22,15 +27,15 @@ var jsfeat_face = function(image) {
   ii_sqsum = new Int32Array((w+1)*(h+1));
   ii_tilted = new Int32Array((w+1)*(h+1));
   
-  var classifier = jsfeat.haar.frontalface;
+  var classifier = frontalface;
   
   this.findFace = function () {
     if (image.tagName == 'VIDEO' || image.tagName == 'IMG') {
       work_ctx.drawImage(image, 0, 0);
     } 
     var imageData = work_ctx.getImageData(0, 0, w, h);
-                  
-    jsfeat.imgproc.grayscale(imageData.data, img_u8.data);
+    
+    jsfeat.imgproc.grayscale(imageData.data, w, h, img_u8);
     
     jsfeat.imgproc.equalize_histogram(img_u8, img_u8);
     
@@ -58,3 +63,5 @@ var jsfeat_face = function(image) {
   }
   
 }
+
+module.exports = jsfeat_face;

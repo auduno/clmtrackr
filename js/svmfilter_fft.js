@@ -562,3 +562,5 @@ var svmFilter = function() {
     }
   }
 }
+
+module.exports = svmFilter;
