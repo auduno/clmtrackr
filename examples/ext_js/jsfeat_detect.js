@@ -24,7 +24,7 @@ var jsfeat_face = function(image) {
   
   var classifier = jsfeat.haar.frontalface;
   
-  this.findFace = function () {
+  this.findFace = function (minScale) {
     if (image.tagName == 'VIDEO' || image.tagName == 'IMG') {
       work_ctx.drawImage(image, 0, 0);
     } 
@@ -36,7 +36,7 @@ var jsfeat_face = function(image) {
     
     jsfeat.imgproc.compute_integral_image(img_u8, ii_sum, ii_sqsum, null);
 
-    var rects = jsfeat.haar.detect_multi_scale(ii_sum, ii_sqsum, ii_tilted, null, img_u8.cols, img_u8.rows, classifier, 1.15, 2);
+    var rects = jsfeat.haar.detect_multi_scale(ii_sum, ii_sqsum, ii_tilted, null, img_u8.cols, img_u8.rows, classifier, 1.15, minScale);
     
     rects = jsfeat.haar.group_rectangles(rects, 1);
     

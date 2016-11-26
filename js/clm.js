@@ -12,6 +12,7 @@ var clm = {
 		if (params.stopOnConvergence === undefined) params.stopOnConvergence = false;
 		if (params.weightPoints === undefined) params.weightPoints = undefined;
 		if (params.sharpenResponse === undefined) params.sharpenResponse = false;
+		if (params.minScale === undefined) params.minScale = 2;
 		
 		var numPatches, patchSize, numParameters, patchType;
 		var gaussianPD;
@@ -901,7 +902,7 @@ var clm = {
 			);*/
 			
 			var jf = new jsfeat_face(canvas);
-			var comp = jf.findFace();
+			var comp = jf.findFace(params.minScale);
 			
 			if (comp.length > 0) {
 				candidate = comp[0];
