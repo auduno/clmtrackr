@@ -12,7 +12,14 @@ var clm = {
 		if (params.stopOnConvergence === undefined) params.stopOnConvergence = false;
 		if (params.weightPoints === undefined) params.weightPoints = undefined;
 		if (params.sharpenResponse === undefined) params.sharpenResponse = false;
-		if (params.minScale === undefined) params.minScale = 2;
+
+		if (params.faceDetection === undefined) params.faceDetection = {};
+		if (params.faceDetection.workSize === undefined) params.faceDetection.workSize = 160;
+		if (params.faceDetection.minScale === undefined) params.faceDetection.minScale = 2;
+		if (params.faceDetection.scaleFactor === undefined) params.faceDetection.scaleFactor = 1.15;
+		if (params.faceDetection.useCanny === undefined) params.faceDetection.useCanny = false;
+		if (params.faceDetection.edgesDensity === undefined) params.faceDetection.edgesDensity = 0.13;
+		if (params.faceDetection.equalizeHistogram === undefined) params.faceDetection.equalizeHistogram = true;
 		
 		var numPatches, patchSize, numParameters, patchType;
 		var gaussianPD;
@@ -71,7 +78,7 @@ var clm = {
 		
 		var facecheck_count = 0;
 		
-		var webglFi, svmFi, mosseCalc;
+		var webglFi, svmFi, mosseCalc, jf;
 
 		var scoringCanvas = document.createElement('canvas');
 		//document.body.appendChild(scoringCanvas);
@@ -280,6 +287,8 @@ var clm = {
 				runnerElement = element;
 				runnerBox = box;
 			}
+			// setup the jsfeat face tracker with the element
+			jf = new jsfeat_face(element, params.faceDetection.workSize);
 			// start named timeout function
 			runnerTimeout = requestAnimFrame(runnerFunction);
 		}
@@ -890,30 +899,12 @@ var clm = {
 		
 		// detect position of face on canvas/video element
 		var detectPosition = function(el) {
-			var canvas = document.createElement('canvas');
-			canvas.width = el.width;
-			canvas.height = el.height;
-			var cc = canvas.getContext('2d');
-			cc.drawImage(el, 0, 0, el.width, el.height);
+			var comp = jf.findFace(params.faceDetection);
 			
-			// do viola-jones on canvas to get initial guess, if we don't have any points
-			/*var comp = ccv.detect_objects(
-				ccv.grayscale(canvas), ccv.cascade, 5, 1
-			);*/
-			
-			var jf = new jsfeat_face(canvas);
-			var comp = jf.findFace(params.minScale);
-			
-			if (comp.length > 0) {
-				candidate = comp[0];
+			if (comp) {
+				candidate = comp;
 			} else {
 				return false;
-			}
-			
-			for (var i = 1; i < comp.length; i++) {
-				if (comp[i].confidence > candidate.confidence) {
-					candidate = comp[i];
-				}
 			}
 			
 			return candidate;
