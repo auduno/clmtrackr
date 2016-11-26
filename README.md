@@ -84,6 +84,12 @@ You can also use the built in function ```draw()``` to draw the tracked facial m
 
 See the complete example [here](https://auduno.github.com/clmtrackr/example.html).
 
+### Development ###
+
+First, install [node.js](http://nodejs.org/) with npm, then install [Grunt](http://gruntjs.com/getting-started).
+
+In the root directory of clmtrackr, run `npm install` then run `grunt`. This will create `clmtrackr.min.js` and `clmtrackr.js`.
+
 ### License ###
 
 **clmtrackr** is distributed under the [MIT License](http://www.opensource.org/licenses/MIT)

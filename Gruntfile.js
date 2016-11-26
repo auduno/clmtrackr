@@ -25,7 +25,7 @@ module.exports = function(grunt) {
 		},
 		uglify: {
 			options: {
-				report: 'gzip',
+				report: 'min',
 				preserveComments: 'false',
 				mangle: {
 					except: ['clmtrackr']
