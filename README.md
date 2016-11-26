@@ -90,6 +90,8 @@ First, install [node.js](http://nodejs.org/) with npm, then install [Grunt](http
 
 In the root directory of clmtrackr, run `npm install` then run `grunt`. This will create `clmtrackr.min.js` and `clmtrackr.js`.
 
+To test the examples locally, you need to run a local server. One easy way to do this is to install `http-server`, a small node.js utility: `npm install -g http-server`. Then run `http-server` in the root of clmtrackr and go to `http://localhost:8080/examples` in your browser.
+
 ### License ###
 
 **clmtrackr** is distributed under the [MIT License](http://www.opensource.org/licenses/MIT)
