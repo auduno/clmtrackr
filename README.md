@@ -1,11 +1,11 @@
 clmtrackr
 ======
 
-![tracked face](http://auduno.github.com/clmtrackr/media/clmtrackr_03.jpg)
+![tracked face](https://auduno.github.io/clmtrackr/media/clmtrackr_03.jpg)
 
 **clmtrackr** is a javascript library for fitting facial models to faces in videos or images. It currently is an implementation of *constrained local models* fitted by *regularized landmark mean-shift*, as described in [Jason M. Saragih's paper](http://dl.acm.org/citation.cfm?id=1938021). **clmtrackr** tracks a face and outputs the coordinate positions of the face model as an array, following the numbering of the model below:
 
-[![facemodel_numbering](http://auduno.github.com/clmtrackr/media/facemodel_numbering_new_small.png)](http://auduno.github.com/clmtrackr/media/facemodel_numbering_new.png)
+[![facemodel_numbering](https://auduno.github.io/clmtrackr/media/facemodel_numbering_new_small.png)](https://auduno.github.io/clmtrackr/media/facemodel_numbering_new.png)
 
 [Reference](http://auduno.github.io/clmtrackr/docs/reference.html) - [Overview](http://auduno.tumblr.com/post/61888277175/fitting-faces)
 
@@ -82,7 +82,7 @@ You can also use the built in function ```draw()``` to draw the tracked facial m
 </script>
 ```
 
-See the complete example [here](https://auduno.github.com/clmtrackr/example.html).
+See the complete example [here](https://auduno.github.io/clmtrackr/example.html).
 
 ### License ###
 
