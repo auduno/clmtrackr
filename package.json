@@ -3,7 +3,7 @@
     "type": "git",
     "url": "https://github.com/auduno/clmtrackr.git"
   },
-  "dependencies": {
+  "devDependencies": {
     "grunt": "^0.4.5",
     "grunt-contrib-concat": "^0.3.0",
     "grunt-contrib-uglify": "^0.2.7"

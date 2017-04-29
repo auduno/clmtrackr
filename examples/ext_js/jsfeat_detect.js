@@ -3,6 +3,8 @@ var jsfeat_face = function(video, maxWorkSize) {
   var videoHeight = video.height;
 
   var classifier = jsfeat.haar.frontalface;
+
+  // scale down canvas we do detection on (to reduce noisy detections)
   var scale = Math.min(maxWorkSize/videoWidth, maxWorkSize/videoHeight);
   var w = (videoWidth*scale)|0;
   var h = (videoHeight*scale)|0;
