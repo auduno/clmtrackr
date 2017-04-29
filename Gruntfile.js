@@ -29,6 +29,9 @@ module.exports = function(grunt) {
 				preserveComments: 'false',
 				mangle: {
 					except: ['clmtrackr']
+				},
+				compress: {
+					drop_console: true
 				}
 			},
 			dist: {
