@@ -1,13 +1,13 @@
 clmtrackr
 ======
 
-![tracked face](https://auduno.github.io/clmtrackr/media/clmtrackr_03.jpg)
+![tracked face](https://auduno.github.io/clmtrackr/examples/media/clmtrackr_03.jpg)
 
 **clmtrackr** is a javascript library for fitting facial models to faces in videos or images. It currently is an implementation of *constrained local models* fitted by *regularized landmark mean-shift*, as described in [Jason M. Saragih's paper](http://dl.acm.org/citation.cfm?id=1938021). **clmtrackr** tracks a face and outputs the coordinate positions of the face model as an array, following the numbering of the model below:
 
-[![facemodel_numbering](https://auduno.github.io/clmtrackr/media/facemodel_numbering_new_small.png)](https://auduno.github.io/clmtrackr/media/facemodel_numbering_new.png)
+[![facemodel_numbering](https://auduno.github.io/clmtrackr/examples/media/facemodel_numbering_new_small.png)](https://auduno.github.io/clmtrackr/examples/media/facemodel_numbering_new.png)
 
-[Reference](http://auduno.github.io/clmtrackr/docs/reference.html) - [Overview](http://auduno.tumblr.com/post/61888277175/fitting-faces)
+[Reference](http://auduno.github.io/clmtrackr/docs/reference.html) - [Overview](https://www.auduno.com/2014/01/05/fitting-faces/)
 
 The library provides some generic face models that were trained on [the MUCT database](http://www.milbo.org/muct/) and some additional self-annotated images. Check out [clmtools](https://github.com/auduno/clmtools) for building your own models.
 
@@ -19,10 +19,10 @@ For some more information about Constrained Local Models, take a look at Xiaogua
 
 ### Examples ###
 
-* [Tracking in image](https://auduno.github.io/clmtrackr/clm_image.html)
-* [Tracking in video](https://auduno.github.io/clmtrackr/clm_video.html)
+* [Tracking in image](https://auduno.github.io/clmtrackr/examples/clm_image.html)
+* [Tracking in video](https://auduno.github.io/clmtrackr/examples/clm_video.html)
 * [Face substitution](https://auduno.github.io/clmtrackr/examples/facesubstitution.html)
-* [Face masking](https://auduno.github.io/clmtrackr/face_mask.html)
+* [Face masking](https://auduno.github.io/clmtrackr/examples/face_mask.html)
 * [Realtime face deformation](https://auduno.github.io/clmtrackr/examples/facedeform.html)
 * [Emotion detection](https://auduno.github.io/clmtrackr/examples/clm_emotiondetection.html)
 * [Caricature](https://auduno.github.io/clmtrackr/examples/caricature.html)
@@ -82,7 +82,7 @@ You can also use the built in function ```draw()``` to draw the tracked facial m
 </script>
 ```
 
-See the complete example [here](https://auduno.github.io/clmtrackr/example.html).
+See the complete example [here](https://auduno.github.io/clmtrackr/examples/example.html).
 
 ### Development ###
 
