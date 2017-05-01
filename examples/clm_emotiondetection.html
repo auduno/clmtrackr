@@ -125,11 +125,11 @@
 		</script>
 	</head>
 	<body>
-		<script src="./js/utils.js"></script>
-		<script src="./js/clmtrackr.js"></script>
-		<script src="../models/model_pca_20_svm_emotionDetection.js"></script>
-		<script src="./js/Stats.js"></script>
-		<script src="./js/d3.min.js"></script>
+		<script src="./js/libs/utils.js"></script>
+		<script src="../clmtrackr.js"></script>
+		<script src="../models/model_pca_20_svm.js"></script>
+		<script src="./js/libs/Stats.js"></script>
+		<script src="./js/libs/d3.min.js"></script>
 		<script src="./js/emotion_classifier.js"></script>
 		<script src="./js/emotionmodel.js"></script>
 		<div id="content">
@@ -215,6 +215,10 @@
 				
 				/*********** setup of emotion detection *************/
 
+				// set eigenvector 9 and 11 to not be regularized. This is to better detect motion of the eyebrows
+				pModel.shapeModel.nonRegularizedVectors.push(9);
+				pModel.shapeModel.nonRegularizedVectors.push(11);
+
 				var ctrack = new clm.tracker({useWebGL : true});
 				ctrack.init(pModel);
 
@@ -249,6 +253,8 @@
 					}
 				}
 				
+				delete emotionModel['disgusted'];
+				delete emotionModel['fear'];
 				var ec = new emotionClassifier();
 				ec.init(emotionModel);
 				var emotionData = ec.getBlank();	
