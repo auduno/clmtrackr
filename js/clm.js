@@ -1136,11 +1136,11 @@ var clm = {
 				//this.draw(document.getElementById('overlay'), currentParameters);
 				
 			} else {
-				scaling = candidate.width/modelheight;
+				scaling = candidate.width/msmodelheight;
 				//var ccc = document.getElementById('overlay').getContext('2d');
 				//ccc.strokeRect(candidate.x,candidate.y,candidate.width,candidate.height);
-				translateX = candidate.x-(xmin*scaling)+0.1*candidate.width;
-				translateY = candidate.y-(ymin*scaling)+0.25*candidate.height;
+				translateX = candidate.x-(msxmin*scaling)+0.1*candidate.width;
+				translateY = candidate.y-(msymin*scaling)+0.25*candidate.height;
 				currentParameters[0] = scaling-1;
 				currentParameters[2] = translateX;
 				currentParameters[3] = translateY;
