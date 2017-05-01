@@ -99,11 +99,11 @@
 	</head>
 	<body>
 		<script src="./js/libs/utils.js"></script>
+		<script src="./js/libs/numeric-1.2.6.min.js"></script>
+		<script src="./js/libs/mosse.js"></script>
 		<script src="./js/libs/jsfeat-min.js"></script>
 		<script src="./js/libs/frontalface.js"></script>
 		<script src="./js/libs/jsfeat_detect.js"></script>
-		<script src="./js/libs/numeric-1.2.6.min.js"></script>
-		<script src="./js/libs/mosse.js"></script>
 		<script src="./js/libs/left_eye_filter.js"></script>
 		<script src="./js/libs/right_eye_filter.js"></script>
 		<script src="./js/libs/nose_filter.js"></script>
@@ -114,7 +114,7 @@
 		<script src="../js/mossefilter.js"></script>
 		<script src="./js/libs/Stats.js"></script>
 		<div id="content">
-			<h2>Facetracking example</h2>
+			<h2>Response types example</h2>
 			<div id="container">
 				<video id="videoel" width="400" height="300" preload="auto" loop>
 					<!--<video id="videoel" width="320" height="240" preload="auto">-->
@@ -124,26 +124,18 @@
 			</div>
 			<br/>
 			<input class="btn" type="button" value="wait, loading video" disabled="disabled" onclick="startVideo()" id="startbutton"></input>
+			<p>Select different responses modes:
+			<select name="mode" id="selectmode">
+				<option value="0">Type: "single", List: ["raw"]</option>
+				<option value="1">Type: "single", List: ["lbp"]</option>
+				<option value="2">Type: "single", List: ["sobel"]</option>
+				<option value="3">Type: "cycle", List: ["raw", "lbp"]</option>
+				<option value="4">Type: "cycle", List: ["lbp", "sobel"]</option>
+				<option value="5">Type: "blend", List: ["raw", "lbp"]</option>
+				<option value="6">Type: "blend", List: ["lbp", "sobel"]</option>
+			</select></p>
 			<div id="text">
-				<p>This is an example of face tracking using the javascript library <a href="https://github.com/auduno/clmtrackr"><em>clmtrackr</em></a>. The fitting method is generally called "Non-rigid/deformable face tracking/alignment using constrained local models".</p>
-				<p>Note that this example works best in Google Chrome, with a computer that supports WebGL and floating point textures. It should however work in any modern browser.</p>
-				<div id="gum" class="gum">
-					<p>To try it out:
-						<ol>
-							<li>allow the page to use your webcamera</li>
-							<li>make sure that your face is clearly visible in the video, and click start</li>
-							<li>see the model fitted to your face</li>
-						<ol>
-					</p>
-				</div>
-				<div id="nogum" class="nogum">
-					<p>
-						There was some problem trying to capture your webcamera, please check that your browser supports WebRTC. Using a fallback video instead. To try it out:
-						<ol>
-							<li>click start</li>
-							<li>see the model fitted to the face</li>
-						</ol>
-					</p>
+				<p>This is an example of different types of responses. For more details, have a look at <a href="http://auduno.github.io/clmtrackr/docs/reference.html#responses">the reference</a></p>
 				</div>
 			</div>
 			<a href="https://github.com/auduno/clmtrackr"><img style="position: absolute; top: 0; left: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_left_green_007200.png" alt="Fork me on GitHub"></a>
@@ -238,6 +230,26 @@
 				document.addEventListener('clmtrackrIteration', function(event) {
 					stats.update();
 				}, false);
+				
+				function switchMode(el) {
+          var mode = parseInt(el.target.value, 10);
+          if (mode == 0) {
+            ctrack.setResponseMode("single",["raw"]);
+					} else if (mode == 1) {
+            ctrack.setResponseMode("single",["lbp"]);
+					} else if (mode == 2) {
+            ctrack.setResponseMode("single",["sobel"]);
+          } else if (mode == 3) {
+            ctrack.setResponseMode("cycle",["raw", "lbp"]);
+          } else if (mode == 4) {
+            ctrack.setResponseMode("cycle",["sobel", "lbp"]);
+          } else if (mode == 5) {
+            ctrack.setResponseMode("blend",["raw", "lbp"]);
+          } else if (mode == 6) {
+            ctrack.setResponseMode("blend",["sobel", "lbp"]);
+          }
+				};
+				document.getElementById('selectmode').addEventListener('change', switchMode, false);
 				
 			</script>
 		</div>

@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 	<head>
-		<title>Face tracker</title>
+		<title>Gender detection</title>
 		<meta charset="utf-8">
 		<link href="./styles/bootstrap.min.css" rel="stylesheet" type="text/css">
 		<style>
@@ -23,6 +23,9 @@
 				transform : scaleX(-1);
 				-ms-filter : fliph; /*IE*/
 				filter : fliph; /*IE*/
+
+				width : 600px;
+				height : 450px;
 			}
 
 			#videoel {
@@ -31,6 +34,9 @@
 				transform : scaleX(-1);
 				-ms-filter : fliph; /*IE*/
 				filter : fliph; /*IE*/
+
+				width : 600px;
+				height : 450px;
 			}
 			
 			#container {
@@ -40,26 +46,18 @@
 			}
 			
 			#content {
-				margin-top : 70px;
-				margin-left : 100px;
-				margin-right : 100px;
-				max-width: 950px;
+				margin-top : 50px;
+				margin-left : auto;
+				margin-right : auto;
+				max-width: 600px;
 			}
 			
-			#sketch {
-				display: none;
-			}
-			
-			#filter {
+			#sketch, #filter {
 				display: none;
 			}
 			
 			h2 {
 				font-weight : 400;
-			}
-
-			.nogum {
-				display : none;
 			}
 			
 			.btn {
@@ -67,12 +65,18 @@
 				font-size: 16px;
 			}
 
-			.hide {
-				display : none;
+			#controls {
+				text-align : center;
 			}
 
-			.nohide {
-				display : block;
+			/* d3 */
+			.bar {
+				fill : steelblue;
+				fill-opacity : .9;
+			}
+
+			#emotion_chart {
+				text-align : center;
 			}
 		</style>
 		<script>
@@ -99,52 +103,26 @@
 	</head>
 	<body>
 		<script src="./js/libs/utils.js"></script>
-		<script src="./js/libs/jsfeat-min.js"></script>
-		<script src="./js/libs/frontalface.js"></script>
-		<script src="./js/libs/jsfeat_detect.js"></script>
-		<script src="./js/libs/numeric-1.2.6.min.js"></script>
-		<script src="./js/libs/mosse.js"></script>
-		<script src="./js/libs/left_eye_filter.js"></script>
-		<script src="./js/libs/right_eye_filter.js"></script>
-		<script src="./js/libs/nose_filter.js"></script>
+		<script src="../clmtrackr.js"></script>
 		<script src="../models/model_pca_20_svm.js"></script>
-		<script src="../js/clm.js"></script>
-		<script src="../js/svmfilter_webgl.js"></script>
-		<script src="../js/svmfilter_fft.js"></script>
-		<script src="../js/mossefilter.js"></script>
 		<script src="./js/libs/Stats.js"></script>
+		<script src="./js/libs/d3.min.js"></script>
+		<script src="./js/emotion_classifier.js"></script>
+		<script src="./js/gendermodel.js"></script>
 		<div id="content">
-			<h2>Facetracking example</h2>
+			<h2>Gender detection example</h2>
+			<p>This a test of gender detection based on parameter output from <em>clmtrackr</em>.</p>
 			<div id="container">
 				<video id="videoel" width="400" height="300" preload="auto" loop>
-					<!--<video id="videoel" width="320" height="240" preload="auto">-->
-					<!--<source src="./media/franck.ogv" type="video/ogg"/>-->
 				</video>
 				<canvas id="overlay" width="400" height="300"></canvas>
 			</div>
-			<br/>
-			<input class="btn" type="button" value="wait, loading video" disabled="disabled" onclick="startVideo()" id="startbutton"></input>
-			<div id="text">
-				<p>This is an example of face tracking using the javascript library <a href="https://github.com/auduno/clmtrackr"><em>clmtrackr</em></a>. The fitting method is generally called "Non-rigid/deformable face tracking/alignment using constrained local models".</p>
-				<p>Note that this example works best in Google Chrome, with a computer that supports WebGL and floating point textures. It should however work in any modern browser.</p>
-				<div id="gum" class="gum">
-					<p>To try it out:
-						<ol>
-							<li>allow the page to use your webcamera</li>
-							<li>make sure that your face is clearly visible in the video, and click start</li>
-							<li>see the model fitted to your face</li>
-						<ol>
-					</p>
-				</div>
-				<div id="nogum" class="nogum">
-					<p>
-						There was some problem trying to capture your webcamera, please check that your browser supports WebRTC. Using a fallback video instead. To try it out:
-						<ol>
-							<li>click start</li>
-							<li>see the model fitted to the face</li>
-						</ol>
-					</p>
-				</div>
+			<canvas id="sketch" width="400" height="300"></canvas>
+			<div id="emotion_container">
+				<div id='emotion_chart'></div>
+			</div>
+			<div id="controls">
+				<input class="btn" type="button" value="wait, loading video" disabled="disabled" onclick="startVideo()" id="startbutton"></input>
 			</div>
 			<a href="https://github.com/auduno/clmtrackr"><img style="position: absolute; top: 0; left: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_left_green_007200.png" alt="Fork me on GitHub"></a>
 			<script>
@@ -152,14 +130,8 @@
 				var overlay = document.getElementById('overlay');
 				var overlayCC = overlay.getContext('2d');
 				
-				var ctrack = new clm.tracker({useWebGL : true});
-				ctrack.init(pModel);
-				
-				stats = new Stats();
-				stats.domElement.style.position = 'absolute';
-				stats.domElement.style.top = '0px';
-				document.getElementById('container').appendChild( stats.domElement );
-				
+				/********** check and set up video/webcam **********/
+
 				function enablestart() {
 					var startbutton = document.getElementById('startbutton');
 					startbutton.value = "start";
@@ -203,19 +175,24 @@
 						vid.play();
 					}, function() {
 						insertAltVideo(vid);
-						document.getElementById('gum').className = "hide";
-						document.getElementById('nogum').className = "nohide";
-						alert("There was some problem trying to fetch video from your webcam, using a fallback video instead.");
+						alert("There was some problem trying to fetch video from your webcam. If you have a webcam, please make sure to accept when the browser asks for access to your webcam.");
 					});
 				} else {
 					insertAltVideo(vid);
-					document.getElementById('gum').className = "hide";
-					document.getElementById('nogum').className = "nohide";
-					alert("Your browser does not seem to support getUserMedia, using a fallback video instead.");
+					alert("This demo depends on getUserMedia, which your browser does not seem to support. :(");
 				}
 
 				vid.addEventListener('canplay', enablestart, false);
 				
+				/*********** setup of emotion detection *************/
+
+				// set eigenvector 9 and 11 to not be regularized. This is to better detect motion of the eyebrows
+				pModel.shapeModel.nonRegularizedVectors.push(9);
+				pModel.shapeModel.nonRegularizedVectors.push(11);
+				
+				var ctrack = new clm.tracker({useWebGL : true});
+				ctrack.init(pModel);
+
 				function startVideo() {
 					// start video
 					vid.play();
@@ -225,6 +202,7 @@
 					drawLoop();
 				}
 				
+				var gender = undefined;
 				function drawLoop() {
 					requestAnimFrame(drawLoop);
 					overlayCC.clearRect(0, 0, 400, 300);
@@ -232,8 +210,100 @@
 					if (ctrack.getCurrentPosition()) {
 						ctrack.draw(overlay);
 					}
+					var cp = ctrack.getCurrentParameters();
+					
+					var er = ec.meanPredict(cp);
+					if (er) {
+						updateData(er);
+					}
 				}
 				
+				var ec = new emotionClassifier();
+				ec.init(emotionModel);
+				var emotionData = ec.getBlank();	
+				
+				/************ d3 code for barchart *****************/
+
+				var margin = {top : 20, right : 40, bottom : 10, left : 40},
+					width = 200 - margin.left - margin.right,
+					height = 100 - margin.top - margin.bottom;
+
+				var barWidth = 30;
+
+				var formatPercent = d3.format(".0%");
+				
+				var x = d3.scale.linear()
+					.domain([0, ec.getEmotions().length-1]).range([margin.left-barWidth/2, width+margin.left-barWidth/2]);
+
+				var y = d3.scale.linear()
+					.domain([0,1]).range([0, height]);
+
+				var svg = d3.select("#emotion_chart").append("svg")
+					.attr("width", width + margin.left + margin.right)
+					.attr("height", height + margin.top + margin.bottom)
+				
+				svg.selectAll("rect").
+				  data(emotionData).
+				  enter().
+				  append("svg:rect").
+				  attr("x", function(datum, index) { return x(index); }).
+				  attr("y", function(datum) { return height - y(datum.value); }).
+				  attr("height", function(datum) { return y(datum.value); }).
+				  attr("width", barWidth).
+				  attr("fill", "#2d578b");
+
+				svg.selectAll("text.labels").
+				  data(emotionData).
+				  enter().
+				  append("svg:text").
+				  attr("x", function(datum, index) { return x(index) + barWidth; }).
+				  attr("y", function(datum) { return height - y(datum.value); }).
+				  attr("dx", -barWidth/2).
+				  attr("dy", "1.2em").
+				  attr("text-anchor", "middle").
+				  text(function(datum) { return datum.value;}).
+				  attr("fill", "white").
+				  attr("class", "labels");
+				
+				svg.selectAll("text.yAxis").
+				  data(emotionData).
+				  enter().append("svg:text").
+				  attr("x", function(datum, index) { return x(index) + barWidth; }).
+				  attr("y", height).
+				  attr("dx", -barWidth/2).
+				  attr("text-anchor", "middle").
+				  attr("style", "font-size: 12").
+				  text(function(datum) { return datum.emotion;}).
+				  attr("transform", "translate(0, 18)").
+				  attr("class", "yAxis");
+
+				function updateData(data) {
+					// update
+					var rects = svg.selectAll("rect")
+						.data(data)
+						.attr("y", function(datum) { return height - y(datum.value); })
+						.attr("height", function(datum) { return y(datum.value); });
+					var texts = svg.selectAll("text.labels")
+						.data(data)
+						.attr("y", function(datum) { return height - y(datum.value); })
+						.text(function(datum) { return datum.value.toFixed(1);});
+
+					// enter 
+					rects.enter().append("svg:rect");
+					texts.enter().append("svg:text");
+
+					// exit
+					rects.exit().remove();
+					texts.exit().remove();
+				}
+
+				/******** stats ********/
+
+				stats = new Stats();
+				stats.domElement.style.position = 'absolute';
+				stats.domElement.style.top = '0px';
+				document.getElementById('container').appendChild( stats.domElement );
+
 				// update stats on every iteration
 				document.addEventListener('clmtrackrIteration', function(event) {
 					stats.update();
