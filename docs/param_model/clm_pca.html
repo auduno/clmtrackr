@@ -40,9 +40,9 @@
 		<div id="content">
       <canvas id="compare" width="350" height="250"></canvas>
       <br/>
-      <label>Component 1<input type="range" name="param1" min="-30" max="30" onchange="rangeInput(this.value, 0)"></label>
-      <label>Component 2<input type="range" name="param2" min="-30" max="30" onchange="rangeInput(this.value, 1)"></label>
-      <label>Component 3<input type="range" name="param3" min="-20" max="20" onchange="rangeInput(this.value, 2)"></label>
+      <label>Component 1<input type="range" name="param1" min="-30" max="30" oninput="rangeInput(this.value, 0)" onchange="rangeInput(this.value, 0)"></label>
+      <label>Component 2<input type="range" name="param2" min="-30" max="30" oninput="rangeInput(this.value, 0)" onchange="rangeInput(this.value, 1)"></label>
+      <label>Component 3<input type="range" name="param3" min="-20" max="20" oninput="rangeInput(this.value, 0)" onchange="rangeInput(this.value, 2)"></label>
 		</div>
 		<script src="./main.js"></script>
 		
