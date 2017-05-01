@@ -253,6 +253,8 @@
 					}
 				}
 				
+				delete emotionModel['disgusted'];
+				delete emotionModel['fear'];
 				var ec = new emotionClassifier();
 				ec.init(emotionModel);
 				var emotionData = ec.getBlank();	
