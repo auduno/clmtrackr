@@ -34,7 +34,7 @@
 
   <p><em>clmtrackr</em> is a javascript library for fitting facial models to faces in images and video, and can be used for getting precise positions of facial features in an image, or precisely tracking faces in video. </p>
 
-  <p>Watch this example of <em>clmtrackr</em> tracking a face in the <a href="www-prima.inrialpes.fr/FGnet/data/01-TalkingFace/talking_face.html">talking face</a> video:</p>
+  <p>Watch this example of <em>clmtrackr</em> tracking a face in the <a href="http://www-prima.inrialpes.fr/FGnet/data/01-TalkingFace/talking_face.html">talking face</a> video:</p>
 
   <p style="text-align:center;"><iframe src="https://player.vimeo.com/video/75659453" width="360" height="281" frameborder="0" webkitAllowFullScreen mozallowfullscreen allowFullScreen></iframe></p>
 
@@ -44,7 +44,7 @@
 
   <p>Once started, <em>clmtrackr</em> will try to detect a face on the given element. If a face is found, <em>clmtrackr</em> will start to fit the facial model, and the positions can be returned via <code>getCurrentPosition()</code>.</p>
 
-  <p>The fitting algorithm is based on <a href="http://www.ri.cmu.edu/pub_files/2009/9/CameraReady-6.pdf">a paper</a> by Jason Saragih & Simon Lucey. The models are trained on annotated data from <a href="http://www.milbo.org/muct/">the MUCT database</a> plus some self-annotated images.</p>
+  <p>The fitting algorithm is based on <a href="http://www.ri.cmu.edu/pub_files/2009/9/CameraReady-6.pdf">a paper</a> by Jason Saragih &amp; Simon Lucey. The models are trained on annotated data from <a href="http://www.milbo.org/muct/">the MUCT database</a> plus some self-annotated images.</p>
 
   <h2 id="process">Basic usage</h2>
 
@@ -114,7 +114,7 @@ ctracker.draw(drawCanvas);</code></pre>
 
   <p>Additionally, there are also methods to try to combine the different types of responses. By default, clmtrackr only uses one type of response, but you can try to improve tracking by either <em>blending</em> or <em>cycling</em> different types of responses. When <em>blending</em> different types of responses, clmtrackr will calculate all the given types of responses in the array <em>list</em>, and average these responses. Since we're then calculating multiple responses per iteration, this will lead to slower tracking. If you're <em>cycling</em> different types of responses, clmtrackr will cycle through the list of responses in the array "list", but only calculate one type for each iteration. This means tracking will not be much slower than using single responses, but you may experience that the fitted model "jitters" due to disagreement between the different types of responses.</p>
 
-  <p>Try out the different response modes in <a href="http://auduno.github.io/clmtrackr/clm_video_responses.html">this example</a></p>
+  <p>Try out the different response modes in <a href="http://auduno.github.io/clmtrackr/examples/clm_video_responses.html">this example</a></p>
 
   <h2 id="parameters">Parameters</h2>
 
@@ -173,7 +173,7 @@ ctracker.draw(drawCanvas);</code></pre>
 
   <h2>Utility libraries</h2>
 
-  <p><em>face_deformer.js</em> is a small library for deforming a face from an image or video, and output it on a webgl canvas. This is used in the <a href="http://auduno.github.com/clmtrackr/face_mask.html">face masking</a> and <a href="http://auduno.github.com/clmtrackr/face_deformation_video.html">face deformation</a> demos. </p>
+  <p><em>face_deformer.js</em> is a small library for deforming a face from an image or video, and output it on a webgl canvas. This is used in the <a href="http://auduno.github.com/clmtrackr/examples/face_mask.html">face masking</a> and <a href="http://auduno.github.com/clmtrackr/examples/face_deformation_video.html">face deformation</a> demos. </p>
   <p>Example usage:</p>
 
   <pre><code>var fd = new faceDeformer();
