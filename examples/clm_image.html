@@ -110,8 +110,9 @@
 				img.onload = function() {
 					cc.drawImage(img,0,0,625, 500);
 				};
+				//img.crossOrigin = 'anonymous';
+				img.setAttribute('crossOrigin', '');
 				img.src = './media/franck_02159.jpg';
-			
 				var ctrack = new clm.tracker({stopOnConvergence : true});
 				ctrack.init(pModel);
 			

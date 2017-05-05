@@ -1,0 +1,63 @@
+@import url(https://fonts.googleapis.com/css?family=Lato:300italic,700italic,300,700);
+
+body {
+	font-family: 'Lato';
+	background-color: #f0f0f0;
+	margin: 0px 0px;
+	max-width: 1150px;
+}
+
+ 
+#overlay {
+	position: absolute;
+	top: 0px;
+	left: 0px;
+}
+
+#overlay1 {
+	position: absolute;
+	top: 0px;
+	left: 0px;
+}
+
+#container {
+	position : relative;
+	top: 0px;
+	width : 700px;
+	height : 500px;
+	/*margin : 0px auto;*/
+
+}
+
+#content {
+	margin-top : 10px;
+	margin-left : 100px;
+	margin-right : 100px;
+	max-width: 950px;
+	border: 2px solid orange;
+}
+
+#sketch {
+	display: none;
+}
+
+#filter {
+	display: none;
+}
+
+#convergence {
+	display : inline;
+}
+
+h2 {
+	font-weight : 400;
+}
+
+.btn {
+	font-family: 'Lato';
+	font-size: 16px;
+}
+
+.hide {
+	display : none;
+}
