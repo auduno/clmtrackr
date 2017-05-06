@@ -18,11 +18,11 @@ var paramsRange = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
       var similarityTransforms = [2,0,0,-50];
       var paramslength = paramsRange.length;
       var num_points = pModel.shapeModel.numPtsPerSample;
-			
+
 			var x,y;
-			
+
 			var i, path;
-			
+
 			var drawPath = function(canvasContext, path, dp) {
 			canvasContext.beginPath();
 			var i, x, y;
@@ -38,7 +38,7 @@ var paramsRange = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
 				b = dp[0]*y + dp[1]*x + dp[3];
 				x += a;
 				y += b;
-				
+
 				if (i == 0) {
 					canvasContext.moveTo(x,y);
 				} else {
@@ -49,7 +49,7 @@ var paramsRange = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
 			canvasContext.closePath();
 			canvasContext.stroke();
 		}
-		
+
 		function drawPoint(canvasContext, point, dp) {
 		  var i, x, y;
 		  i = point*2;
@@ -69,22 +69,22 @@ var paramsRange = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
 			canvasContext.fill();
 		}
 
-			
+
 		var draw = function(canvas, pv) {
       // if no previous points, just draw in the middle of canvas
-      
+
       var params;
       if (pv === undefined) {
         params = currentParameters.slice(0);
       } else {
         params = pv.slice(0);
       }
-      
+
       var cc = canvas.getContext('2d');
       cc.fillStyle = "rgb(50,50,50)";
       cc.strokeStyle = "rgb(50,50,50)";
       cc.save();
-      
+
       var paths = pModel.path.normal;
       for (var i = 0;i < paths.length;i++) {
         if (typeof(paths[i]) == 'number') {
@@ -93,7 +93,7 @@ var paramsRange = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
           drawPath(cc, paths[i], params);
         }
       }
-      
+
       cc.restore()
     }
 	  draw(document.getElementById('compare'), similarityTransforms.concat(paramsRange))

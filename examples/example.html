@@ -7,7 +7,7 @@
       #container {
         position : relative;
       }
-      
+
       #canvas {
         position : absolute;
         left : 0;
@@ -31,11 +31,11 @@
       <p id="positions"></p>
 			<script>
 				var videoInput = document.getElementById('video');
-        
+
         var ctracker = new clm.tracker();
         ctracker.init(pModel);
         ctracker.start(videoInput);
-				
+
 				function positionLoop() {
           requestAnimationFrame(positionLoop);
           var positions = ctracker.getCurrentPosition();
@@ -50,7 +50,7 @@
           }
         }
         positionLoop();
-				
+
 				var canvasInput = document.getElementById('canvas');
 				var cc = canvasInput.getContext('2d');
 				function drawLoop() {
