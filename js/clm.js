@@ -57,6 +57,8 @@ var clm = {
 
 		var first = true;
 
+		var gettingPosition = false;
+
 		var convergenceLimit = 0.01;
 
 		var learningRate = [];
@@ -301,11 +303,16 @@ var clm = {
 			cancelRequestAnimFrame(runnerTimeout);
 		}
 
+		this.recheck = function () {
+			console.log('RECHECKING');
+			first = true;
+		}
+
 		/*
 		 *  element : canvas or video element
 		 *  TODO: should be able to take img element as well
 		 */
-		this.track = function(element, box) {
+		this.track = function(element, box, gi) {
 
 			var evt = document.createEvent("Event");
 			evt.initEvent("clmtrackrBeforeTrack", true, true);
@@ -315,23 +322,36 @@ var clm = {
 			var croppedPatches = [];
 			var ptch, px, py;
 
-			if (first) {
-				// do viola-jones on canvas to get initial guess, if we don't have any points
-				var gi = getInitialPosition(element, box);
-				if (!gi) {
-					// send an event on no face found
-					var evt = document.createEvent("Event");
-					evt.initEvent("clmtrackrNotFound", true, true);
-					document.dispatchEvent(evt)
-
-					return false;
-				}
+			if (gi) {
 				scaling = gi[0];
 				rotation = gi[1];
 				translateX = gi[2];
 				translateY = gi[3];
 
 				first = false;
+				gettingPosition = false;
+			} else if (first) {
+				// do viola-jones on canvas to get initial guess, if we don't have any points
+				if (!gettingPosition) {
+					gettingPosition = true;
+					getInitialPosition(element, box, function (gi) {
+						gettingPosition = false;
+						if (!gi) {
+							// send an event on no face found
+							var evt = document.createEvent("Event");
+							evt.initEvent("clmtrackrNotFound", true, true);
+							document.dispatchEvent(evt);
+							first = true;
+
+							return false;
+						} else {
+							this.track(element, box, gi);
+						}
+
+					}.bind(this));
+				}
+				return;
+
 			} else {
 				facecheck_count += 1;
 
@@ -385,7 +405,7 @@ var clm = {
 					// send event to signal that tracking was lost
 					var evt = document.createEvent("Event");
 					evt.initEvent("clmtrackrLost", true, true);
-					document.dispatchEvent(evt)
+					document.dispatchEvent(evt);
 
 					return false;
 				}
@@ -545,6 +565,7 @@ var clm = {
 				}
 				var paramUpdateLeft = numeric.add(prior, jtj);
 				var paramUpdateRight = numeric.sub(priorP, jtv);
+
 				var paramUpdate = numeric.dot(numeric.inv(paramUpdateLeft), paramUpdateRight);
 				//var paramUpdate = numeric.solve(paramUpdateLeft, paramUpdateRight, true);
 
@@ -788,12 +809,13 @@ var clm = {
 
 		var runnerFunction = function() {
 			runnerTimeout = requestAnimFrame(runnerFunction);
-			// schedule as many iterations as we can during each request
-			var startTime = (new Date()).getTime();
-			while (((new Date()).getTime() - startTime) < 16) {
-				var tracking = this.track(runnerElement, runnerBox);
-				if (!tracking) continue;
-			}
+			// // schedule as many iterations as we can during each request
+			// var startTime = (new Date()).getTime();
+			// while (((new Date()).getTime() - startTime) < 16) {
+			// 	var tracking = this.track(runnerElement, runnerBox);
+			// 	if (!tracking) continue;
+			// }
+			this.track(runnerElement, runnerBox);
 		}.bind(this);
 
 		var getWebGLResponsesType = function(type, patches) {
@@ -901,17 +923,25 @@ var clm = {
 			return positions;
 		}
 
-		// detect position of face on canvas/video element
-		var detectPosition = function(el) {
-			var comp = jf.findFace(params.faceDetection);
+		var faceDetected = function (e, callback) {
+			var comp = e.data.comp;
 
 			if (comp) {
 				candidate = comp;
 			} else {
+				callback(false);
 				return false;
 			}
 
-			return candidate;
+			// return candidate;
+			callback(candidate);
+		}
+
+		// detect position of face on canvas/video element
+		var detectPosition = function(el, callback) {
+			jf.faceDetected = faceDetected;
+			//TODO Allow option that limit simultaneous trigger of WebWorkers
+			var comp = jf.findFace(params, callback);
 		}
 
 		// part one of meanshift calculation
@@ -1018,15 +1048,24 @@ var clm = {
 		}
 
 		// get initial starting point for model
-		var getInitialPosition = function(element, box) {
+		var getInitialPosition = function(element, box, callback, det) {
+
 			var translateX, translateY, scaling, rotation;
 			if (box) {
 				candidate = {x : box[0], y : box[1], width : box[2], height : box[3]};
 			} else {
-				var det = detectPosition(element);
 				if (!det) {
-					// if no face found, stop.
-					return false;
+					detectPosition(element, function (det) {
+						if (!det) {
+							// if no face found, stop.
+							callback(false);
+						} else {
+							getInitialPosition(element, box, callback, det);
+						}
+					});
+					return;
+				} else {
+					candidate = det[0];
 				}
 			}
 
@@ -1148,7 +1187,7 @@ var clm = {
 
 			currentPositions = calculatePositions(currentParameters, true);
 
-			return [scaling, rotation, translateX, translateY];
+			callback([scaling, rotation, translateX, translateY]);
 		}
 
 		// draw a parametrized line on a canvas
