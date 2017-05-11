@@ -827,13 +827,12 @@ var clm = {
 
 		var runnerFunction = function() {
 			runnerTimeout = requestAnimFrame(runnerFunction);
-			// // schedule as many iterations as we can during each request
-			// var startTime = (new Date()).getTime();
-			// while (((new Date()).getTime() - startTime) < 16) {
-			// 	var tracking = this.track(runnerElement, runnerBox);
-			// 	if (!tracking) continue;
-			// }
-			this.track(runnerElement, runnerBox);
+			// schedule as many iterations as we can during each request
+			var startTime = (new Date()).getTime();
+			while (((new Date()).getTime() - startTime) < 16) {
+				var tracking = this.track(runnerElement, runnerBox);
+				if (!tracking) break;
+			}
 		}.bind(this);
 
 		var getWebGLResponsesType = function(type, patches) {
