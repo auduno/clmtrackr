@@ -20,6 +20,7 @@ var clm = {
 		if (params.faceDetection.useCanny === undefined) params.faceDetection.useCanny = false;
 		if (params.faceDetection.edgesDensity === undefined) params.faceDetection.edgesDensity = 0.13;
 		if (params.faceDetection.equalizeHistogram === undefined) params.faceDetection.equalizeHistogram = true;
+		if (params.useWebWorkers === undefined) params.useWebWorkers = true;
 
 		var numPatches, patchSize, numParameters, patchType;
 		var gaussianPD;
@@ -56,8 +57,8 @@ var clm = {
 		var relaxation = 0.1;
 
 		var first = true;
-
-		var gettingPosition = false;
+		var detectingFace = false;
+		var faceDetectionResult;
 
 		var convergenceLimit = 0.01;
 
@@ -290,7 +291,7 @@ var clm = {
 				runnerBox = box;
 			}
 			// setup the jsfeat face tracker with the element
-			jf = new jsfeat_face(element, params.faceDetection.workSize);
+			jf = new jsfeat_face(element, params.faceDetection.workSize, params.useWebWorkers);
 			// start named timeout function
 			runnerTimeout = requestAnimFrame(runnerFunction);
 		}
@@ -303,17 +304,16 @@ var clm = {
 			cancelRequestAnimFrame(runnerTimeout);
 		}
 
-		this.recheck = function () {
-			console.log('RECHECKING');
-			first = true;
+		var detectionCallback = function(element, box, result) {
+			faceDetectionResult = result;
+			this.track(element, box);
 		}
 
 		/*
 		 *  element : canvas or video element
 		 *  TODO: should be able to take img element as well
 		 */
-		this.track = function(element, box, gi) {
-
+		this.track = function(element, box) {
 			var evt = document.createEvent("Event");
 			evt.initEvent("clmtrackrBeforeTrack", true, true);
 			document.dispatchEvent(evt)
@@ -322,36 +322,42 @@ var clm = {
 			var croppedPatches = [];
 			var ptch, px, py;
 
-			if (gi) {
-				scaling = gi[0];
-				rotation = gi[1];
-				translateX = gi[2];
-				translateY = gi[3];
+			if (first) {
+				if (params.useWebWorkers) {
+					if (!detectingFace) {
+						detectingFace = true;
+						getInitialPosition(element, box, detectionCallback.bind(this));
+						return;
+					} else {
+						// check if we've received results
+						if (faceDetectionResult !== undefined) {
+							detectingFace = false;
+						} else {
+							// still waiting for results
+							return;
+						}
+					}
+				} else {
+					faceDetectionResult = getInitialPosition(element, box);
+				}
+
+				if (!faceDetectionResult) {
+					// send an event on no face found
+					var evt = document.createEvent("Event");
+					evt.initEvent("clmtrackrNotFound", true, true);
+					document.dispatchEvent(evt);
+
+					faceDetectionResult = undefined
+					return false;
+				}
+
+				scaling = faceDetectionResult[0];
+				rotation = faceDetectionResult[1];
+				translateX = faceDetectionResult[2];
+				translateY = faceDetectionResult[3];
+				faceDetectionResult = undefined;
 
 				first = false;
-				gettingPosition = false;
-			} else if (first) {
-				// do viola-jones on canvas to get initial guess, if we don't have any points
-				if (!gettingPosition) {
-					gettingPosition = true;
-					getInitialPosition(element, box, function (gi) {
-						gettingPosition = false;
-						if (!gi) {
-							// send an event on no face found
-							var evt = document.createEvent("Event");
-							evt.initEvent("clmtrackrNotFound", true, true);
-							document.dispatchEvent(evt);
-							first = true;
-
-							return false;
-						} else {
-							this.track(element, box, gi);
-						}
-
-					}.bind(this));
-				}
-				return;
-
 			} else {
 				facecheck_count += 1;
 
@@ -923,25 +929,28 @@ var clm = {
 			return positions;
 		}
 
-		var faceDetected = function (e, callback) {
-			var comp = e.data.comp;
-
-			if (comp) {
-				candidate = comp;
-			} else {
-				callback(false);
-				return false;
-			}
-
-			// return candidate;
-			callback(candidate);
-		}
-
 		// detect position of face on canvas/video element
 		var detectPosition = function(el, callback) {
-			jf.faceDetected = faceDetected;
-			//TODO Allow option that limit simultaneous trigger of WebWorkers
-			var comp = jf.findFace(params, callback);
+			if (callback) {
+				jf.faceDetected = function (e, callback) {
+					candidate = e.data.comp;
+
+					if (candidate) {
+						callback(candidate);
+					} else {
+						callback(false);
+						return false;
+					}
+				}
+				var comp = jf.findFace(params, callback);
+			} else {
+				candidate = jf.findFace(params);
+				if (candidate) {
+					return candidate
+				} else {
+					return false;
+				}
+			}
 		}
 
 		// part one of meanshift calculation
@@ -1048,24 +1057,29 @@ var clm = {
 		}
 
 		// get initial starting point for model
-		var getInitialPosition = function(element, box, callback, det) {
+		var getInitialPosition = function(element, box, callback, positionResult) {
 
 			var translateX, translateY, scaling, rotation;
 			if (box) {
 				candidate = {x : box[0], y : box[1], width : box[2], height : box[3]};
 			} else {
-				if (!det) {
-					detectPosition(element, function (det) {
-						if (!det) {
-							// if no face found, stop.
-							callback(false);
-						} else {
-							getInitialPosition(element, box, callback, det);
-						}
-					});
-					return;
-				} else {
-					candidate = det[0];
+				if (callback) {
+					if (!positionResult) {
+						detectPosition(element, function (positionResult) {
+							if (!positionResult) {
+								// if no face found, stop.
+								callback(element, box, false);
+							} else {
+								getInitialPosition(element, box, callback, positionResult);
+							}
+						});
+						return;
+					} else {
+						candidate = positionResult[0];
+					}
+				} else {
+					candidate = detectPosition(element);
+					if (!candidate) return false;
 				}
 			}
 
@@ -1187,7 +1201,11 @@ var clm = {
 
 			currentPositions = calculatePositions(currentParameters, true);
 
-			callback([scaling, rotation, translateX, translateY]);
+			if (callback) {
+				callback(element, box, [scaling, rotation, translateX, translateY]);
+			} else {
+				return [scaling, rotation, translateX, translateY];
+			}
 		}
 
 		// draw a parametrized line on a canvas
