@@ -1,7 +1,9 @@
 {
+  "name": "clmtrackr",
+  "version": "1.0.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/auduno/clmtrackr.git"
+    "url": "https://github.com/michelalbers/clmtrackr.git"
   },
   "devDependencies": {
     "grunt": "^0.4.5",
