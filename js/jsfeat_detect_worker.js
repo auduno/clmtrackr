@@ -75,3 +75,5 @@ var findFaceWorker = function(e) {
       });
     }
 };
+
+export default findFaceWorker;

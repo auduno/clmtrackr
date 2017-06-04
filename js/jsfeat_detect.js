@@ -1,3 +1,5 @@
+import findFaceWorker from './jsfeat_detect_worker.js';
+
 // simple wrapper for jsfeat face detector that runs as a webworker
 var jsfeat_face = function(video, maxWorkSize, useWebWorkers) {
   var videoWidth = video.width;
@@ -99,3 +101,5 @@ var jsfeat_face = function(video, maxWorkSize, useWebWorkers) {
     }
   };
 };
+
+export default jsfeat_face;

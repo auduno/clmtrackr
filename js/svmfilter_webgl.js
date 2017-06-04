@@ -1,5 +1,3 @@
-"use strict";
-
 var webglFilter = function() {
 
   /*
@@ -1348,3 +1346,5 @@ var webglFilter = function() {
   window.loadShader = loadShader;
 
 }());
+
+export default webglFilter;

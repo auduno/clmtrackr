@@ -1,5 +1,11 @@
-"use strict";
-//requires: ccv.js, numeric.js
+
+import numeric from 'numeric';
+import mosse from 'mosse';
+
+import svmFilter from './svmfilter_fft.js';
+import webglFilter from './svmfilter_webgl.js';
+import jsfeat_face from './jsfeat_detect.js';
+import mosseFilterResponses from './mossefilter.js';
 
 var clm = {
 	tracker : function(params) {
@@ -102,6 +108,11 @@ var clm = {
 		var pointWeights;
 
 		var halfPI = Math.PI/2;
+
+		var mosseFilter = mosse.mosseFilter;
+		var left_eye_filter = mosse.filters.left_eye_filter;
+		var right_eye_filter = mosse.filters.right_eye_filter;
+		var nose_filter = mosse.filters.nose_filter;
 
 		/*
 		 *	load model data, initialize filters, etc.
@@ -1383,3 +1394,5 @@ var clm = {
 		return true;
 	}
 }
+
+export default clm;
