@@ -1,5 +1,3 @@
-"use strict";
-
 var svmFilter = function() {
 
   var _fft, fft_filters, responses, biases;
@@ -563,4 +561,4 @@ var svmFilter = function() {
   }
 }
 
-module.exports = svmFilter;
+export default svmFilter;
