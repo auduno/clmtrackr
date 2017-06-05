@@ -953,9 +953,9 @@ var clm = {
 						return false;
 					}
 				}
-				var comp = jf.findFace(params, callback);
+				var comp = jf.findFace(params.faceDetection, callback);
 			} else {
-				candidate = jf.findFace(params);
+				candidate = jf.findFace(params.faceDetection);
 				if (candidate) {
 					return candidate
 				} else {
