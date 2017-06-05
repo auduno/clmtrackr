@@ -1,6 +1,4 @@
-// requires mosse.js
-
-var mosseFilter = require('./mosse.js');
+import mosse from 'mosse';
 
 var mosseFilterResponses = function() {
 
@@ -24,7 +22,7 @@ var mosseFilterResponses = function() {
       }
       temp.real = flar_fi0;
       temp.imag = flar_fi1;
-      filters[i] = new mosseFilter();
+      filters[i] = new mosse.mosseFilter();
       filters[i].load(temp);
     }
 
@@ -75,4 +73,4 @@ var mosseFilterResponses = function() {
   }
 }
 
-module.exports = mosseFilterResponses;
+export default mosseFilterResponses;

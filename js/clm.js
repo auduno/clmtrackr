@@ -5,7 +5,7 @@ import mosse from 'mosse';
 import svmFilter from './svmfilter/svmfilter_fft.js';
 import webglFilter from './svmfilter/svmfilter_webgl.js';
 import jsfeat_face from './jsfeat_detect.js';
-import mosseFilterResponses from './mossefilter.js';
+import mosseFilterResponses from './utils/mosseFilterResponses.js';
 
 var clm = {
 	tracker : function(params) {
