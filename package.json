@@ -10,8 +10,7 @@
   },
   "scripts": {
     "build": "rollup -c",
-    "clean": "rm -rf dist",
-    "generateModelJsons": "node ./generateModelJsons.js"
+    "clean": "rm -rf dist"
   },
   "author": {
     "name": "Audun Mathias Øygard",
