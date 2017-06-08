@@ -31,6 +31,7 @@
   "dependencies": {
     "jsfeat": "git+https://github.com/inspirit/jsfeat#f584f93c78b5085ef141eb1dc66d9d06a7123ec3",
     "numeric": "^1.2.6",
-    "mosse": "^0.1.1"
+    "mosse": "^0.1.1",
+    "raf": "^3.3.2"
   }
 }

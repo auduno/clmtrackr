@@ -1,12 +1,14 @@
 
 import numeric from 'numeric';
 import mosse from 'mosse';
+import raf from 'raf';
 
 import svmFilter from './svmfilter/svmfilter_fft.js';
 import webglFilter from './svmfilter/svmfilter_webgl.js';
 import jsfeat_face from './jsfeat_detect.js';
 import mosseFilterResponses from './utils/mosseFilterResponses.js';
-import {requestAnimFrame,cancelRequestAnimFrame} from './utils/anim.js';
+
+raf.polyfill();
 
 var clm = {
 	tracker : function(params) {
@@ -309,11 +311,11 @@ var clm = {
 			// setup the jsfeat face tracker with the element
 			jf = new jsfeat_face(element, params.faceDetection.workSize, params.useWebWorkers);
 			// start named timeout function
-			runnerTimeout = requestAnimFrame(runnerFunction);
+			runnerTimeout = requestAnimationFrame(runnerFunction);
 		}
 
 		var runnerFunction = function() {
-			runnerTimeout = requestAnimFrame(runnerFunction);
+			runnerTimeout = requestAnimationFrame(runnerFunction);
 			// schedule as many iterations as we can during each request
 			var startTime = (new Date()).getTime();
 			while (((new Date()).getTime() - startTime) < 16) {
@@ -327,7 +329,7 @@ var clm = {
 		 */
 		this.stop = function() {
 			// stop the running tracker if any exists
-			cancelRequestAnimFrame(runnerTimeout);
+			cancelAnimationFrame(runnerTimeout);
 		}
 
 		var detectionCallback = function(element, box, result) {
