@@ -1,3 +1,5 @@
+import jsfeat from 'jsfeat';
+
 import findFaceWorker from './jsfeat_detect_worker.js';
 
 // simple wrapper for jsfeat face detector that runs as a webworker
