@@ -102,7 +102,8 @@
 	<body>
 		<script src="./js/libs/dat.gui.min.js"></script>
 		<script src="./js/libs/utils.js"></script>
-		<script src="../clmtrackr.js"></script>
+		<script src="./js/libs/webgl-utils.js"></script>
+		<script src="../dist/clmtrackr.js"></script>
 		<script src="../models/model_pca_20_svm.js"></script>
 		<script src="./js/libs/Stats.js"></script>
 		<script src="../js/face_deformer.js"></script>
@@ -355,46 +356,49 @@
 					videocanvas.getContext('2d').drawImage(vid,0,0,videocanvas.width,videocanvas.height);
 
 					var pos = ctrack.getCurrentPosition(vid);
-					// create additional points around face
-					var tempPos;
-					var addPos = [];
-					for (var i = 0;i < 23;i++) {
-						tempPos = [];
-						tempPos[0] = (pos[i][0] - pos[62][0])*1.3 + pos[62][0];
-						tempPos[1] = (pos[i][1] - pos[62][1])*1.3 + pos[62][1];
-						addPos.push(tempPos);
-					}
-					// merge with pos
-					var newPos = pos.concat(addPos);
 
-					var newVertices = pModel.path.vertices.concat(mouth_vertices);
-					// merge with newVertices
-					newVertices = newVertices.concat(extendVertices);
+					if (pos) {
+						// create additional points around face
+						var tempPos;
+						var addPos = [];
+						for (var i = 0;i < 23;i++) {
+							tempPos = [];
+							tempPos[0] = (pos[i][0] - pos[62][0])*1.3 + pos[62][0];
+							tempPos[1] = (pos[i][1] - pos[62][1])*1.3 + pos[62][1];
+							addPos.push(tempPos);
+						}
+						// merge with pos
+						var newPos = pos.concat(addPos);
 
-					fd.load(videocanvas, newPos, pModel, newVertices);
+						var newVertices = pModel.path.vertices.concat(mouth_vertices);
+						// merge with newVertices
+						newVertices = newVertices.concat(extendVertices);
 
-					// get position of face
-					//positions = ctrack.getCurrentPosition();
+						fd.load(videocanvas, newPos, pModel, newVertices);
 
-					var parameters = ctrack.getCurrentParameters();
-					for (var i = 6;i < parameters.length;i++) {
-						parameters[i] += ph['component '+(i-3)];
-						/*if (i == 23) {
-							parameters[i] += 20;
+						// get position of face
+						//positions = ctrack.getCurrentPosition();
+
+						var parameters = ctrack.getCurrentParameters();
+						for (var i = 6;i < parameters.length;i++) {
+							parameters[i] += ph['component '+(i-3)];
+							/*if (i == 23) {
+								parameters[i] += 20;
+							}*/
+						}
+						positions = ctrack.calculatePositions(parameters);
+
+						/*for (var i = 0;i < positions.length;i++) {
+							positions[i][1] += 1;
 						}*/
-					}
-					positions = ctrack.calculatePositions(parameters);
 
-					/*for (var i = 0;i < positions.length;i++) {
-						positions[i][1] += 1;
-					}*/
-
-					overlayCC.clearRect(0, 0, 400, 300);
-					if (positions) {
-						// add positions from extended boundary, unmodified
-						newPos = positions.concat(addPos);
-						// draw mask on top of face
-						fd.draw(newPos);
+						overlayCC.clearRect(0, 0, 400, 300);
+						if (positions) {
+							// add positions from extended boundary, unmodified
+							newPos = positions.concat(addPos);
+							// draw mask on top of face
+							fd.draw(newPos);
+						}
 					}
 					animationRequest = requestAnimFrame(drawMaskLoop);
 				}
