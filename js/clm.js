@@ -7,6 +7,9 @@ import svmFilter from './svmfilter/svmfilter_fft.js';
 import webglFilter from './svmfilter/svmfilter_webgl.js';
 import jsfeat_face from './jsfeat_detect.js';
 import mosseFilterResponses from './utils/mosseFilterResponses.js';
+import pModel from '../models/model_pca_20_svm.js';
+
+var DEFAULT_MODEL = pModel;
 
 raf.polyfill();
 
@@ -126,6 +129,8 @@ var clm = {
 		 *	@param	<Object>	pdm model object
 		 */
 		this.init = function(pdmmodel) {
+			// default model is pca 20 svm model
+			if (pdmmodel === undefined) pdmmodel = DEFAULT_MODEL;
 
 			model = pdmmodel;
 
