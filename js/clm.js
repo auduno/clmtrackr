@@ -45,8 +45,8 @@ var clm = {
 		if (params.faceDetection.equalizeHistogram === undefined) params.faceDetection.equalizeHistogram = true;
 		if (params.useWebWorkers === undefined) params.useWebWorkers = true;
 
-		/** @type {Number} Minimum convergence before firing `converged` event. */
-		var convergenceThreshold = 0.5
+		/** @type {Number} Minimum convergence before firing `clmtrackrConverged` event. */
+		var convergenceThreshold = 0.5;
 
 		var numPatches, patchSize, numParameters, patchType;
 		var gaussianPD;
@@ -90,7 +90,7 @@ var clm = {
 
 		var learningRate = [];
 		var stepParameter = 1.25;
-		var prevCostFunc = []
+		var prevCostFunc = [];
 
 		var searchWindow;
 		var modelWidth, modelHeight;
@@ -122,7 +122,6 @@ var clm = {
 		var right_eye_position = [0.0,0.0];
 		var left_eye_position = [0.0,0.0];
 		var nose_position = [0.0,0.0];
-		var lep, rep, mep;
 		var runnerTimeout, runnerElement, runnerBox;
 
 		var pointWeights;
@@ -262,7 +261,7 @@ var clm = {
 					svmFi = new svmFilter();
 					svmFi.init(weights['raw'], biases['raw'], numPatches, patchSize, searchWindow);
 				} else {
-					throw new Error("Could not initiate filters, please make sure that svmfilter.js or svmfilter_conv_js.js is loaded.")
+					throw new Error("Could not initiate filters, please make sure that svmfilter.js or svmfilter_conv_js.js is loaded.");
 				}
 			} else if (patchType == "MOSSE") {
 				mosseCalc = new mosseFilterResponses();
@@ -360,7 +359,7 @@ var clm = {
 		this.track = function(element, box) {
 			var evt = document.createEvent("Event");
 			evt.initEvent("clmtrackrBeforeTrack", true, true);
-			document.dispatchEvent(evt)
+			document.dispatchEvent(evt);
 
 			var scaling, translateX, translateY, rotation;
 			var ptch, px, py;
@@ -390,7 +389,7 @@ var clm = {
 					evt.initEvent("clmtrackrNotFound", true, true);
 					document.dispatchEvent(evt);
 
-					faceDetectionResult = undefined
+					faceDetectionResult = undefined;
 					return false;
 				}
 
@@ -489,10 +488,10 @@ var clm = {
 			if (patchType == "SVM") {
 				if (typeof(webglFi) !== "undefined") {
 					responses = getWebGLResponses(patches);
-				} else if (typeof(svmFi) !== "undefined"){
+				} else if (typeof(svmFi) !== "undefined") {
 					responses = svmFi.getResponses(patches);
 				} else {
-					throw new Error("SVM-filters do not seem to be initiated properly.")
+					throw new Error("SVM-filters do not seem to be initiated properly.");
 				}
 			} else if (patchType == "MOSSE") {
 				responses = mosseCalc.getResponses(patches);
@@ -674,7 +673,7 @@ var clm = {
 			// send an event on each iteration
 			var evt = document.createEvent("Event");
 			evt.initEvent("clmtrackrIteration", true, true);
-			document.dispatchEvent(evt)
+			document.dispatchEvent(evt);
 
 			// we must get a score before we can say we've converged
 			if (scoringHistory.length >= 5 && this.getConvergence() < convergenceThreshold) {
@@ -684,7 +683,7 @@ var clm = {
 
 				var evt = document.createEvent("Event");
 				evt.initEvent("clmtrackrConverged", true, true);
-				document.dispatchEvent(evt)
+				document.dispatchEvent(evt);
 			}
 
 			// return new points
@@ -812,7 +811,7 @@ var clm = {
 			var diffX = currX-prevX;
 			var diffY = currY-prevY;
 			var msavg = ((diffX*diffX) + (diffY*diffY));
-			msavg /= previousPositions.length
+			msavg /= previousPositions.length;
 			return msavg;
 		}
 
@@ -979,11 +978,11 @@ var clm = {
 						return false;
 					}
 				}
-				var comp = jf.findFace(params.faceDetection, callback);
+				jf.findFace(params.faceDetection, callback);
 			} else {
 				candidate = jf.findFace(params.faceDetection);
 				if (candidate) {
-					return candidate
+					return candidate;
 				} else {
 					return false;
 				}
@@ -1117,7 +1116,7 @@ var clm = {
 							}
 						});
 						return;
-					} else {
+					} else {
 						candidate = positionResult[0];
 					}
 				} else {

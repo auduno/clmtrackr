@@ -33,7 +33,7 @@ var emotionClassifier = function() {
 		var prediction = [];
 		for (var j = 0;j < emotions.length;j++) {
 			var e = emotions[j];
-			var score = classifier[e].bias
+			var score = classifier[e].bias;
 			for (var i = 0;i < coefficient_length;i++) {
 				score += classifier[e].coefficients[i]*parameters[i+6];
 			}
@@ -50,7 +50,7 @@ var emotionClassifier = function() {
 
 		if (previousParameters.length > 9) {
 			// calculate mean of parameters?
-			var meanParameters = []
+			var meanParameters = [];
 			for (var i = 0;i < parameters.length;i++) {
 				meanParameters[i] = 0;
 			}

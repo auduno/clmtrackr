@@ -220,22 +220,22 @@
 				}, false);
 
 				function switchMode(el) {
-          var mode = parseInt(el.target.value, 10);
-          if (mode == 0) {
-            ctrack.setResponseMode("single",["raw"]);
+					var mode = parseInt(el.target.value, 10);
+					if (mode == 0) {
+						ctrack.setResponseMode("single",["raw"]);
 					} else if (mode == 1) {
-            ctrack.setResponseMode("single",["lbp"]);
+						ctrack.setResponseMode("single",["lbp"]);
 					} else if (mode == 2) {
-            ctrack.setResponseMode("single",["sobel"]);
-          } else if (mode == 3) {
-            ctrack.setResponseMode("cycle",["raw", "lbp"]);
-          } else if (mode == 4) {
-            ctrack.setResponseMode("cycle",["sobel", "lbp"]);
-          } else if (mode == 5) {
-            ctrack.setResponseMode("blend",["raw", "lbp"]);
-          } else if (mode == 6) {
-            ctrack.setResponseMode("blend",["sobel", "lbp"]);
-          }
+						ctrack.setResponseMode("single",["sobel"]);
+					} else if (mode == 3) {
+						ctrack.setResponseMode("cycle",["raw", "lbp"]);
+					} else if (mode == 4) {
+						ctrack.setResponseMode("cycle",["sobel", "lbp"]);
+					} else if (mode == 5) {
+						ctrack.setResponseMode("blend",["raw", "lbp"]);
+					} else if (mode == 6) {
+						ctrack.setResponseMode("blend",["sobel", "lbp"]);
+					}
 				};
 				document.getElementById('selectmode').addEventListener('change', switchMode, false);
 
