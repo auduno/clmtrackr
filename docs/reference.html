@@ -51,7 +51,7 @@
   <p>Initialization:</p>
 
   <pre><code>var ctracker = new clm.tracker();
-ctracker.init(pModel);</code></pre>
+ctracker.init();</code></pre>
 
   <p>Starting tracking:</p>
 
@@ -71,9 +71,9 @@ ctracker.draw(drawCanvas);</code></pre>
   <p>These are the functions that the <code>clm.tracker</code> object exposes:</p>
 
   <ul>
-    <li><strong><em>init</em></strong>( <em>model</em> ) : initialize clmtrackr with a facial model.</li>
+    <li><strong><em>init</em></strong>( <em>model</em> ) : initialize clmtrackr.</li>
       <ul>
-        <li><em>model</em> : a model object</li>
+        <li><em>model</em> : (optional) a model to use for tracking. If no model is specified, the built-in model from 'model_pca_20_svm.js' will be used.</li>
       </ul>
     <li><strong><em>start</em></strong>( <em>element</em>, <em>box</em> ) : start the fitting/tracker. Returns <code>false</code> if the tracker hasn't been initalized with a model.</li>
       <ul>
@@ -140,7 +140,7 @@ ctracker.draw(drawCanvas);</code></pre>
 
   <pre><code>ctracker.init(pModel);</code></pre>
 
-  <p>All of the models are trained on the same dataset, and follow the same annotation as above. The difference between them is in type of classifier, number of components in the facial model, and how the components were extracted (Sparse PCA or PCA). It is recommended to use the model <em>model_pca_20_svm.js</em> as a default choice. </p>
+  <p>All of the models are trained on the same dataset, and follow the same annotation as above. The difference between them is in type of classifier, number of components in the facial model, and how the components were extracted (Sparse PCA or PCA). If no model is specified on initialization, clmtrackr will use the built-in model from <em>model_pca_20_svm.js</em> as a default choice. </p>
 
   <p>A model with fewer components will be slightly faster, with some loss of precision. The MOSSE filter classifiers will run faster than SVM kernels on computers without support for webGL, but has slightly poorer fitting. </p>
 
@@ -155,25 +155,20 @@ ctracker.draw(drawCanvas);</code></pre>
 
   <h2>Files</h2>
 
-  <p style="text-align:center"><a href="./media/elements2.png" rel="lightbox" title="Elements"><img src="./media/elements2.png" width="400px" height="220px"></img></a></p>
-
   <ul>
-  <li><strong>clm.js</strong> : main library</li>
-  <li><strong>svmfilter_webgl.js</strong> : classifier library for SVM, webGL version</li>
-  <li><strong>svmfilter_fft.js</strong> : classifier library for SVM, non-webGL version</li>
-  <li><strong>mossefilter.js</strong> : classifier library for MOSSE correlation filters</li>
-  <li><strong>nose_filter.js</strong> : trained MOSSE filter for detecting initial position of nose</li>
-  <li><strong>left_eye_filter.js</strong> : trained MOSSE filter for detecting initial position of left eye</li>
-  <li><strong>right_eye_filter.js</strong> : trained MOSSE filter for detecting initial position of right eye</li>
+  <li><strong>js/clm.js</strong> : main library</li>
+  <li><strong>js/svmfilter/svmfilter_webgl.js</strong> : classifier library for SVM, webGL version</li>
+  <li><strong>js/svmfilter/svmfilter_fft.js</strong> : classifier library for SVM, non-webGL version</li>
+  <li><strong>js/mossefilter/mosseFilterResponses.js</strong> : classifier library for MOSSE correlation filters</li>
   </ul>
 
   <ul>
-  <li><strong>clmtrackr.js</strong> : minified version of the above files plus external libraries</li>
+  <li><strong>dist/clmtrackr.js</strong> : minified version of the above files plus external libraries</li>
   </ul>
 
   <h2>Utility libraries</h2>
 
-  <p><em>face_deformer.js</em> is a small library for deforming a face from an image or video, and output it on a webgl canvas. This is used in the <a href="http://auduno.github.com/clmtrackr/examples/face_mask.html">face masking</a> and <a href="http://auduno.github.com/clmtrackr/examples/face_deformation_video.html">face deformation</a> demos. </p>
+  <p><em>face_deformer.js</em> is a small library for deforming a face from an image or video, and output it on a webgl canvas. This is used in some of the examples. </p>
   <p>Example usage:</p>
 
   <pre><code>var fd = new faceDeformer();

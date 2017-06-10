@@ -17,7 +17,7 @@ import raf from 'raf';
 import svmFilter from './svmfilter/svmfilter_fft.js';
 import webglFilter from './svmfilter/svmfilter_webgl.js';
 import jsfeat_face from './jsfeat/jsfeat_detect.js';
-import mosseFilterResponses from './utils/mosseFilterResponses.js';
+import mosseFilterResponses from './mossefilter/mosseFilterResponses.js';
 import pModel from '../models/model_pca_20_svm.js';
 
 var DEFAULT_MODEL = pModel;

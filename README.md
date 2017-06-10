@@ -34,7 +34,6 @@ Download the minified library [clmtrackr.js](https://github.com/auduno/clmtrackr
 ```html
 /* clmtrackr libraries */
 <script src="js/clmtrackr.js"></script>
-<script src="js/model_pca_20_svm.js"></script>
 ```
 
 The following code initiates the clmtrackr with the model we included, and starts the tracker running on a video element.
@@ -47,7 +46,7 @@ The following code initiates the clmtrackr with the model we included, and start
   var videoInput = document.getElementById('inputVideo');
   
   var ctracker = new clm.tracker();
-  ctracker.init(pModel);
+  ctracker.init();
   ctracker.start(videoInput);
 </script>
 ```
@@ -86,11 +85,11 @@ See the complete example [here](https://auduno.github.io/clmtrackr/examples/exam
 
 ### Development ###
 
-First, install [node.js](http://nodejs.org/) with npm, then install [Grunt](http://gruntjs.com/getting-started).
+First, install [node.js](http://nodejs.org/) with npm.
 
-In the root directory of clmtrackr, run `npm install` then run `grunt`. This will create `clmtrackr.min.js` and `clmtrackr.js`.
+In the root directory of clmtrackr, run `npm install` then run `npm run build`. This will create `clmtrackr.min.js` and `clmtrackr.js` in `dist` folder.
 
-To test the examples locally, you need to run a local server. One easy way to do this is to install `http-server`, a small node.js utility: `npm install -g http-server`. Then run `http-server` in the root of clmtrackr and go to `http://localhost:8080/examples` in your browser.
+To test the examples locally, you need to run a local server. One easy way to do this is to install `http-server`, a small node.js utility: `npm install -g http-server`. Then run `http-server` in the root of clmtrackr and go to `https://localhost:8080/examples` in your browser.
 
 ### License ###
 
