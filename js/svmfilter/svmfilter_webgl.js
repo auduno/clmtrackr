@@ -1,9 +1,5 @@
-import {
-  setupWebGL,
-  loadShader,
-  loadProgram
-} from '../utils/webgl';
 
+import { setupWebGL, loadShader, createProgram} from '../../examples/js/libs/webgl-utils.js';
 
 var webglFilter = function() {
 
@@ -513,7 +509,7 @@ var webglFilter = function() {
     if ('sobel' in filters) {
       var grVertexShader = loadShader(gl, gradientResponseVS, gl.VERTEX_SHADER);
       var grFragmentShader = loadShader(gl, gradientResponseFS, gl.FRAGMENT_SHADER);
-      gradientResponseProgram = loadProgram(gl, [grVertexShader, grFragmentShader]);
+      gradientResponseProgram = createProgram(gl, [grVertexShader, grFragmentShader]);
       gl.useProgram(gradientResponseProgram);
 
       // set up vertices with rectangles
@@ -538,7 +534,7 @@ var webglFilter = function() {
     if ('lbp' in filters) {
       var lbpVertexShader = loadShader(gl, lbpResponseVS, gl.VERTEX_SHADER);
       var lbpFragmentShader = loadShader(gl, lbpResponseFS, gl.FRAGMENT_SHADER);
-      lbpResponseProgram = loadProgram(gl, [lbpVertexShader, lbpFragmentShader]);
+      lbpResponseProgram = createProgram(gl, [lbpVertexShader, lbpFragmentShader]);
       gl.useProgram(lbpResponseProgram);
 
       // set up vertices with rectangles
@@ -564,7 +560,7 @@ var webglFilter = function() {
     // setup patchdraw program
     var drVertexShader = loadShader(gl, drawResponsesVS, gl.VERTEX_SHADER);
     var drFragmentShader = loadShader(gl, drawResponsesFS, gl.FRAGMENT_SHADER);
-    patchDrawProgram = loadProgram(gl, [drVertexShader, drFragmentShader]);
+    patchDrawProgram = createProgram(gl, [drVertexShader, drFragmentShader]);
     gl.useProgram(patchDrawProgram);
 
     // set the resolution/dimension of the canvas
@@ -578,7 +574,7 @@ var webglFilter = function() {
     // setup patchresponse program
     var prVertexShader = loadShader(gl, patchResponseVS, gl.VERTEX_SHADER);
     var prFragmentShader = loadShader(gl, patchResponseFS, gl.FRAGMENT_SHADER);
-    patchResponseProgram = loadProgram(gl, [prVertexShader, prFragmentShader]);
+    patchResponseProgram = createProgram(gl, [prVertexShader, prFragmentShader]);
     gl.useProgram(patchResponseProgram);
 
     // set up vertices with rectangles
