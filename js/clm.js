@@ -1,3 +1,14 @@
+/**
+ * clmtrackr library (https://www.github.com/auduno/clmtrackr/)
+ *
+ * Copyright (c) 2013, Audun Mathias Øygard
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
 
 import numeric from 'numeric';
 import mosse from 'mosse';
@@ -5,7 +16,7 @@ import raf from 'raf';
 
 import svmFilter from './svmfilter/svmfilter_fft.js';
 import webglFilter from './svmfilter/svmfilter_webgl.js';
-import jsfeat_face from './jsfeat_detect.js';
+import jsfeat_face from './jsfeat/jsfeat_detect.js';
 import mosseFilterResponses from './utils/mosseFilterResponses.js';
 import pModel from '../models/model_pca_20_svm.js';
 
@@ -1371,26 +1382,6 @@ var clm = {
 
 			//returns rotation, scaling, transformx and transformx
 			return [translationX, translationY, scaling, rotation];
-		}
-
-		// function to draw pixeldata on some canvas, only used for debugging
-		var drawData = function(canvasContext, data, width, height, transposed, drawX, drawY) {
-			var psci = canvasContext.createImageData(width, height);
-			var pscidata = psci.data;
-			for (var j = 0;j < width*height;j++) {
-				if (!transposed) {
-					var val = data[(j%width)+((j/width) >> 0)*width];
-				} else {
-					var val = data[(j%height)*height+((j/height) >> 0)];
-				}
-				val = val > 255 ? 255 : val;
-				val = val < 0 ? 0 : val;
-				pscidata[j*4] = val;
-				pscidata[(j*4)+1] = val;
-				pscidata[(j*4)+2] = val;
-				pscidata[(j*4)+3] = 255;
-			}
-			canvasContext.putImageData(psci, drawX, drawY);
 		}
 
 		return true;
