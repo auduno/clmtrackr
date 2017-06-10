@@ -30,6 +30,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+(function(){
 
 var LOGGING_ENABLED = true;
 
@@ -328,3 +329,5 @@ if (typeof exports === 'object' && typeof module !== 'undefined') {
   window.getWebGLContext = getWebGLContext;
   window.loadShader = loadShader;
 }
+
+}());
