@@ -965,30 +965,6 @@ var clm = {
 			return positions;
 		}
 
-		// detect position of face on canvas/video element
-		var detectPosition = function(el, callback) {
-			if (callback) {
-				jf.faceDetected = function (e, callback) {
-					candidate = e.data.comp;
-
-					if (candidate) {
-						callback(candidate);
-					} else {
-						callback(false);
-						return false;
-					}
-				}
-				jf.findFace(params.faceDetection, callback);
-			} else {
-				candidate = jf.findFace(params.faceDetection);
-				if (candidate) {
-					return candidate;
-				} else {
-					return false;
-				}
-			}
-		}
-
 		// part one of meanshift calculation
 		var gpopt = function(responseWidth, currentPositionsj, updatePosition, vecProbs, responses, opj0, opj1, j, variance, scaling) {
 			var pos_idx = 0;
@@ -1107,7 +1083,7 @@ var clm = {
 			} else {
 				if (callback) {
 					if (!positionResult) {
-						detectPosition(element, function (positionResult) {
+						jf.findFace(params.faceDetection, function (positionResult) {
 							if (!positionResult) {
 								// if no face found, stop.
 								callback(element, box, false);
@@ -1120,7 +1096,7 @@ var clm = {
 						candidate = positionResult[0];
 					}
 				} else {
-					candidate = detectPosition(element);
+					candidate = jf.findFace(params.faceDetection);
 					if (!candidate) return false;
 				}
 			}

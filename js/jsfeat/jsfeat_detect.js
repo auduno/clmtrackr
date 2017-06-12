@@ -46,7 +46,7 @@ var jsfeat_face = function(video, maxWorkSize, useWebWorkers) {
 			var worker = Worker.create(findFaceWorker);
 
 			worker.addEventListener('message', function (e) {
-				this.faceDetected(e, callback);
+				callback(e.data.comp);
 				worker.terminate();
 			}.bind(this), false);
 
