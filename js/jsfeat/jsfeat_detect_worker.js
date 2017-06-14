@@ -46,8 +46,9 @@ var findFaceWorker = function(e) {
 	var rl = rects.length;
 
 	if (rl == 0) {
-		self.postMessage(imageData);
-		//return false;
+		self.postMessage({
+			faces: []
+		});
 	} else {
 
 		var best = rects[0];
@@ -66,9 +67,8 @@ var findFaceWorker = function(e) {
 		best.width = (best.width*sc)|0;
 		best.height = (best.height*sc)|0;
 
-		// return [best];
 		self.postMessage({
-			comp: [best]
+			faces: [best]
 		});
 	}
 };

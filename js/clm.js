@@ -11,12 +11,11 @@
  */
 
 import numeric from 'numeric';
-import mosse from 'mosse';
 import raf from 'raf';
 
+import faceDetection from './jsfeat/faceDetection.js';
 import svmFilter from './svmfilter/svmfilter_fft.js';
 import webglFilter from './svmfilter/svmfilter_webgl.js';
-import jsfeat_face from './jsfeat/jsfeat_detect.js';
 import mosseFilterResponses from './mossefilter/mosseFilterResponses.js';
 import pModel from '../models/model_pca_20_svm.js';
 
@@ -35,15 +34,7 @@ var clm = {
 		if (params.stopOnConvergence === undefined) params.stopOnConvergence = false;
 		if (params.weightPoints === undefined) params.weightPoints = undefined;
 		if (params.sharpenResponse === undefined) params.sharpenResponse = false;
-
 		if (params.faceDetection === undefined) params.faceDetection = {};
-		if (params.faceDetection.workSize === undefined) params.faceDetection.workSize = 160;
-		if (params.faceDetection.minScale === undefined) params.faceDetection.minScale = 2;
-		if (params.faceDetection.scaleFactor === undefined) params.faceDetection.scaleFactor = 1.15;
-		if (params.faceDetection.useCanny === undefined) params.faceDetection.useCanny = false;
-		if (params.faceDetection.edgesDensity === undefined) params.faceDetection.edgesDensity = 0.13;
-		if (params.faceDetection.equalizeHistogram === undefined) params.faceDetection.equalizeHistogram = true;
-		if (params.useWebWorkers === undefined) params.useWebWorkers = true;
 
 		/** @type {Number} Minimum convergence before firing `clmtrackrConverged` event. */
 		var convergenceThreshold = 0.5;
@@ -52,7 +43,6 @@ var clm = {
 		var gaussianPD;
 		var eigenVectors, eigenValues;
 		var sketchCC, sketchW, sketchH, sketchCanvas;
-		var candidate;
 		var weights, model, biases;
 
 		var sobelInit = false;
@@ -84,7 +74,6 @@ var clm = {
 
 		var first = true;
 		var detectingFace = false;
-		var faceDetectionResult;
 
 		var convergenceLimit = 0.01;
 
@@ -107,10 +96,9 @@ var clm = {
 
 		var facecheck_count = 0;
 
-		var webglFi, svmFi, mosseCalc, jf;
+		var webglFi, svmFi, mosseCalc;
 
 		var scoringCanvas = document.createElement('canvas');
-		//document.body.appendChild(scoringCanvas);
 		var scoringContext = scoringCanvas.getContext('2d');
 		var msxmin, msymin, msxmax, msymax;
 		var msmodelwidth, msmodelheight;
@@ -118,20 +106,13 @@ var clm = {
 		var scoringHistory = [];
 		var meanscore = 0;
 
-		var mossef_lefteye, mossef_righteye, mossef_nose;
-		var right_eye_position = [0.0,0.0];
-		var left_eye_position = [0.0,0.0];
-		var nose_position = [0.0,0.0];
 		var runnerTimeout, runnerElement, runnerBox;
 
 		var pointWeights;
 
 		var halfPI = Math.PI/2;
 
-		var mosseFilter = mosse.mosseFilter;
-		var left_eye_filter = mosse.filters.left_eye_filter;
-		var right_eye_filter = mosse.filters.right_eye_filter;
-		var nose_filter = mosse.filters.nose_filter;
+		var faceDetector;
 
 		/*
 		 *	load model data, initialize filters, etc.
@@ -163,20 +144,6 @@ var clm = {
 
 			sketchW = sketchCanvas.width = modelWidth + (searchWindow-1) + patchSize-1;
 			sketchH = sketchCanvas.height = modelHeight + (searchWindow-1) + patchSize-1;
-
-			if (model.hints && mosseFilter && left_eye_filter && right_eye_filter && nose_filter) {
-				//var mossef_lefteye = new mosseFilter({drawResponse : document.getElementById('overlay2')});
-				mossef_lefteye = new mosseFilter();
-				mossef_lefteye.load(left_eye_filter);
-				//var mossef_righteye = new mosseFilter({drawResponse : document.getElementById('overlay2')});
-				mossef_righteye = new mosseFilter();
-				mossef_righteye.load(right_eye_filter);
-				//var mossef_nose = new mosseFilter({drawResponse : document.getElementById('overlay2')});
-				mossef_nose = new mosseFilter();
-				mossef_nose.load(nose_filter);
-			} else {
-				console.log("MOSSE filters not found, using rough approximation for initialization.");
-			}
 
 			// load eigenvectors
 			eigenVectors = numeric.rep([numPatches*2,numParameters],0.0);
@@ -307,6 +274,7 @@ var clm = {
 				}
 				pointWeights = numeric.diag(pointWeights);
 			}
+
 		}
 
 		/*
@@ -323,8 +291,10 @@ var clm = {
 				runnerElement = element;
 				runnerBox = box;
 			}
-			// setup the jsfeat face tracker with the element
-			jf = new jsfeat_face(element, params.faceDetection.workSize, params.useWebWorkers);
+
+			// TODO : it's not really optimal to place it here, can we move to init somehow?
+			faceDetector = new faceDetection(element, model, params.faceDetection);
+
 			// start named timeout function
 			runnerTimeout = requestAnimationFrame(runnerFunction);
 		}
@@ -347,11 +317,6 @@ var clm = {
 			cancelAnimationFrame(runnerTimeout);
 		}
 
-		var detectionCallback = function(element, box, result) {
-			faceDetectionResult = result;
-			this.track(element, box);
-		}
-
 		/*
 		 *  element : canvas or video element
 		 *  TODO: should be able to take img element as well
@@ -365,41 +330,39 @@ var clm = {
 			var ptch, px, py;
 
 			if (first) {
-				if (params.useWebWorkers) {
-					if (!detectingFace) {
-						detectingFace = true;
-						getInitialPosition(element, box, detectionCallback.bind(this));
-						return;
-					} else {
-						// check if we've received results
-						if (faceDetectionResult !== undefined) {
+				if (!detectingFace) {
+					detectingFace = true;
+
+					// this returns a Promise
+					faceDetector.getInitialPosition(box)
+						.then(function (result) {
+							scaling = result[0];
+							rotation = result[1];
+							translateX = result[2];
+							translateY = result[3];
+
+							currentParameters[0] = (scaling*Math.cos(rotation))-1;
+							currentParameters[1] = (scaling*Math.sin(rotation));
+							currentParameters[2] = translateX;
+							currentParameters[3] = translateY;
+
+							currentPositions = calculatePositions(currentParameters, true);
+
+							first = false;
 							detectingFace = false;
-						} else {
-							// still waiting for results
-							return;
-						}
-					}
-				} else {
-					faceDetectionResult = getInitialPosition(element, box);
+						})
+						.catch(function (error) {
+							// send an event on no face found
+							var evt = document.createEvent("Event");
+							evt.initEvent("clmtrackrNotFound", true, true);
+							document.dispatchEvent(evt);
+
+							detectingFace = false;
+						});
 				}
-
-				if (!faceDetectionResult) {
-					// send an event on no face found
-					var evt = document.createEvent("Event");
-					evt.initEvent("clmtrackrNotFound", true, true);
-					document.dispatchEvent(evt);
-
-					faceDetectionResult = undefined;
-					return false;
-				}
-
-				scaling = faceDetectionResult[0];
-				rotation = faceDetectionResult[1];
-				translateX = faceDetectionResult[2];
-				translateY = faceDetectionResult[3];
-				faceDetectionResult = undefined;
-
-				first = false;
+				// TODO : should we return something else here?
+				//   this signifies the same for "face not found" or "looking for face?"
+				return false;
 			} else {
 				facecheck_count += 1;
 
@@ -1074,158 +1037,6 @@ var clm = {
 			return true;
 		}
 
-		// get initial starting point for model
-		var getInitialPosition = function(element, box, callback, positionResult) {
-
-			var translateX, translateY, scaling, rotation;
-			if (box) {
-				candidate = {x : box[0], y : box[1], width : box[2], height : box[3]};
-			} else {
-				if (callback) {
-					if (!positionResult) {
-						jf.findFace(params.faceDetection, function (positionResult) {
-							if (!positionResult) {
-								// if no face found, stop.
-								callback(element, box, false);
-							} else {
-								getInitialPosition(element, box, callback, positionResult);
-							}
-						});
-						return;
-					} else {
-						candidate = positionResult[0];
-					}
-				} else {
-					candidate = jf.findFace(params.faceDetection);
-					if (!candidate) return false;
-				}
-			}
-
-			if (model.hints && mosseFilter && left_eye_filter && right_eye_filter && nose_filter) {
-				var noseFilterWidth = candidate.width * 4.5/10;
-				var eyeFilterWidth = candidate.width * 6/10;
-
-				// detect position of eyes and nose via mosse filter
-				//
-				/*element.pause();
-
-				var canvasContext = document.getElementById('overlay2').getContext('2d')
-				canvasContext.clearRect(0,0,500,375);
-				canvasContext.strokeRect(candidate.x, candidate.y, candidate.width, candidate.height);*/
-				//
-
-				var nose_result = mossef_nose.track(element, Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2)), Math.round(candidate.y+candidate.height*(5/8)-(noseFilterWidth/2)), noseFilterWidth, noseFilterWidth, false);
-				var right_result = mossef_righteye.track(element, Math.round(candidate.x+(candidate.width*3/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth, false);
-				var left_result = mossef_lefteye.track(element, Math.round(candidate.x+(candidate.width/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth, false);
-				right_eye_position[0] = Math.round(candidate.x+(candidate.width*3/4)-(eyeFilterWidth/2))+right_result[0];
-				right_eye_position[1] = Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2))+right_result[1];
-				left_eye_position[0] = Math.round(candidate.x+(candidate.width/4)-(eyeFilterWidth/2))+left_result[0];
-				left_eye_position[1] = Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2))+left_result[1];
-				nose_position[0] = Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2))+nose_result[0];
-				nose_position[1] = Math.round(candidate.y+candidate.height*(5/8)-(noseFilterWidth/2))+nose_result[1];
-
-				//
-				/*canvasContext.strokeRect(Math.round(candidate.x+(candidate.width*3/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth);
-				canvasContext.strokeRect(Math.round(candidate.x+(candidate.width/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth);
-				//canvasContext.strokeRect(Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2)), Math.round(candidate.y+candidate.height*(3/4)-(noseFilterWidth/2)), noseFilterWidth, noseFilterWidth);
-				canvasContext.strokeRect(Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2)), Math.round(candidate.y+candidate.height*(5/8)-(noseFilterWidth/2)), noseFilterWidth, noseFilterWidth);
-
-				canvasContext.fillStyle = "rgb(0,0,250)";
-				canvasContext.beginPath();
-				canvasContext.arc(left_eye_position[0], left_eye_position[1], 3, 0, Math.PI*2, true);
-				canvasContext.closePath();
-				canvasContext.fill();
-
-				canvasContext.beginPath();
-				canvasContext.arc(right_eye_position[0], right_eye_position[1], 3, 0, Math.PI*2, true);
-				canvasContext.closePath();
-				canvasContext.fill();
-
-				canvasContext.beginPath();
-				canvasContext.arc(nose_position[0], nose_position[1], 3, 0, Math.PI*2, true);
-				canvasContext.closePath();
-				canvasContext.fill();
-
-				debugger;
-				element.play()
-				canvasContext.clearRect(0,0,element.width,element.height);*/
-				//
-
-				// get eye and nose positions of model
-				var lep = model.hints.leftEye;
-				var rep = model.hints.rightEye;
-				var mep = model.hints.nose;
-
-				// get scaling, rotation, etc. via procrustes analysis
-				var procrustes_params = procrustes([left_eye_position, right_eye_position, nose_position], [lep, rep, mep]);
-				translateX = procrustes_params[0];
-				translateY = procrustes_params[1];
-				scaling = procrustes_params[2];
-				rotation = procrustes_params[3];
-
-				//element.play();
-
-				//var maxscale = 1.10;
-				//if ((scaling*modelHeight)/candidate.height < maxscale*0.7) scaling = (maxscale*0.7*candidate.height)/modelHeight;
-				//if ((scaling*modelHeight)/candidate.height > maxscale*1.2) scaling = (maxscale*1.2*candidate.height)/modelHeight;
-
-				/*var smean = [0,0];
-				smean[0] += lep[0];
-				smean[1] += lep[1];
-				smean[0] += rep[0];
-				smean[1] += rep[1];
-				smean[0] += mep[0];
-				smean[1] += mep[1];
-				smean[0] /= 3;
-				smean[1] /= 3;
-
-				var nulep = [(lep[0]*scaling*Math.cos(-rotation)+lep[1]*scaling*Math.sin(-rotation))+translateX, (lep[0]*scaling*(-Math.sin(-rotation)) + lep[1]*scaling*Math.cos(-rotation))+translateY];
-				var nurep = [(rep[0]*scaling*Math.cos(-rotation)+rep[1]*scaling*Math.sin(-rotation))+translateX, (rep[0]*scaling*(-Math.sin(-rotation)) + rep[1]*scaling*Math.cos(-rotation))+translateY];
-				var numep = [(mep[0]*scaling*Math.cos(-rotation)+mep[1]*scaling*Math.sin(-rotation))+translateX, (mep[0]*scaling*(-Math.sin(-rotation)) + mep[1]*scaling*Math.cos(-rotation))+translateY];
-
-				canvasContext.fillStyle = "rgb(200,10,100)";
-				canvasContext.beginPath();
-				canvasContext.arc(nulep[0], nulep[1], 3, 0, Math.PI*2, true);
-				canvasContext.closePath();
-				canvasContext.fill();
-
-				canvasContext.beginPath();
-				canvasContext.arc(nurep[0], nurep[1], 3, 0, Math.PI*2, true);
-				canvasContext.closePath();
-				canvasContext.fill();
-
-				canvasContext.beginPath();
-				canvasContext.arc(numep[0], numep[1], 3, 0, Math.PI*2, true);
-				canvasContext.closePath();
-				canvasContext.fill();*/
-
-				currentParameters[0] = (scaling*Math.cos(rotation))-1;
-				currentParameters[1] = (scaling*Math.sin(rotation));
-				currentParameters[2] = translateX;
-				currentParameters[3] = translateY;
-
-				//this.draw(document.getElementById('overlay'), currentParameters);
-
-			} else {
-				scaling = candidate.width/msmodelheight;
-				//var ccc = document.getElementById('overlay').getContext('2d');
-				//ccc.strokeRect(candidate.x,candidate.y,candidate.width,candidate.height);
-				translateX = candidate.x-(msxmin*scaling)+0.1*candidate.width;
-				translateY = candidate.y-(msymin*scaling)+0.25*candidate.height;
-				currentParameters[0] = scaling-1;
-				currentParameters[2] = translateX;
-				currentParameters[3] = translateY;
-			}
-
-			currentPositions = calculatePositions(currentParameters, true);
-
-			if (callback) {
-				callback(element, box, [scaling, rotation, translateX, translateY]);
-			} else {
-				return [scaling, rotation, translateX, translateY];
-			}
-		}
-
 		// draw a parametrized line on a canvas
 		var drawPath = function(canvasContext, path, dp) {
 			canvasContext.beginPath();
@@ -1272,91 +1083,6 @@ var clm = {
 			canvasContext.arc(x, y, 1, 0, Math.PI*2, true);
 			canvasContext.closePath();
 			canvasContext.fill();
-		}
-
-		// procrustes analysis
-		function procrustes(template, shape) {
-			// assume template and shape is a vector of x,y-coordinates
-			//i.e. template = [[x1,y1], [x2,y2], [x3,y3]];
-			var templateClone = [];
-			var shapeClone = [];
-			for (var i = 0;i < template.length;i++) {
-				templateClone[i] = [template[i][0], template[i][1]];
-			}
-			for (var i = 0;i < shape.length;i++) {
-				shapeClone[i] = [shape[i][0], shape[i][1]];
-			}
-			shape = shapeClone;
-			template = templateClone;
-
-			// calculate translation
-			var templateMean = [0.0, 0.0];
-			for (var i = 0;i < template.length;i++) {
-				templateMean[0] += template[i][0];
-				templateMean[1] += template[i][1];
-			}
-			templateMean[0] /= template.length;
-			templateMean[1] /= template.length;
-
-			var shapeMean = [0.0, 0.0];
-			for (var i = 0;i < shape.length;i++) {
-				shapeMean[0] += shape[i][0];
-				shapeMean[1] += shape[i][1];
-			}
-			shapeMean[0] /= shape.length;
-			shapeMean[1] /= shape.length;
-
-			var translationX = templateMean[0] - shapeMean[0];
-			var translationY = templateMean[1] - shapeMean[1];
-
-			// centralize
-			for (var i = 0;i < shape.length;i++) {
-				shape[i][0] -= shapeMean[0];
-				shape[i][1] -= shapeMean[1];
-			}
-			for (var i = 0;i < template.length;i++) {
-				template[i][0] -= templateMean[0];
-				template[i][1] -= templateMean[1];
-			}
-
-			// scaling
-
-			var scaleS = 0.0;
-			for (var i = 0;i < shape.length;i++) {
-				scaleS += ((shape[i][0])*(shape[i][0]));
-				scaleS += ((shape[i][1])*(shape[i][1]));
-			}
-			scaleS = Math.sqrt(scaleS/shape.length);
-
-			var scaleT = 0.0;
-			for (var i = 0;i < template.length;i++) {
-				scaleT += ((template[i][0])*(template[i][0]));
-				scaleT += ((template[i][1])*(template[i][1]));
-			}
-			scaleT = Math.sqrt(scaleT/template.length);
-
-			var scaling = scaleT/scaleS;
-
-			for (var i = 0;i < shape.length;i++) {
-				shape[i][0] *= scaling;
-				shape[i][1] *= scaling;
-			}
-
-			// rotation
-
-			var top = 0.0;
-			var bottom = 0.0;
-			for (var i = 0;i < shape.length;i++) {
-				top += (shape[i][0]*template[i][1] - shape[i][1]*template[i][0]);
-				bottom += (shape[i][0]*template[i][0] + shape[i][1]*template[i][1]);
-			}
-			var rotation = Math.atan(top/bottom);
-
-			translationX += (shapeMean[0]-(scaling*Math.cos(-rotation)*shapeMean[0])-(scaling*shapeMean[1]*Math.sin(-rotation)));
-			translationY += (shapeMean[1]+(scaling*Math.sin(-rotation)*shapeMean[0])-(scaling*shapeMean[1]*Math.cos(-rotation)));
-
-			//returns rotation, scaling, transformx and transformx
-			return [translationX, translationY, scaling, rotation];
 		}
 
 		return true;
