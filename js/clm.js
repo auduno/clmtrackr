@@ -13,6 +13,7 @@
 import numeric from 'numeric';
 import raf from 'raf';
 
+import emitEvent from './utils/events.js'
 import faceDetection from './jsfeat/faceDetection.js';
 import svmFilter from './svmfilter/svmfilter_fft.js';
 import webglFilter from './svmfilter/svmfilter_webgl.js';
@@ -322,9 +323,7 @@ var clm = {
 		 *  TODO: should be able to take img element as well
 		 */
 		this.track = function(element, box) {
-			var evt = document.createEvent("Event");
-			evt.initEvent("clmtrackrBeforeTrack", true, true);
-			document.dispatchEvent(evt);
+			emitEvent('clmtrackrBeforeTrack');
 
 			var scaling, translateX, translateY, rotation;
 			var ptch, px, py;
@@ -353,9 +352,7 @@ var clm = {
 						})
 						.catch(function (error) {
 							// send an event on no face found
-							var evt = document.createEvent("Event");
-							evt.initEvent("clmtrackrNotFound", true, true);
-							document.dispatchEvent(evt);
+							emitEvent('clmtrackrNotFound');
 
 							detectingFace = false;
 						});
@@ -409,9 +406,7 @@ var clm = {
 					resetParameters();
 
 					// send event to signal that tracking was lost
-					var evt = document.createEvent("Event");
-					evt.initEvent("clmtrackrLost", true, true);
-					document.dispatchEvent(evt);
+					emitEvent('clmtrackrLost');
 
 					return false;
 				}
@@ -634,9 +629,7 @@ var clm = {
 			previousPositions.push(currentPositions.slice(0));
 
 			// send an event on each iteration
-			var evt = document.createEvent("Event");
-			evt.initEvent("clmtrackrIteration", true, true);
-			document.dispatchEvent(evt);
+			emitEvent('clmtrackrIteration');
 
 			// we must get a score before we can say we've converged
 			if (scoringHistory.length >= 5 && this.getConvergence() < convergenceThreshold) {
@@ -644,9 +637,7 @@ var clm = {
 					this.stop();
 				}
 
-				var evt = document.createEvent("Event");
-				evt.initEvent("clmtrackrConverged", true, true);
-				document.dispatchEvent(evt);
+				emitEvent('clmtrackrConverged');
 			}
 
 			// return new points
