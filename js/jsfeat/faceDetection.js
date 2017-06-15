@@ -3,6 +3,8 @@ import jsfeat from 'jsfeat';
 
 import findFaceWorker from './jsfeat_detect_worker.js';
 
+// import { drawDetection, drawFacialPoints, drawBoundingBox } from './utils/debugging.js';
+
 var faceDetection = function(video, pdmModel, params) {
 
 	// processes an image, detects a face and returns the initial face parameters for clmtrackr
@@ -75,56 +77,28 @@ var faceDetection = function(video, pdmModel, params) {
 
 	var getFinegrainedPosition = function(candidate) {
 		var translateX, translateY, scaling, rotation;
+		var x = candidate.x;
+		var y = candidate.y;
+		var w = candidate.w;
+		var h = candidate.h;
 
+		// var debugCC = document.getElementById('overlay2').getContext('2d')
 		if (model.hints && mosseFilter && left_eye_filter && right_eye_filter && nose_filter) {
-			var noseFilterWidth = candidate.width * 4.5/10;
-			var eyeFilterWidth = candidate.width * 6/10;
+			var noseFilterWidth = w * 4.5/10;
+			var eyeFilterWidth = w * 6/10;
 
 			// detect position of eyes and nose via mosse filter
-			//
-			/*element.pause();
+			var nose_result = mossef_nose.track(element, Math.round(x+(w/2)-(noseFilterWidth/2)), Math.round(y+h*(5/8)-(noseFilterWidth/2)), noseFilterWidth, noseFilterWidth, false);
+			var right_result = mossef_righteye.track(element, Math.round(x+(w*3/4)-(eyeFilterWidth/2)), Math.round(y+h*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth, false);
+			var left_result = mossef_lefteye.track(element, Math.round(x+(w/4)-(eyeFilterWidth/2)), Math.round(y+h*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth, false);
+			right_eye_position[0] = Math.round(x+(w*3/4)-(eyeFilterWidth/2))+right_result[0];
+			right_eye_position[1] = Math.round(y+h*(2/5)-(eyeFilterWidth/2))+right_result[1];
+			left_eye_position[0] = Math.round(x+(w/4)-(eyeFilterWidth/2))+left_result[0];
+			left_eye_position[1] = Math.round(y+h*(2/5)-(eyeFilterWidth/2))+left_result[1];
+			nose_position[0] = Math.round(x+(w/2)-(noseFilterWidth/2))+nose_result[0];
+			nose_position[1] = Math.round(y+h*(5/8)-(noseFilterWidth/2))+nose_result[1];
 
-			var canvasContext = document.getElementById('overlay2').getContext('2d')
-			canvasContext.clearRect(0,0,500,375);
-			canvasContext.strokeRect(candidate.x, candidate.y, candidate.width, candidate.height);*/
-			//
-
-			var nose_result = mossef_nose.track(element, Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2)), Math.round(candidate.y+candidate.height*(5/8)-(noseFilterWidth/2)), noseFilterWidth, noseFilterWidth, false);
-			var right_result = mossef_righteye.track(element, Math.round(candidate.x+(candidate.width*3/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth, false);
-			var left_result = mossef_lefteye.track(element, Math.round(candidate.x+(candidate.width/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth, false);
-			right_eye_position[0] = Math.round(candidate.x+(candidate.width*3/4)-(eyeFilterWidth/2))+right_result[0];
-			right_eye_position[1] = Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2))+right_result[1];
-			left_eye_position[0] = Math.round(candidate.x+(candidate.width/4)-(eyeFilterWidth/2))+left_result[0];
-			left_eye_position[1] = Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2))+left_result[1];
-			nose_position[0] = Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2))+nose_result[0];
-			nose_position[1] = Math.round(candidate.y+candidate.height*(5/8)-(noseFilterWidth/2))+nose_result[1];
-
-			//
-			/*canvasContext.strokeRect(Math.round(candidate.x+(candidate.width*3/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth);
-			canvasContext.strokeRect(Math.round(candidate.x+(candidate.width/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth);
-			//canvasContext.strokeRect(Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2)), Math.round(candidate.y+candidate.height*(3/4)-(noseFilterWidth/2)), noseFilterWidth, noseFilterWidth);
-			canvasContext.strokeRect(Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2)), Math.round(candidate.y+candidate.height*(5/8)-(noseFilterWidth/2)), noseFilterWidth, noseFilterWidth);
-
-			canvasContext.fillStyle = "rgb(0,0,250)";
-			canvasContext.beginPath();
-			canvasContext.arc(left_eye_position[0], left_eye_position[1], 3, 0, Math.PI*2, true);
-			canvasContext.closePath();
-			canvasContext.fill();
-
-			canvasContext.beginPath();
-			canvasContext.arc(right_eye_position[0], right_eye_position[1], 3, 0, Math.PI*2, true);
-			canvasContext.closePath();
-			canvasContext.fill();
-
-			canvasContext.beginPath();
-			canvasContext.arc(nose_position[0], nose_position[1], 3, 0, Math.PI*2, true);
-			canvasContext.closePath();
-			canvasContext.fill();
-
-			debugger;
-			element.play()
-			canvasContext.clearRect(0,0,element.width,element.height);*/
-			//
+			// drawDetection(debugCC, candidate, [left_eye_position, right_eye_positions, nose_position]);
 
 			// get eye and nose positions of model
 			var lep = model.hints.leftEye;
@@ -138,54 +112,14 @@ var faceDetection = function(video, pdmModel, params) {
 			scaling = procrustes_params[2];
 			rotation = procrustes_params[3];
 
-			//element.play();
-
-			//var maxscale = 1.10;
-			//if ((scaling*modelHeight)/candidate.height < maxscale*0.7) scaling = (maxscale*0.7*candidate.height)/modelHeight;
-			//if ((scaling*modelHeight)/candidate.height > maxscale*1.2) scaling = (maxscale*1.2*candidate.height)/modelHeight;
-
-			/*var smean = [0,0];
-			smean[0] += lep[0];
-			smean[1] += lep[1];
-			smean[0] += rep[0];
-			smean[1] += rep[1];
-			smean[0] += mep[0];
-			smean[1] += mep[1];
-			smean[0] /= 3;
-			smean[1] /= 3;
-
-			var nulep = [(lep[0]*scaling*Math.cos(-rotation)+lep[1]*scaling*Math.sin(-rotation))+translateX, (lep[0]*scaling*(-Math.sin(-rotation)) + lep[1]*scaling*Math.cos(-rotation))+translateY];
-			var nurep = [(rep[0]*scaling*Math.cos(-rotation)+rep[1]*scaling*Math.sin(-rotation))+translateX, (rep[0]*scaling*(-Math.sin(-rotation)) + rep[1]*scaling*Math.cos(-rotation))+translateY];
-			var numep = [(mep[0]*scaling*Math.cos(-rotation)+mep[1]*scaling*Math.sin(-rotation))+translateX, (mep[0]*scaling*(-Math.sin(-rotation)) + mep[1]*scaling*Math.cos(-rotation))+translateY];
-
-			canvasContext.fillStyle = "rgb(200,10,100)";
-			canvasContext.beginPath();
-			canvasContext.arc(nulep[0], nulep[1], 3, 0, Math.PI*2, true);
-			canvasContext.closePath();
-			canvasContext.fill();
-
-			canvasContext.beginPath();
-			canvasContext.arc(nurep[0], nurep[1], 3, 0, Math.PI*2, true);
-			canvasContext.closePath();
-			canvasContext.fill();
-
-			canvasContext.beginPath();
-			canvasContext.arc(numep[0], numep[1], 3, 0, Math.PI*2, true);
-			canvasContext.closePath();
-			canvasContext.fill();*/
-
-			//this.draw(document.getElementById('overlay'), currentParameters);
-
+			// drawFacialPoints(debugCC, [lep, rep, mep], procrustes_params);
 		} else {
-			scaling = candidate.width/msmodelheight;
+			// drawBoundingBox(debugCC, [x,y,w,h]);
+			scaling = w/msmodelheight;
 			rotation = 0;
-			//var ccc = document.getElementById('overlay').getContext('2d');
-			//ccc.strokeRect(candidate.x,candidate.y,candidate.width,candidate.height);
-			translateX = candidate.x-(msxmin*scaling)+0.1*candidate.width;
-			translateY = candidate.y-(msymin*scaling)+0.25*candidate.height;
+			translateX = x-(msxmin*scaling)+0.1*w;
+			translateY = y-(msymin*scaling)+0.25*h;
 		}
-
-		//currentPositions = calculatePositions(currentParameters, true);
 
 		return [scaling, rotation, translateX, translateY];
 	}
@@ -282,7 +216,6 @@ var faceDetection = function(video, pdmModel, params) {
 		translationX += (shapeMean[0]-(scaling*Math.cos(-rotation)*shapeMean[0])-(scaling*shapeMean[1]*Math.sin(-rotation)));
 		translationY += (shapeMean[1]+(scaling*Math.sin(-rotation)*shapeMean[0])-(scaling*shapeMean[1]*Math.cos(-rotation)));
 
-		//returns rotation, scaling, transformx and transformx
 		return [translationX, translationY, scaling, rotation];
 	}
 }
