@@ -20,6 +20,9 @@ var faceDetection = function(video, pdmModel, params) {
 	if (params.equalizeHistogram === undefined) params.equalizeHistogram = true;
 	if (params.useWebWorkers === undefined) params.useWebWorkers = true;
 
+	// disable web workers if not exists
+	if (!window.Worker) params.useWebWorkers = false;
+
 	var msxmin, msymin, msymax;
 	var msmodelheight;
 
