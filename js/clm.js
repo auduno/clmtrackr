@@ -12,6 +12,7 @@
 
 import numeric from 'numeric';
 import raf from 'raf';
+import Promise from 'promise-polyfill';
 
 import emitEvent from './utils/events.js'
 import faceDetection from './jsfeat/faceDetection.js';
@@ -22,7 +23,9 @@ import pModel from '../models/model_pca_20_svm.js';
 
 var DEFAULT_MODEL = pModel;
 
+// polyfills
 raf.polyfill();
+if (!window.Promise) window.Promise = Promise;
 
 var clm = {
 	tracker : function(params) {
