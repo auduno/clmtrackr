@@ -82,8 +82,8 @@ var faceDetection = function(video, pdmModel, params) {
 		var translateX, translateY, scaling, rotation;
 		var x = candidate.x;
 		var y = candidate.y;
-		var w = candidate.w;
-		var h = candidate.h;
+		var w = candidate.width;
+		var h = candidate.height;
 
 		// var debugCC = document.getElementById('overlay2').getContext('2d')
 		if (model.hints && mosseFilter && left_eye_filter && right_eye_filter && nose_filter) {
@@ -223,7 +223,7 @@ var faceDetection = function(video, pdmModel, params) {
 	}
 }
 
-// simple wrapper for jsfeat face detector that runs as a webworker
+// simple wrapper for jsfeat face detector that can run as a webworker
 var jsfeat_face = function(video, parameters) {
 
 	var params = parameters;
