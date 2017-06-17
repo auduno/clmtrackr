@@ -2,15 +2,15 @@
   "name": "clmtrackr",
   "version": "1.1.0",
   "description": "Javascript library for precise tracking of facial features via Constrained Local Models",
-  "main": "dist/clmtrackr.js",
-  "module": "dist/clmtrackr.module.js",
+  "main": "build/clmtrackr.js",
+  "module": "build/clmtrackr.module.js",
   "repository": {
     "type": "git",
     "url": "https://github.com/auduno/clmtrackr.git"
   },
   "scripts": {
     "build": "rollup -c",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf build"
   },
   "author": {
     "name": "Audun Mathias Øygard",
@@ -24,13 +24,13 @@
   "devDependencies": {
     "rollup": "^0.41.6",
     "rollup-plugin-node-resolve": "^3.0.0",
-    "rollup-plugin-commonjs": "^8.0.2",
-    "twgl.js": "^1.9.0"
+    "rollup-plugin-commonjs": "^8.0.2"
   },
   "dependencies": {
     "jsfeat": "git+https://github.com/inspirit/jsfeat",
     "numeric": "^1.2.6",
     "mosse": "^0.1.1",
-    "raf": "^3.3.2"
+    "raf": "^3.3.2",
+    "promise-polyfill": "^6.0.2"
   }
 }

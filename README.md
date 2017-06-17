@@ -87,7 +87,7 @@ See the complete example [here](https://auduno.github.io/clmtrackr/examples/exam
 
 First, install [node.js](http://nodejs.org/) with npm.
 
-In the root directory of clmtrackr, run `npm install` then run `npm run build`. This will create `clmtrackr.min.js` and `clmtrackr.js` in `dist` folder.
+In the root directory of clmtrackr, run `npm install` then run `npm run build`. This will create `clmtrackr.min.js` and `clmtrackr.js` in `build` folder.
 
 To test the examples locally, you need to run a local server. One easy way to do this is to install `http-server`, a small node.js utility: `npm install -g http-server`. Then run `http-server` in the root of clmtrackr and go to `https://localhost:8080/examples` in your browser.
 

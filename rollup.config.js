@@ -2,16 +2,16 @@ import resolve from 'rollup-plugin-node-resolve';
 import commonjs from 'rollup-plugin-commonjs';
 
 export default {
-	entry: 'js/clm.js',
+	entry: 'src/clm.js',
 	targets: [
 		{
 			format: 'umd',
 			moduleName: 'clm',
-			dest: 'dist/clmtrackr.js'
+			dest: 'build/clmtrackr.js'
 		},
 		{
 			format: 'es',
-			dest: 'dist/clmtrackr.module.js'
+			dest: 'build/clmtrackr.module.js'
 		}
 	],
 	plugins: [

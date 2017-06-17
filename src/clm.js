@@ -15,7 +15,7 @@ import raf from 'raf';
 import Promise from 'promise-polyfill';
 
 import emitEvent from './utils/events.js'
-import faceDetection from './jsfeat/faceDetection.js';
+import faceDetection from './facedetector/faceDetection.js';
 import svmFilter from './svmfilter/svmfilter_fft.js';
 import webglFilter from './svmfilter/svmfilter_webgl.js';
 import mosseFilterResponses from './mossefilter/mosseFilterResponses.js';
