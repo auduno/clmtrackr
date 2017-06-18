@@ -353,8 +353,7 @@ var clm = {
 							detectingFace = false;
 						});
 				}
-				// TODO : should we return something else here?
-				//   this signifies the same for "face not found" or "looking for face?"
+
 				return false;
 			} else {
 				facecheck_count += 1;

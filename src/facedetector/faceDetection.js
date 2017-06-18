@@ -1,7 +1,7 @@
 import mosse from 'mosse';
 import jsfeat from 'jsfeat';
 
-import findFaceWorker from './jsfeat_detect_worker.js';
+import findFaceWorker from './faceDetection_worker.js';
 
 // import { drawDetection, drawFacialPoints, drawBoundingBox } from './utils/debugging.js';
 
