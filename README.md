@@ -11,8 +11,6 @@ clmtrackr
 
 The library provides some generic face models that were trained on [the MUCT database](http://www.milbo.org/muct/) and some additional self-annotated images. Check out [clmtools](https://github.com/auduno/clmtools) for building your own models.
 
-The library requires [jsfeat.js](https://github.com/inspirit/jsfeat) (for initial face detection) and [numeric.js](http://numericjs.com) (for matrix math).
-
 For tracking in video, it is recommended to use a browser with WebGL support, though the library should work on any modern browser.
 
 For some more information about Constrained Local Models, take a look at Xiaoguang Yan's [excellent tutorial](https://sites.google.com/site/xgyanhome/home/projects/clm-implementation/ConstrainedLocalModel-tutorial%2Cv0.7.pdf?attredirects=0), which was of great help in implementing this library.
@@ -29,14 +27,14 @@ For some more information about Constrained Local Models, take a look at Xiaogua
 
 ### Usage ###
 
-Download the minified library [clmtrackr.js](https://github.com/auduno/clmtrackr/raw/dev/clmtrackr.js) and one of the models, and include them in your webpage. **clmtrackr** depends on [*numeric.js*](https://github.com/sloisel/numeric/) and [*jsfeat.js*](https://github.com/inspirit/jsfeat), but these are included in the minified library.
+Download the minified library [clmtrackr.js](https://github.com/auduno/clmtrackr/raw/dev/build/clmtrackr.js), and include it in your webpage.
 
 ```html
 /* clmtrackr libraries */
 <script src="js/clmtrackr.js"></script>
 ```
 
-The following code initiates the clmtrackr with the model we included, and starts the tracker running on a video element.
+The following code initiates the clmtrackr with the default model (see the [reference](http://auduno.github.io/clmtrackr/docs/reference.html) for some alternative models), and starts the tracker running on a video element.
 
 ```html
 <video id="inputVideo" width="400" height="300" autoplay loop>
@@ -87,7 +85,7 @@ See the complete example [here](https://auduno.github.io/clmtrackr/examples/exam
 
 First, install [node.js](http://nodejs.org/) with npm.
 
-In the root directory of clmtrackr, run `npm install` then run `npm run build`. This will create `clmtrackr.min.js` and `clmtrackr.js` in `build` folder.
+In the root directory of clmtrackr, run `npm install` then run `npm run build`. This will create `clmtrackr.js` and `clmtrackr.module.js` in `build` folder.
 
 To test the examples locally, you need to run a local server. One easy way to do this is to install `http-server`, a small node.js utility: `npm install -g http-server`. Then run `http-server` in the root of clmtrackr and go to `https://localhost:8080/examples` in your browser.
 
