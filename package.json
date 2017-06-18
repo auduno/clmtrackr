@@ -10,6 +10,7 @@
   },
   "scripts": {
     "build": "rollup -c",
+    "build-uglify": "rollup -c && uglifyjs build/clmtrackr.js -c > build/clmtrackr.min.js",
     "clean": "rm -rf build"
   },
   "author": {
@@ -24,7 +25,8 @@
   "devDependencies": {
     "rollup": "^0.41.6",
     "rollup-plugin-node-resolve": "^3.0.0",
-    "rollup-plugin-commonjs": "^8.0.2"
+    "rollup-plugin-commonjs": "^8.0.2",
+    "uglify-es": "^3.0.17"
   },
   "dependencies": {
     "jsfeat": "git+https://github.com/inspirit/jsfeat",
