@@ -48,16 +48,14 @@ export const drawFacialPoints = function(ctx, facePoints, transformParams) {
 		var scaling = transformParams[2];
 		var rotation = transformParams[3];
 
-		function transformCoords(coords) {
+		facePoints = facePoints.map(function(coord) {
 			return [
 				(coord[0]*scaling*Math.cos(-rotation) + coord[1]*scaling*Math.sin(-rotation)) + translateX,
 				(coord[0]*scaling*(-Math.sin(-rotation)) + coord[1]*scaling*Math.cos(-rotation)) + translateY
 			];
-		}
+		});
 
-		facePoints = facePoints.map(transformCoords);
-
-		ctx.fillStyle = "rgb(200,10,100)";
+		ctx.fillStyle = 'rgb(200,10,100)';
 	}
 
 	var leftEye = facePoints[0];
@@ -90,13 +88,13 @@ export const drawData = function(canvasContext, data, width, height, transposed,
 	canvasContext.putImageData(psci, drawX, drawY);
 }
 
-export const drawPatches(ctx, patches, patchSize, patchPositions, mapFunction, subset) {
+export const drawPatches = function(ctx, patches, patchSize, patchPositions, mapFunction, subset) {
 	var halfPatch = Math.floor(patchSize/2);
 	ctx.clearRect(0, 0, ctx.canvas.clientWidth, ctx.canvas.clientHeight);
 	for (var i = 0;i < patches.length;i++) {
 		if (!subset || (subset && subset.indexOf(i) > -1)) {
 			var patch = mapFunction ? patches[i].map(mapFunction) : patches[i];
-			drawData(ctx, patch, patchSize, patchSize, false, patchPositions[i][0]-halfPatch, patchPositions[i][1]-halfPatch;
+			drawData(ctx, patch, patchSize, patchSize, false, patchPositions[i][0]-halfPatch, patchPositions[i][1]-halfPatch);
 		}
 	}
 }

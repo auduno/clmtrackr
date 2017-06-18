@@ -47,7 +47,7 @@ var faceDetection = function(pdmModel, params) {
 		mossef_nose = new mosseFilter();
 		mossef_nose.load(nose_filter);
 	} else {
-		console.log("MOSSE filters not found, using rough approximation for initialization.");
+		console.log('MOSSE filters not found, using rough approximation for initialization.');
 	}
 
 	// load mean shape

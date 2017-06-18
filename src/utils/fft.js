@@ -20,7 +20,7 @@ function FFT() {
 			_makeBitReversal();
 			_makeCosSinTable();
 		} else {
-			throw new Error("init: radix-2 required");
+			throw new Error('init: radix-2 required');
 		}
 	}
 

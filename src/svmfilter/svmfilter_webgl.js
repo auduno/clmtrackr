@@ -42,34 +42,34 @@ var webglFilter = function() {
 	var rawInit = false;
 
 	var lbpResponseVS = [
-		"attribute vec2 a_texCoord;",
-		"attribute vec2 a_position;",
-		"",
-		"varying vec2 v_texCoord;",
-		"",
-		"void main() {",
-		"   // transform coordinates to regular coordinates",
-		"   gl_Position = vec4(a_position,0.0,1.0);",
-		" ",
-		"   // pass the texCoord to the fragment shader",
-		"   v_texCoord = a_texCoord;",
-		"}"
+		'attribute vec2 a_texCoord;',
+		'attribute vec2 a_position;',
+		'',
+		'varying vec2 v_texCoord;',
+		'',
+		'void main() {',
+		'   // transform coordinates to regular coordinates',
+		'   gl_Position = vec4(a_position,0.0,1.0);',
+		' ',
+		'   // pass the texCoord to the fragment shader',
+		'   v_texCoord = a_texCoord;',
+		'}'
 	].join('\n');
 	var lbpResponseFS;
 
 	var gradientResponseVS = [
-		"attribute vec2 a_texCoord;",
-		"attribute vec2 a_position;",
-		"",
-		"varying vec2 v_texCoord;",
-		"",
-		"void main() {",
-		"   // transform coordinates to regular coordinates",
-		"   gl_Position = vec4(a_position,0.0,1.0);",
-		" ",
-		"   // pass the texCoord to the fragment shader",
-		"   v_texCoord = a_texCoord;",
-		"}"
+		'attribute vec2 a_texCoord;',
+		'attribute vec2 a_position;',
+		'',
+		'varying vec2 v_texCoord;',
+		'',
+		'void main() {',
+		'   // transform coordinates to regular coordinates',
+		'   gl_Position = vec4(a_position,0.0,1.0);',
+		' ',
+		'   // pass the texCoord to the fragment shader',
+		'   v_texCoord = a_texCoord;',
+		'}'
 	].join('\n');
 	var gradientResponseFS;
 
@@ -77,84 +77,84 @@ var webglFilter = function() {
 	var patchResponseFS;
 
 	var drawResponsesVS = [
-		"attribute vec2 a_texCoord_draw;",
-		"attribute vec2 a_position_draw;",
-		"attribute float a_patchChoice_draw;",
-		"",
-		"uniform vec2 u_resolutiondraw;",
-		"",
-		"varying vec2 v_texCoord;",
-		"varying float v_select;",
-		"",
-		"void main() {",
-		"   // convert the rectangle from pixels to 0.0 to 1.0",
-		"   vec2 zeroToOne = a_position_draw / u_resolutiondraw;",
-		"",
-		"   // convert from 0->1 to 0->2",
-		"   vec2 zeroToTwo = zeroToOne * 2.0;",
-		"",
-		"   // convert from 0->2 to -1->+1 (clipspace)",
-		"   vec2 clipSpace = zeroToTwo - 1.0;",
-		"   ",
-		"   // transform coordinates to regular coordinates",
-		"   gl_Position = vec4(clipSpace * vec2(1.0, 1.0), 0, 1);",
-		"",
-		"   // pass the texCoord to the fragment shader",
-		"   v_texCoord = a_texCoord_draw;",
-		"   ",
-		"   v_select = a_patchChoice_draw;",
-		"}"
+		'attribute vec2 a_texCoord_draw;',
+		'attribute vec2 a_position_draw;',
+		'attribute float a_patchChoice_draw;',
+		'',
+		'uniform vec2 u_resolutiondraw;',
+		'',
+		'varying vec2 v_texCoord;',
+		'varying float v_select;',
+		'',
+		'void main() {',
+		'   // convert the rectangle from pixels to 0.0 to 1.0',
+		'   vec2 zeroToOne = a_position_draw / u_resolutiondraw;',
+		'',
+		'   // convert from 0->1 to 0->2',
+		'   vec2 zeroToTwo = zeroToOne * 2.0;',
+		'',
+		'   // convert from 0->2 to -1->+1 (clipspace)',
+		'   vec2 clipSpace = zeroToTwo - 1.0;',
+		'   ',
+		'   // transform coordinates to regular coordinates',
+		'   gl_Position = vec4(clipSpace * vec2(1.0, 1.0), 0, 1);',
+		'',
+		'   // pass the texCoord to the fragment shader',
+		'   v_texCoord = a_texCoord_draw;',
+		'   ',
+		'   v_select = a_patchChoice_draw;',
+		'}'
 	].join('\n');
 
 	var drawResponsesFS = [
-		"precision mediump float;",
-		"",
-		"// our responses",
-		"uniform sampler2D u_responses;",
-		"",
-		"// the texCoords passed in from the vertex shader.",
-		"varying vec2 v_texCoord;",
-		"varying float v_select;",
-		"",
-		"const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);",
-		"const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);",
-		"",
-		"// packing code from here http://stackoverflow.com/questions/9882716/packing-float-into-vec4-how-does-this-code-work",
-		"void main() {",
-		"  vec4 colorSum = texture2D(u_responses, v_texCoord);",
-		"  float value = 0.0;",
-		"  if (v_select < 0.1) {",
-		"    value = colorSum[0];",
-		"  } else if (v_select > 0.9 && v_select < 1.1) {",
-		"    value = colorSum[1];",
-		"  } else if (v_select > 1.9 && v_select < 2.1) {",
-		"    value = colorSum[2];",
-		"  } else if (v_select > 2.9 && v_select < 3.1) {",
-		"    value = colorSum[3];",
-		"  } else {",
-		"    value = 1.0;",
-		"  }",
-		"  ",
-		"  vec4 res = fract(value * bit_shift);",
-		"  res -= res.xxyz * bit_mask;",
-		"  ",
-		"  //gl_FragColor = vec4(value, value, value, value);",
-		"  //gl_FragColor = vec4(1.0, value, 1.0, 1.0);",
-		"  gl_FragColor = res;",
-		"}"
+		'precision mediump float;',
+		'',
+		'// our responses',
+		'uniform sampler2D u_responses;',
+		'',
+		'// the texCoords passed in from the vertex shader.',
+		'varying vec2 v_texCoord;',
+		'varying float v_select;',
+		'',
+		'const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);',
+		'const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);',
+		'',
+		'// packing code from here http://stackoverflow.com/questions/9882716/packing-float-into-vec4-how-does-this-code-work',
+		'void main() {',
+		'  vec4 colorSum = texture2D(u_responses, v_texCoord);',
+		'  float value = 0.0;',
+		'  if (v_select < 0.1) {',
+		'    value = colorSum[0];',
+		'  } else if (v_select > 0.9 && v_select < 1.1) {',
+		'    value = colorSum[1];',
+		'  } else if (v_select > 1.9 && v_select < 2.1) {',
+		'    value = colorSum[2];',
+		'  } else if (v_select > 2.9 && v_select < 3.1) {',
+		'    value = colorSum[3];',
+		'  } else {',
+		'    value = 1.0;',
+		'  }',
+		'  ',
+		'  vec4 res = fract(value * bit_shift);',
+		'  res -= res.xxyz * bit_mask;',
+		'  ',
+		'  //gl_FragColor = vec4(value, value, value, value);',
+		'  //gl_FragColor = vec4(1.0, value, 1.0, 1.0);',
+		'  gl_FragColor = res;',
+		'}'
 	].join('\n');
 
 	this.init = function(filters, bias, nP, pW, pH, fW, fH) {
 		// we assume filterVector goes from left to right, rowwise, i.e. row-major order
 
 		if (fW != fH) {
-			alert("filter width and height must be same size!");
+			alert('filter width and height must be same size!');
 			return;
 		}
 
 		// if filter width is not odd, alert
 		if (fW % 2 == 0 || fH % 2 == 0) {
-			alert("filters used in svm must be of odd dimensions!");
+			alert('filters used in svm must be of odd dimensions!');
 			return;
 		}
 
@@ -180,168 +180,167 @@ var webglFilter = function() {
 
 		// write out shaders
 		patchResponseFS = [
-			"precision mediump float;",
-			"",
-			"const vec2 u_onePixelPatches = vec2("+(1/patchWidth).toFixed(10)+","+(1/(patchHeight*numBlocks)).toFixed(10)+");",
-			"const vec2 u_onePixelFilters = vec2("+(1/filterWidth).toFixed(10)+","+(1/(filterHeight*numBlocks)).toFixed(10)+");",
-			"const float u_halffilterwidth = "+((filterWidth-1.0)/2).toFixed(1)+";",
-			"const float u_halffilterheight = "+((filterHeight-1.0)/2).toFixed(1)+";",
-			"",
-			"// our patches",
-			"uniform sampler2D u_patches;",
-			"// our filters",
-			"uniform sampler2D u_filters;",
-			"",
-			"// the texCoords passed in from the vertex shader.",
-			"varying vec2 v_texCoord;",
-			"varying vec2 v_texCoordFilters; // this should give us correct filter",
-			"",
-			"void main() {",
-			"  vec4 colorSum = vec4(0.0, 0.0, 0.0, 0.0);",
-			"  vec4 maxn = vec4(0.0, 0.0, 0.0, 0.0);",
-			"  vec4 minn = vec4(256.0, 256.0, 256.0, 256.0);",
-			"  vec4 scale = vec4(0.0, 0.0, 0.0, 0.0);",
-			"  vec4 patchValue = vec4(0.0, 0.0, 0.0, 0.0);",
-			"  vec4 filterValue = vec4(0.0, 0.0, 0.0, 0.0);",
-			"  vec4 filterTemp = vec4(0.0, 0.0, 0.0, 0.0);",
-			"  for (int w = 0;w < "+filterWidth+";w++) {",
-			"    for (int h = 0;h < "+filterHeight+";h++) {",
-			"      patchValue = texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(float(w)-u_halffilterwidth, float(h)-u_halffilterheight));",
-			"      filterValue = texture2D(u_filters, v_texCoordFilters + u_onePixelFilters * vec2(float(w)-u_halffilterwidth, float(h)-u_halffilterheight));",
-			"      maxn = max(patchValue, maxn);",
-			"      minn = min(patchValue, minn);",
-			"      colorSum += patchValue*filterValue;",
-			"      filterTemp += filterValue;",
-			"    } ",
-			"  }",
-			"  scale = maxn-minn;",
-			"  colorSum = (colorSum-(minn*filterTemp))/scale;",
-			"  // logistic transformation",
-			"  colorSum = 1.0/(1.0 + exp(- (colorSum) ));",
-			"  gl_FragColor = colorSum;",
-			"}"
+			'precision mediump float;',
+			'',
+			'const vec2 u_onePixelPatches = vec2('+(1/patchWidth).toFixed(10)+','+(1/(patchHeight*numBlocks)).toFixed(10)+');',
+			'const vec2 u_onePixelFilters = vec2('+(1/filterWidth).toFixed(10)+','+(1/(filterHeight*numBlocks)).toFixed(10)+');',
+			'const float u_halffilterwidth = '+((filterWidth-1.0)/2).toFixed(1)+';',
+			'const float u_halffilterheight = '+((filterHeight-1.0)/2).toFixed(1)+';',
+			'',
+			'// our patches',
+			'uniform sampler2D u_patches;',
+			'// our filters',
+			'uniform sampler2D u_filters;',
+			'',
+			'// the texCoords passed in from the vertex shader.',
+			'varying vec2 v_texCoord;',
+			'varying vec2 v_texCoordFilters; // this should give us correct filter',
+			'',
+			'void main() {',
+			'  vec4 colorSum = vec4(0.0, 0.0, 0.0, 0.0);',
+			'  vec4 maxn = vec4(0.0, 0.0, 0.0, 0.0);',
+			'  vec4 minn = vec4(256.0, 256.0, 256.0, 256.0);',
+			'  vec4 scale = vec4(0.0, 0.0, 0.0, 0.0);',
+			'  vec4 patchValue = vec4(0.0, 0.0, 0.0, 0.0);',
+			'  vec4 filterValue = vec4(0.0, 0.0, 0.0, 0.0);',
+			'  vec4 filterTemp = vec4(0.0, 0.0, 0.0, 0.0);',
+			'  for (int w = 0;w < '+filterWidth+';w++) {',
+			'    for (int h = 0;h < '+filterHeight+';h++) {',
+			'      patchValue = texture2D(u_patches, v_texCoord + u_onePixelPatches * vec2(float(w)-u_halffilterwidth, float(h)-u_halffilterheight));',
+			'      filterValue = texture2D(u_filters, v_texCoordFilters + u_onePixelFilters * vec2(float(w)-u_halffilterwidth, float(h)-u_halffilterheight));',
+			'      maxn = max(patchValue, maxn);',
+			'      minn = min(patchValue, minn);',
+			'      colorSum += patchValue*filterValue;',
+			'      filterTemp += filterValue;',
+			'    } ',
+			'  }',
+			'  scale = maxn-minn;',
+			'  colorSum = (colorSum-(minn*filterTemp))/scale;',
+			'  // logistic transformation',
+			'  colorSum = 1.0/(1.0 + exp(- (colorSum) ));',
+			'  gl_FragColor = colorSum;',
+			'}'
 		].join('\n');
 
 		patchResponseVS = [
-			"attribute vec2 a_texCoord;",
-			"attribute vec2 a_position;",
-			"",
-			"const vec2 u_resolution = vec2("+canvasWidth.toFixed(1)+","+canvasHeight.toFixed(1)+");",
-			"const float u_patchHeight = "+(1/numBlocks).toFixed(10)+";",
-			"const float u_filterHeight = "+(1/numBlocks).toFixed(10)+";",
-			"const vec2 u_midpoint = vec2(0.5 ,"+(1/(numBlocks*2)).toFixed(10)+");",
-			"",
-			"varying vec2 v_texCoord;",
-			"varying vec2 v_texCoordFilters;",
-			"",
-			"void main() {",
-			"   // convert the rectangle from pixels to 0.0 to 1.0",
-			"   vec2 zeroToOne = a_position / u_resolution;",
-			"",
-			"   // convert from 0->1 to 0->2",
-			"   vec2 zeroToTwo = zeroToOne * 2.0;",
-			"",
-			"   // convert from 0->2 to -1->+1 (clipspace)",
-			"   vec2 clipSpace = zeroToTwo - 1.0;",
-			"   ",
-			"   // transform coordinates to regular coordinates",
-			"   gl_Position = vec4(clipSpace * vec2(1.0, 1.0), 0, 1);",
-			" ",
-			"   // pass the texCoord to the fragment shader",
-			"   v_texCoord = a_texCoord;",
-			"   ",
-			"   // set the filtertexture coordinate based on number filter to use",
-			"   v_texCoordFilters = u_midpoint + vec2(0.0, u_filterHeight * floor(a_texCoord[1]/u_patchHeight));",
-			"}"
+			'attribute vec2 a_texCoord;',
+			'attribute vec2 a_position;',
+			'',
+			'const vec2 u_resolution = vec2('+canvasWidth.toFixed(1)+','+canvasHeight.toFixed(1)+');',
+			'const float u_patchHeight = '+(1/numBlocks).toFixed(10)+';',
+			'const float u_filterHeight = '+(1/numBlocks).toFixed(10)+';',
+			'const vec2 u_midpoint = vec2(0.5 ,'+(1/(numBlocks*2)).toFixed(10)+');',
+			'',
+			'varying vec2 v_texCoord;',
+			'varying vec2 v_texCoordFilters;',
+			'',
+			'void main() {',
+			'   // convert the rectangle from pixels to 0.0 to 1.0',
+			'   vec2 zeroToOne = a_position / u_resolution;',
+			'',
+			'   // convert from 0->1 to 0->2',
+			'   vec2 zeroToTwo = zeroToOne * 2.0;',
+			'',
+			'   // convert from 0->2 to -1->+1 (clipspace)',
+			'   vec2 clipSpace = zeroToTwo - 1.0;',
+			'   ',
+			'   // transform coordinates to regular coordinates',
+			'   gl_Position = vec4(clipSpace * vec2(1.0, 1.0), 0, 1);',
+			' ',
+			'   // pass the texCoord to the fragment shader',
+			'   v_texCoord = a_texCoord;',
+			'   ',
+			'   // set the filtertexture coordinate based on number filter to use',
+			'   v_texCoordFilters = u_midpoint + vec2(0.0, u_filterHeight * floor(a_texCoord[1]/u_patchHeight));',
+			'}'
 		].join('\n');
 
 		if ('lbp' in filters) {
 			// lbpResponseFragment
 			lbpResponseFS = [
-				"precision mediump float;",
-				"",
-				"uniform vec2 u_onePixelPatches;",
-				"",
-				"// our patches",
-				"uniform sampler2D u_patches;",
-				"",
-				"// the texCoords passed in from the vertex shader.",
-				"varying vec2 v_texCoord;",
-				"",
-				"void main() {",
-				"  vec4 topLeft = texture2D(u_patches, v_texCoord + vec2(-"+opp[0].toFixed(5)+", -"+opp[1].toFixed(5)+"));",
-				"  vec4 topMid = texture2D(u_patches, v_texCoord + vec2(0.0, -"+opp[1].toFixed(5)+"));",
-				"  vec4 topRight = texture2D(u_patches, v_texCoord + vec2("+opp[0].toFixed(5)+", -"+opp[1].toFixed(5)+"));",
-				"  vec4 midLeft = texture2D(u_patches, v_texCoord + vec2(-"+opp[0].toFixed(5)+", 0.0));",
-				"  vec4 midMid = texture2D(u_patches, v_texCoord);",
-				"  vec4 midRight = texture2D(u_patches, v_texCoord + vec2("+opp[0].toFixed(5)+", 0.0));",
-				"  vec4 bottomLeft = texture2D(u_patches, v_texCoord + vec2(-"+opp[0].toFixed(5)+", "+opp[1].toFixed(5)+"));",
-				"  vec4 bottomMid = texture2D(u_patches, v_texCoord + vec2(0.0, "+opp[1].toFixed(5)+"));",
-				"  vec4 bottomRight = texture2D(u_patches, v_texCoord + vec2("+opp[0].toFixed(5)+", "+opp[1].toFixed(5)+"));",
-				"  vec4 lbp = step(midMid, midRight)*1.0 + step(midMid, topRight)*2.0 + step(midMid, topMid)*4.0;",
-				"  lbp = lbp + step(midMid, topLeft)*8.0 + step(midMid, midLeft)*16.0 + step(midMid, bottomLeft)*32.0;",
-				"  lbp = lbp + step(midMid, bottomMid)*64.0 + step(midMid, bottomRight)*128.0;",
-				"  gl_FragColor = lbp;",
-				"}"
+				'precision mediump float;',
+				'',
+				'uniform vec2 u_onePixelPatches;',
+				'',
+				'// our patches',
+				'uniform sampler2D u_patches;',
+				'',
+				'// the texCoords passed in from the vertex shader.',
+				'varying vec2 v_texCoord;',
+				'',
+				'void main() {',
+				'  vec4 topLeft = texture2D(u_patches, v_texCoord + vec2(-'+opp[0].toFixed(5)+', -'+opp[1].toFixed(5)+'));',
+				'  vec4 topMid = texture2D(u_patches, v_texCoord + vec2(0.0, -'+opp[1].toFixed(5)+'));',
+				'  vec4 topRight = texture2D(u_patches, v_texCoord + vec2('+opp[0].toFixed(5)+', -'+opp[1].toFixed(5)+'));',
+				'  vec4 midLeft = texture2D(u_patches, v_texCoord + vec2(-'+opp[0].toFixed(5)+', 0.0));',
+				'  vec4 midMid = texture2D(u_patches, v_texCoord);',
+				'  vec4 midRight = texture2D(u_patches, v_texCoord + vec2('+opp[0].toFixed(5)+', 0.0));',
+				'  vec4 bottomLeft = texture2D(u_patches, v_texCoord + vec2(-'+opp[0].toFixed(5)+', '+opp[1].toFixed(5)+'));',
+				'  vec4 bottomMid = texture2D(u_patches, v_texCoord + vec2(0.0, '+opp[1].toFixed(5)+'));',
+				'  vec4 bottomRight = texture2D(u_patches, v_texCoord + vec2('+opp[0].toFixed(5)+', '+opp[1].toFixed(5)+'));',
+				'  vec4 lbp = step(midMid, midRight)*1.0 + step(midMid, topRight)*2.0 + step(midMid, topMid)*4.0;',
+				'  lbp = lbp + step(midMid, topLeft)*8.0 + step(midMid, midLeft)*16.0 + step(midMid, bottomLeft)*32.0;',
+				'  lbp = lbp + step(midMid, bottomMid)*64.0 + step(midMid, bottomRight)*128.0;',
+				'  gl_FragColor = lbp;',
+				'}'
 			].join('\n');
 		}
 
 		if ('sobel' in filters) {
 			// gradResponseFragment
 			gradientResponseFS = [
-				"precision mediump float;",
-				"",
-				"uniform vec2 u_onePixelPatches;",
-				"",
-				"// our patches",
-				"uniform sampler2D u_patches;",
-				"",
-				"// the texCoords passed in from the vertex shader.",
-				"varying vec2 v_texCoord;",
-				"",
-				"void main() {",
-				"  vec4 bottomLeft = texture2D(u_patches, v_texCoord + vec2(-"+opp[0].toFixed(5)+", "+opp[1].toFixed(5)+"));",
-				"  vec4 bottomRight = texture2D(u_patches, v_texCoord + vec2("+opp[0].toFixed(5)+", "+opp[1].toFixed(5)+"));",
-				"  vec4 topLeft = texture2D(u_patches, v_texCoord + vec2(-"+opp[0].toFixed(5)+", -"+opp[1].toFixed(5)+"));",
-				"  vec4 topRight = texture2D(u_patches, v_texCoord + vec2("+opp[0].toFixed(5)+", -"+opp[1].toFixed(5)+"));",
-				"  vec4 dx = (",
-				"    bottomLeft +",
-				"    (texture2D(u_patches, v_texCoord + vec2(-"+opp[0].toFixed(5)+", 0.0))*vec4(2.0,2.0,2.0,2.0)) +",
-				"    topLeft -",
-				"    bottomRight -",
-				"    (texture2D(u_patches, v_texCoord + vec2("+opp[0].toFixed(5)+", 0.0))*vec4(2.0,2.0,2.0,2.0)) -",
-				"    topRight)/4.0;",
-				"  vec4 dy = (",
-				"    bottomLeft +",
-				"    (texture2D(u_patches, v_texCoord + vec2(0.0, "+opp[1].toFixed(5)+"))*vec4(2.0,2.0,2.0,2.0)) +",
-				"    bottomRight -",
-				"    topLeft -",
-				"    (texture2D(u_patches, v_texCoord + vec2(0.0, -"+opp[1].toFixed(5)+"))*vec4(2.0,2.0,2.0,2.0)) -",
-				"    topRight)/4.0;",
-				"  vec4 gradient = sqrt((dx*dx) + (dy*dy));",
-				"  gl_FragColor = gradient;",
-				"}"
+				'precision mediump float;',
+				'',
+				'uniform vec2 u_onePixelPatches;',
+				'',
+				'// our patches',
+				'uniform sampler2D u_patches;',
+				'',
+				'// the texCoords passed in from the vertex shader.',
+				'varying vec2 v_texCoord;',
+				'',
+				'void main() {',
+				'  vec4 bottomLeft = texture2D(u_patches, v_texCoord + vec2(-'+opp[0].toFixed(5)+', '+opp[1].toFixed(5)+'));',
+				'  vec4 bottomRight = texture2D(u_patches, v_texCoord + vec2('+opp[0].toFixed(5)+', '+opp[1].toFixed(5)+'));',
+				'  vec4 topLeft = texture2D(u_patches, v_texCoord + vec2(-'+opp[0].toFixed(5)+', -'+opp[1].toFixed(5)+'));',
+				'  vec4 topRight = texture2D(u_patches, v_texCoord + vec2('+opp[0].toFixed(5)+', -'+opp[1].toFixed(5)+'));',
+				'  vec4 dx = (',
+				'    bottomLeft +',
+				'    (texture2D(u_patches, v_texCoord + vec2(-'+opp[0].toFixed(5)+', 0.0))*vec4(2.0,2.0,2.0,2.0)) +',
+				'    topLeft -',
+				'    bottomRight -',
+				'    (texture2D(u_patches, v_texCoord + vec2('+opp[0].toFixed(5)+', 0.0))*vec4(2.0,2.0,2.0,2.0)) -',
+				'    topRight)/4.0;',
+				'  vec4 dy = (',
+				'    bottomLeft +',
+				'    (texture2D(u_patches, v_texCoord + vec2(0.0, '+opp[1].toFixed(5)+'))*vec4(2.0,2.0,2.0,2.0)) +',
+				'    bottomRight -',
+				'    topLeft -',
+				'    (texture2D(u_patches, v_texCoord + vec2(0.0, -'+opp[1].toFixed(5)+'))*vec4(2.0,2.0,2.0,2.0)) -',
+				'    topRight)/4.0;',
+				'  vec4 gradient = sqrt((dx*dx) + (dy*dy));',
+				'  gl_FragColor = gradient;',
+				'}'
 			].join('\n');
 		}
 
 		//create webglcanvas
 		canvas = document.createElement('canvas');
-		canvas.setAttribute('width', (patchWidth-filterWidth+1)+"px");
-		canvas.setAttribute('height', ((patchHeight-filterHeight+1)*numPatches)+"px");
+		canvas.setAttribute('width', (patchWidth-filterWidth+1)+'px');
+		canvas.setAttribute('height', ((patchHeight-filterHeight+1)*numPatches)+'px');
 		canvas.setAttribute('id', 'renderCanvas');
 		canvas.setAttribute('style', 'display:none;');
 		//document.body.appendChild(canvas);
-		// TODO : isolate this library from webgl-util.js
 		gl = setupWebGL(canvas, {
-			premultipliedAlpha: false, 
-			preserveDrawingBuffer : true, 
+			premultipliedAlpha: false,
+			preserveDrawingBuffer : true,
 			antialias : false
 		});
 
 
 		// check for float textures support and fail if not
-		if (!gl.getExtension("OES_texture_float")) {
-			alert("Your graphics card does not support floating point textures! :(");
+		if (!gl.getExtension('OES_texture_float')) {
+			alert('Your graphics card does not support floating point textures! :(');
 			return;
 		}
 
@@ -513,7 +512,7 @@ var webglFilter = function() {
 			gl.useProgram(gradientResponseProgram);
 
 			// set up vertices with rectangles
-			gradPositionLocation = gl.getAttribLocation(gradientResponseProgram, "a_position");
+			gradPositionLocation = gl.getAttribLocation(gradientResponseProgram, 'a_position');
 			gradAPositionBuffer = gl.createBuffer();
 			gl.bindBuffer(gl.ARRAY_BUFFER, gradAPositionBuffer);
 			gl.bufferData(gl.ARRAY_BUFFER, gradRectangles, gl.STATIC_DRAW);
@@ -521,7 +520,7 @@ var webglFilter = function() {
 			gl.vertexAttribPointer(gradPositionLocation, 2, gl.FLOAT, false, 0, 0);
 
 			// set up texture positions
-			gradTexCoordLocation = gl.getAttribLocation(gradientResponseProgram, "a_texCoord");
+			gradTexCoordLocation = gl.getAttribLocation(gradientResponseProgram, 'a_texCoord');
 			gradTexCoordBuffer = gl.createBuffer();
 			gl.bindBuffer(gl.ARRAY_BUFFER, gradTexCoordBuffer);
 			gl.bufferData(gl.ARRAY_BUFFER, gradIRectangles, gl.STATIC_DRAW);
@@ -529,7 +528,7 @@ var webglFilter = function() {
 			gl.vertexAttribPointer(gradTexCoordLocation, 2, gl.FLOAT, false, 0, 0);
 
 			// set up patches texture in gradientResponseProgram
-			gl.uniform1i(gl.getUniformLocation(gradientResponseProgram, "u_patches"), 1);
+			gl.uniform1i(gl.getUniformLocation(gradientResponseProgram, 'u_patches'), 1);
 		}
 		if ('lbp' in filters) {
 			var lbpVertexShader = loadShader(gl, lbpResponseVS, gl.VERTEX_SHADER);
@@ -538,7 +537,7 @@ var webglFilter = function() {
 			gl.useProgram(lbpResponseProgram);
 
 			// set up vertices with rectangles
-			lbpPositionLocation = gl.getAttribLocation(lbpResponseProgram, "a_position");
+			lbpPositionLocation = gl.getAttribLocation(lbpResponseProgram, 'a_position');
 			lbpAPositionBuffer = gl.createBuffer();
 			gl.bindBuffer(gl.ARRAY_BUFFER, lbpAPositionBuffer);
 			gl.bufferData(gl.ARRAY_BUFFER, gradRectangles, gl.STATIC_DRAW);
@@ -546,7 +545,7 @@ var webglFilter = function() {
 			gl.vertexAttribPointer(lbpPositionLocation, 2, gl.FLOAT, false, 0, 0);
 
 			// set up texture positions
-			gradTexCoordLocation = gl.getAttribLocation(lbpResponseProgram, "a_texCoord");
+			gradTexCoordLocation = gl.getAttribLocation(lbpResponseProgram, 'a_texCoord');
 			lbpTexCoordBuffer = gl.createBuffer();
 			gl.bindBuffer(gl.ARRAY_BUFFER, lbpTexCoordBuffer);
 			gl.bufferData(gl.ARRAY_BUFFER, gradIRectangles, gl.STATIC_DRAW);
@@ -554,7 +553,7 @@ var webglFilter = function() {
 			gl.vertexAttribPointer(lbpTexCoordLocation, 2, gl.FLOAT, false, 0, 0);
 
 			// set up patches texture in lbpResponseProgram
-			gl.uniform1i(gl.getUniformLocation(lbpResponseProgram, "u_patches"), 1);
+			gl.uniform1i(gl.getUniformLocation(lbpResponseProgram, 'u_patches'), 1);
 		}
 
 		// setup patchdraw program
@@ -564,11 +563,11 @@ var webglFilter = function() {
 		gl.useProgram(patchDrawProgram);
 
 		// set the resolution/dimension of the canvas
-		var resolutionLocation = gl.getUniformLocation(patchDrawProgram, "u_resolutiondraw");
+		var resolutionLocation = gl.getUniformLocation(patchDrawProgram, 'u_resolutiondraw');
 		gl.uniform2f(resolutionLocation, newCanvasWidth, newCanvasHeight);
 
 		// set u_responses
-		var responsesLocation = gl.getUniformLocation(patchDrawProgram, "u_responses");
+		var responsesLocation = gl.getUniformLocation(patchDrawProgram, 'u_responses');
 		gl.uniform1i(responsesLocation, 2);
 
 		// setup patchresponse program
@@ -578,7 +577,7 @@ var webglFilter = function() {
 		gl.useProgram(patchResponseProgram);
 
 		// set up vertices with rectangles
-		var positionLocation = gl.getAttribLocation(patchResponseProgram, "a_position");
+		var positionLocation = gl.getAttribLocation(patchResponseProgram, 'a_position');
 		apositionBuffer = gl.createBuffer();
 		gl.bindBuffer(gl.ARRAY_BUFFER, apositionBuffer);
 		gl.bufferData(gl.ARRAY_BUFFER, rectangles, gl.STATIC_DRAW);
@@ -586,7 +585,7 @@ var webglFilter = function() {
 		gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
 
 		// set up texture positions
-		texCoordLocation = gl.getAttribLocation(patchResponseProgram, "a_texCoord");
+		texCoordLocation = gl.getAttribLocation(patchResponseProgram, 'a_texCoord');
 		texCoordBuffer = gl.createBuffer();
 		gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
 		gl.bufferData(gl.ARRAY_BUFFER, irectangles, gl.STATIC_DRAW);
@@ -644,19 +643,19 @@ var webglFilter = function() {
 		gl.useProgram(patchResponseProgram);
 
 		// set u_patches to point to texture 1
-		gl.uniform1i(gl.getUniformLocation(patchResponseProgram, "u_patches"), 1);
+		gl.uniform1i(gl.getUniformLocation(patchResponseProgram, 'u_patches'), 1);
 
 		// set u_filters to point to correct filter
-		gl.uniform1i(gl.getUniformLocation(patchResponseProgram, "u_filters"), 0);
+		gl.uniform1i(gl.getUniformLocation(patchResponseProgram, 'u_filters'), 0);
 
 		// set up vertices with rectangles
-		var positionLocation = gl.getAttribLocation(patchResponseProgram, "a_position");
+		var positionLocation = gl.getAttribLocation(patchResponseProgram, 'a_position');
 		gl.bindBuffer(gl.ARRAY_BUFFER, apositionBuffer);
 		gl.enableVertexAttribArray(positionLocation);
 		gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
 
 		// set up texture positions
-		var texCoordLocation = gl.getAttribLocation(patchResponseProgram, "a_texCoord");
+		var texCoordLocation = gl.getAttribLocation(patchResponseProgram, 'a_texCoord');
 		gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
 		gl.enableVertexAttribArray(texCoordLocation);
 		gl.vertexAttribPointer(texCoordLocation, 2, gl.FLOAT, false, 0, 0);
@@ -691,13 +690,13 @@ var webglFilter = function() {
 		gl.useProgram(gradientResponseProgram);
 
 		// set up vertices with rectangles
-		var gradPositionLocation = gl.getAttribLocation(gradientResponseProgram, "a_position");
+		var gradPositionLocation = gl.getAttribLocation(gradientResponseProgram, 'a_position');
 		gl.bindBuffer(gl.ARRAY_BUFFER, gradAPositionBuffer);
 		gl.enableVertexAttribArray(gradPositionLocation);
 		gl.vertexAttribPointer(gradPositionLocation, 2, gl.FLOAT, false, 0, 0);
 
 		// set up texture positions
-		var gradTexCoordLocation = gl.getAttribLocation(gradientResponseProgram, "a_texCoord");
+		var gradTexCoordLocation = gl.getAttribLocation(gradientResponseProgram, 'a_texCoord');
 		gl.bindBuffer(gl.ARRAY_BUFFER, gradTexCoordBuffer);
 		gl.enableVertexAttribArray(gradTexCoordLocation);
 		gl.vertexAttribPointer(gradTexCoordLocation, 2, gl.FLOAT, false, 0, 0);
@@ -718,16 +717,16 @@ var webglFilter = function() {
 		gl.useProgram(patchResponseProgram);
 
 		// set patches and filters to point to correct textures
-		gl.uniform1i(gl.getUniformLocation(patchResponseProgram, "u_filters"), 4);
-		gl.uniform1i(gl.getUniformLocation(patchResponseProgram, "u_patches"), 3);
+		gl.uniform1i(gl.getUniformLocation(patchResponseProgram, 'u_filters'), 4);
+		gl.uniform1i(gl.getUniformLocation(patchResponseProgram, 'u_patches'), 3);
 
-		var positionLocation = gl.getAttribLocation(patchResponseProgram, "a_position");
+		var positionLocation = gl.getAttribLocation(patchResponseProgram, 'a_position');
 		gl.bindBuffer(gl.ARRAY_BUFFER, apositionBuffer);
 		gl.enableVertexAttribArray(positionLocation);
 		gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
 
 		// set up texture positions
-		var texCoordLocation = gl.getAttribLocation(patchResponseProgram, "a_texCoord");
+		var texCoordLocation = gl.getAttribLocation(patchResponseProgram, 'a_texCoord');
 		gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
 		gl.enableVertexAttribArray(texCoordLocation);
 		gl.vertexAttribPointer(texCoordLocation, 2, gl.FLOAT, false, 0, 0);
@@ -754,19 +753,19 @@ var webglFilter = function() {
 
 		insertPatches(patches);
 
-		 /* do sobel filter on patches */
+		/* do sobel filter on patches */
 
 		// switch to correct program
 		gl.useProgram(lbpResponseProgram);
 
 		// set up vertices with rectangles
-		var lbpPositionLocation = gl.getAttribLocation(lbpResponseProgram, "a_position");
+		var lbpPositionLocation = gl.getAttribLocation(lbpResponseProgram, 'a_position');
 		gl.bindBuffer(gl.ARRAY_BUFFER, lbpAPositionBuffer);
 		gl.enableVertexAttribArray(lbpPositionLocation);
 		gl.vertexAttribPointer(lbpPositionLocation, 2, gl.FLOAT, false, 0, 0);
 
 		// set up texture positions
-		var lbpTexCoordLocation = gl.getAttribLocation(lbpResponseProgram, "a_texCoord");
+		var lbpTexCoordLocation = gl.getAttribLocation(lbpResponseProgram, 'a_texCoord');
 		gl.bindBuffer(gl.ARRAY_BUFFER, lbpTexCoordBuffer);
 		gl.enableVertexAttribArray(lbpTexCoordLocation);
 		gl.vertexAttribPointer(lbpTexCoordLocation, 2, gl.FLOAT, false, 0, 0);
@@ -786,16 +785,16 @@ var webglFilter = function() {
 
 		gl.useProgram(patchResponseProgram);
 
-		gl.uniform1i(gl.getUniformLocation(patchResponseProgram, "u_filters"), 5);
-		gl.uniform1i(gl.getUniformLocation(patchResponseProgram, "u_patches"), 3);
+		gl.uniform1i(gl.getUniformLocation(patchResponseProgram, 'u_filters'), 5);
+		gl.uniform1i(gl.getUniformLocation(patchResponseProgram, 'u_patches'), 3);
 
-		var positionLocation = gl.getAttribLocation(patchResponseProgram, "a_position");
+		var positionLocation = gl.getAttribLocation(patchResponseProgram, 'a_position');
 		gl.bindBuffer(gl.ARRAY_BUFFER, apositionBuffer);
 		gl.enableVertexAttribArray(positionLocation);
 		gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
 
 		// set up texture positions
-		var texCoordLocation = gl.getAttribLocation(patchResponseProgram, "a_texCoord");
+		var texCoordLocation = gl.getAttribLocation(patchResponseProgram, 'a_texCoord');
 		gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
 		gl.enableVertexAttribArray(texCoordLocation);
 		gl.vertexAttribPointer(texCoordLocation, 2, gl.FLOAT, false, 0, 0);
@@ -926,7 +925,7 @@ var webglFilter = function() {
 			gl.ARRAY_BUFFER,
 			drawOutRectangles,
 			gl.STATIC_DRAW);
-		var positionLocation = gl.getAttribLocation(patchDrawProgram, "a_position_draw");
+		var positionLocation = gl.getAttribLocation(patchDrawProgram, 'a_position_draw');
 		gl.enableVertexAttribArray(positionLocation);
 		gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
 
@@ -935,7 +934,7 @@ var webglFilter = function() {
 			gl.ARRAY_BUFFER,
 			drawOutImages,
 			gl.STATIC_DRAW);
-		var textureLocation = gl.getAttribLocation(patchDrawProgram, "a_texCoord_draw");
+		var textureLocation = gl.getAttribLocation(patchDrawProgram, 'a_texCoord_draw');
 		gl.enableVertexAttribArray(textureLocation);
 		gl.vertexAttribPointer(textureLocation, 2, gl.FLOAT, false, 0, 0);
 
@@ -944,7 +943,7 @@ var webglFilter = function() {
 			gl.ARRAY_BUFFER,
 			drawOutLayer,
 			gl.STATIC_DRAW);
-		var layerLocation = gl.getAttribLocation(patchDrawProgram, "a_patchChoice_draw");
+		var layerLocation = gl.getAttribLocation(patchDrawProgram, 'a_patchChoice_draw');
 		gl.enableVertexAttribArray(layerLocation);
 		gl.vertexAttribPointer(layerLocation, 1, gl.FLOAT, false, 0, 0);
 
@@ -1025,7 +1024,7 @@ var webglFilter = function() {
 		var dist = max-min;
 
 		if (dist == 0) {
-			//console.log("a patchresponse was monotone, causing normalization to fail. Leaving it unchanged.");
+			//console.log('a patchresponse was monotone, causing normalization to fail. Leaving it unchanged.');
 			response = response.map(function() {return 1});
 		} else {
 			for (var i = 0;i < msize;i++) {

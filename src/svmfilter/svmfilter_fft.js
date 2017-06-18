@@ -10,7 +10,7 @@ var svmFilter = function() {
 	this.fft_inplace = function(array, _im_part) {
 		// in-place
 
-		if (typeof _im_part == "undefined") {
+		if (typeof _im_part == 'undefined') {
 			_im_part = temp_imag_part;
 		}
 
@@ -68,7 +68,7 @@ var svmFilter = function() {
 					yOffset = j < edge ? (fft_size-edge) : (-edge);
 					flar_fi0[k+xOffset+((j+yOffset)*fft_size)] = filter_input[i][k+(j*filterWidth)];*/
 
-					//console.log(k + ","+ j+":" + (k+xOffset+((j+yOffset)*fft_size)))
+					//console.log(k + ','+ j+':' + (k+xOffset+((j+yOffset)*fft_size)))
 				}
 			}
 
@@ -216,7 +216,7 @@ var svmFilter = function() {
 		var dist = max-min;
 
 		if (dist == 0) {
-			//console.log("a patchresponse was monotone, causing normalization to fail. Leaving it unchanged.");
+			//console.log('a patchresponse was monotone, causing normalization to fail. Leaving it unchanged.');
 		} else {
 			for (var i = 0;i < msize;i++) {
 				response[i] = (response[i]-min)/dist;

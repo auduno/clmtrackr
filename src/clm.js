@@ -131,7 +131,7 @@ var clm = {
 			patchType = model.patchModel.patchType;
 			numPatches = model.patchModel.numPatches;
 			patchSize = model.patchModel.patchSize[0];
-			if (patchType == "MOSSE") {
+			if (patchType == 'MOSSE') {
 				searchWindow = patchSize;
 			} else {
 				searchWindow = params.searchWindow;
@@ -201,7 +201,7 @@ var clm = {
 				currentParameters[i] = 0;
 			}
 
-			if (patchType == "SVM") {
+			if (patchType == 'SVM') {
 				var webGLContext;
 				var webGLTestCanvas = document.createElement('canvas');
 				if (window.WebGLRenderingContext) {
@@ -211,7 +211,7 @@ var clm = {
 					}
 				}
 
-				if (webGLContext && params.useWebGL && (typeof(webglFilter) !== "undefined")) {
+				if (webGLContext && params.useWebGL && (typeof(webglFilter) !== 'undefined')) {
 					webglFi = new webglFilter();
 					try {
 						webglFi.init(weights, biases, numPatches, searchWindow+patchSize-1, searchWindow+patchSize-1, patchSize, patchSize);
@@ -220,24 +220,24 @@ var clm = {
 					}
 					catch(err) {
 						console.error(err);
-						alert("There was a problem setting up webGL programs, falling back to slightly slower javascript version. :(");
+						alert('There was a problem setting up webGL programs, falling back to slightly slower javascript version. :(');
 						webglFi = undefined;
 						svmFi = new svmFilter();
 						svmFi.init(weights['raw'], biases['raw'], numPatches, patchSize, searchWindow);
 					}
-				} else if (typeof(svmFilter) !== "undefined") {
+				} else if (typeof(svmFilter) !== 'undefined') {
 					// use fft convolution if no webGL is available
 					svmFi = new svmFilter();
 					svmFi.init(weights['raw'], biases['raw'], numPatches, patchSize, searchWindow);
 				} else {
-					throw new Error("Could not initiate filters, please make sure that svmfilter.js or svmfilter_conv_js.js is loaded.");
+					throw new Error('Could not initiate filters, please make sure that svmfilter.js or svmfilter_conv_js.js is loaded.');
 				}
-			} else if (patchType == "MOSSE") {
+			} else if (patchType == 'MOSSE') {
 				mosseCalc = new mosseFilterResponses();
 				mosseCalc.init(weights, numPatches, patchSize, patchSize);
 			}
 
-			if (patchType == "SVM") {
+			if (patchType == 'SVM') {
 				pw = pl = patchSize+searchWindow-1;
 			} else {
 				pw = pl = searchWindow;
@@ -280,12 +280,12 @@ var clm = {
 		 */
 		this.start = function(element, box) {
 			// check if model is initalized, else return false
-			if (typeof(model) === "undefined") {
-				console.log("tracker needs to be initalized before starting to track.");
+			if (typeof(model) === 'undefined') {
+				console.log('tracker needs to be initalized before starting to track.');
 				return false;
 			}
 			//check if a runnerelement already exists, if not, use passed parameters
-			if (typeof(runnerElement) === "undefined") {
+			if (typeof(runnerElement) === 'undefined') {
 				runnerElement = element;
 				runnerBox = box;
 			}
@@ -429,15 +429,15 @@ var clm = {
 			// draw patches for debugging
 			//drawPatches(sketchCC, patches, pw, patchPositions, false, [27,32,44,50]);
 
-			if (patchType == "SVM") {
-				if (typeof(webglFi) !== "undefined") {
+			if (patchType == 'SVM') {
+				if (typeof(webglFi) !== 'undefined') {
 					responses = getWebGLResponses(patches);
-				} else if (typeof(svmFi) !== "undefined") {
+				} else if (typeof(svmFi) !== 'undefined') {
 					responses = svmFi.getResponses(patches);
 				} else {
-					throw new Error("SVM-filters do not seem to be initiated properly.");
+					throw new Error('SVM-filters do not seem to be initiated properly.');
 				}
-			} else if (patchType == "MOSSE") {
+			} else if (patchType == 'MOSSE') {
 				responses = mosseCalc.getResponses(patches);
 			}
 
@@ -622,8 +622,8 @@ var clm = {
 			}
 
 			var cc = canvas.getContext('2d');
-			cc.fillStyle = "rgb(200,200,200)";
-			cc.strokeStyle = "rgb(130,255,50)";
+			cc.fillStyle = 'rgb(200,200,200)';
+			cc.strokeStyle = 'rgb(130,255,50)';
 			//cc.lineWidth = 1;
 
 			var paths;
@@ -722,33 +722,33 @@ var clm = {
 		 */
 		this.setResponseMode = function(mode, list) {
 			// clmtrackr must be initialized with model first
-			if (typeof(model) === "undefined") {
-				console.log("Clmtrackr has not been initialized with a model yet. No changes made.");
+			if (typeof(model) === 'undefined') {
+				console.log('Clmtrackr has not been initialized with a model yet. No changes made.');
 				return;
 			}
 			// must check whether webGL or not
-			if (typeof(webglFi) === "undefined") {
-				console.log("Responsemodes are only allowed when using webGL. In pure JS, only 'raw' mode is available.");
+			if (typeof(webglFi) === 'undefined') {
+				console.log('Responsemodes are only allowed when using webGL. In pure JS, only "raw" mode is available.');
 				return;
 			}
 			if (['single', 'blend', 'cycle'].indexOf(mode) < 0) {
-				console.log("Tried to set an unknown responsemode : '"+mode+"'. No changes made.");
+				console.log('Tried to set an unknown responsemode : "'+mode+'". No changes made.');
 				return;
 			}
 			if (!(list instanceof Array)) {
-				console.log("List in setResponseMode must be an array of strings! No changes made.");
+				console.log('List in setResponseMode must be an array of strings! No changes made.');
 				return;
 			} else {
 				for (var i = 0;i < list.length;i++) {
 					if (['raw', 'sobel', 'lbp'].indexOf(list[i]) < 0) {
-						console.log("Unknown element in responsemode list : '"+list[i]+"'. No changes made.");
+						console.log('Unknown element in responsemode list : "'+list[i]+'". No changes made.');
 					}
 					// check whether filters are initialized
 					if (list[i] == 'sobel' && sobelInit == false) {
-						console.log("The sobel filters have not been initialized! No changes made.");
+						console.log('The sobel filters have not been initialized! No changes made.');
 					}
 					if (list[i] == 'lbp' && lbpInit == false) {
-						console.log("The LBP filters have not been initialized! No changes made.");
+						console.log('The LBP filters have not been initialized! No changes made.');
 					}
 				}
 			}
