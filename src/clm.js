@@ -272,6 +272,7 @@ var clm = {
 				pointWeights = numeric.diag(pointWeights);
 			}
 
+			faceDetector = new faceDetection(model, params.faceDetection);
 		}
 
 		/*
@@ -289,8 +290,7 @@ var clm = {
 				runnerBox = box;
 			}
 
-			// TODO : it's not really optimal to place it here, can we move to init somehow?
-			faceDetector = new faceDetection(element, model, params.faceDetection);
+			faceDetector.init(element);
 
 			// start named timeout function
 			runnerTimeout = requestAnimationFrame(runnerFunction);

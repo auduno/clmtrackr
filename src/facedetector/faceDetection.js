@@ -5,7 +5,7 @@ import findFaceWorker from './jsfeat_detect_worker.js';
 
 // import { drawDetection, drawFacialPoints, drawBoundingBox } from './utils/debugging.js';
 
-var faceDetection = function(video, pdmModel, params) {
+var faceDetection = function(pdmModel, params) {
 
 	// processes an image, detects a face and returns the initial face parameters for clmtrackr
 	//   calls a callback function when it's done
@@ -25,6 +25,7 @@ var faceDetection = function(video, pdmModel, params) {
 
 	var msxmin, msymin, msymax;
 	var msmodelheight;
+	var element;
 
 	var model = pdmModel;
 
@@ -63,10 +64,13 @@ var faceDetection = function(video, pdmModel, params) {
 	}
 	msmodelheight = msymax-msymin;
 
-	//var element; // TODO : assign to this sometime
-	var element = video;
+	var jf = new jsfeat_face(params);
 
-	var jf = new jsfeat_face(element, params);
+	this.init = function(video) {
+		element = video;
+
+		jf.init(element);
+	}
 
 	var getBoundingBox = function(box) {
 		return new Promise(function(resolve, reject) {
@@ -129,7 +133,6 @@ var faceDetection = function(video, pdmModel, params) {
 
 	// get initial starting point for model
 	this.getInitialPosition = function(box) {
-		//element = video;
 		return new Promise(function(resolve, reject) {
 			getBoundingBox(box)
 				.then(getFinegrainedPosition)
@@ -224,27 +227,21 @@ var faceDetection = function(video, pdmModel, params) {
 }
 
 // simple wrapper for jsfeat face detector that can run as a webworker
-var jsfeat_face = function(video, parameters) {
+var jsfeat_face = function(parameters) {
 
 	var params = parameters;
 	var maxWorkSize = params.workSize;
 	var useWebWorkers = params.useWebWorkers;
 
-	var videoWidth = video.width;
-	var videoHeight = video.height;
-
-	// scale down canvas we do detection on (to reduce noisy detections)
-	var scale = Math.min(maxWorkSize/videoWidth, maxWorkSize/videoHeight);
-	var w = (videoWidth*scale)|0;
-	var h = (videoHeight*scale)|0;
-
 	var work_canvas = document.createElement('canvas');
-	work_canvas.height = h;
-	work_canvas.width = w;
 	var work_ctx = work_canvas.getContext('2d');
 
+	var videoWidth, videoHeight, scale, video, w, h;
+	var img_u8, edg, ii_sum, ii_sqsum, ii_tilted, ii_canny, classifier;
+	var worker;
+
 	if (useWebWorkers) {
-		//Courtesy of stackoverflow
+		// Courtesy of stackoverflow
 		Worker.createURL = function(func_or_string) {
 			var str = (typeof func_or_string === 'function')?func_or_string.toString():func_or_string;
 			var blob = new Blob(['\'use strict\';\nself.onmessage ='+str], { type: 'text/javascript' });
@@ -254,14 +251,32 @@ var jsfeat_face = function(video, parameters) {
 		Worker.create = function(func_or_string) {
 			return new Worker(Worker.createURL(func_or_string));
 		};
-	} else {
-		var img_u8 = new jsfeat.matrix_t(w, h, jsfeat.U8_t | jsfeat.C1_t);
-		var edg = new jsfeat.matrix_t(w, h, jsfeat.U8_t | jsfeat.C1_t);
-		var ii_sum = new Int32Array((w+1)*(h+1));
-		var ii_sqsum = new Int32Array((w+1)*(h+1));
-		var ii_tilted = new Int32Array((w+1)*(h+1));
-		var ii_canny = new Int32Array((w+1)*(h+1));
-		var classifier = jsfeat.haar.frontalface;
+
+		worker = Worker.create(findFaceWorker);
+	}
+
+	this.init = function(element) {
+		video = element;
+		videoWidth = video.width;
+		videoHeight = video.height;
+
+		// scale down canvas we do detection on (to reduce noisy detections)
+		scale = Math.min(maxWorkSize/videoWidth, maxWorkSize/videoHeight);
+		w = (videoWidth*scale)|0;
+		h = (videoHeight*scale)|0;
+
+		work_canvas.height = h;
+		work_canvas.width = w;
+
+		if (!useWebWorkers) {
+			img_u8 = new jsfeat.matrix_t(w, h, jsfeat.U8_t | jsfeat.C1_t);
+			edg = new jsfeat.matrix_t(w, h, jsfeat.U8_t | jsfeat.C1_t);
+			ii_sum = new Int32Array((w+1)*(h+1));
+			ii_sqsum = new Int32Array((w+1)*(h+1));
+			ii_tilted = new Int32Array((w+1)*(h+1));
+			ii_canny = new Int32Array((w+1)*(h+1));
+			classifier = jsfeat.haar.frontalface;
+		}
 	}
 
 	this.findFace = function () {
@@ -270,15 +285,12 @@ var jsfeat_face = function(video, parameters) {
 
 		return new Promise(function(resolve, reject) {
 			if (useWebWorkers) {
-				var worker = Worker.create(findFaceWorker);
-
 				worker.addEventListener('message', function (e) {
 					if (e.data.faces.length > 0) {
 						resolve(e.data.faces[0]);
 					} else {
 						reject();
 					}
-					worker.terminate();
 				}.bind(this), false);
 
 				worker.postMessage({
@@ -310,27 +322,27 @@ var jsfeat_face = function(video, parameters) {
 
 				var rl = rects.length;
 
-				if(rl == 0) {
+				if (rl == 0) {
 					reject();
-				}
-
-				var best = rects[0];
-				for (var i = 1; i < rl; i++) {
-					if (rects[i].neighbors > best.neighbors) {
-						best = rects[i];
-					} else if (rects[i].neighbors == best.neighbors) {
-						// if (rects[i].width > best.width) best = rects[i]; // use biggest rect
-						if (rects[i].confidence > best.confidence) best = rects[i]; // use most confident rect
+				} else {
+					var best = rects[0];
+					for (var i = 1; i < rl; i++) {
+						if (rects[i].neighbors > best.neighbors) {
+							best = rects[i];
+						} else if (rects[i].neighbors == best.neighbors) {
+							// if (rects[i].width > best.width) best = rects[i]; // use biggest rect
+							if (rects[i].confidence > best.confidence) best = rects[i]; // use most confident rect
+						}
 					}
+
+					var sc = videoWidth / img_u8.cols;
+					best.x = (best.x*sc)|0;
+					best.y = (best.y*sc)|0;
+					best.width = (best.width*sc)|0;
+					best.height = (best.height*sc)|0;
+
+					resolve(best);
 				}
-
-				var sc = videoWidth / img_u8.cols;
-				best.x = (best.x*sc)|0;
-				best.y = (best.y*sc)|0;
-				best.width = (best.width*sc)|0;
-				best.height = (best.height*sc)|0;
-
-				resolve(best);
 			}
 		});
 	};
