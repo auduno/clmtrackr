@@ -17,31 +17,31 @@
 		<script src="./js/emotionmodel.js"></script>
 		<script src="../models/model_pca_20_svm.js"></script>
 		<script src="./js/libs/dat.gui.min.js"></script>
-		
+
 		<canvas id="compare" width="3600" height="3600"></canvas>
-		
+
 		<script>
 			var canvasInput = document.getElementById('compare');
 			var cc = canvasInput.getContext('2d');
 			cc.fillStyle = "rgb(200,0,0)";
-			
+
 			var parameterHolder = function(emotions) {
         for (var key in emotions) {
           this[key] = 0.5;
         }
 			};
-			
+
 			var ph = new parameterHolder(emotionModel);
       var gui = new dat.GUI();
-      
+
       // TODO set params
       var params = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
-      
+
       var eigenSum = 0
       for (var i = 0;i < pModel.shapeModel.eigenValues.length;i++) {
         eigenSum += pModel.shapeModel.eigenValues[i];
       }
-      
+
       var drawNew = function() {
 			  cc.clearRect(0,0,600,600);
         params = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
@@ -53,14 +53,14 @@
 			  }
         draw(document.getElementById('compare'), similarityTransforms.concat(params));
       }
-      
+
       for (var key in emotionModel) {
         var keygui = gui.add(ph, key, -2000.0, 2000.0);
         keygui.onChange(drawNew);
       }
-      
+
 			var similarityTransforms = [5,0,0,0];
-			
+
 			var drawPath = function(canvasContext, path, dp) {
         canvasContext.beginPath();
         var i, x, y;
@@ -76,7 +76,7 @@
           b = dp[0]*y + dp[1]*x + dp[3];
           x += a;
           y += b;
-          
+
           if (i == 0) {
             canvasContext.moveTo(x,y);
           } else {
@@ -87,7 +87,7 @@
         canvasContext.closePath();
         canvasContext.stroke();
       }
-		
+
       function drawPoint(canvasContext, point, dp) {
         var i, x, y;
         i = point*2;
@@ -107,23 +107,23 @@
         canvasContext.fill();
       }
 
-			
+
 			var draw = function(canvas, pv) {
         // if no previous points, just draw in the middle of canvas
-        
+
         var params;
         if (pv === undefined) {
           params = currentParameters.slice(0);
         } else {
           params = pv.slice(0);
         }
-        
+
         var cc = canvas.getContext('2d');
         cc.fillStyle = "rgb(0,0,0)";
         cc.strokeStyle = "rgb(0,0,0)";
         //cc.lineWidth = 1;
         cc.save();
-        
+
         var paths = pModel.path.normal;
         for (var i = 0;i < paths.length;i++) {
           if (typeof(paths[i]) == 'number') {
@@ -132,10 +132,10 @@
             drawPath(cc, paths[i], params);
           }
         }
-        
+
         cc.restore()
       }
-      
+
 		  drawNew();
 		  //draw(document.getElementById('compare'), similarityTransforms.concat(params))
 		</script>

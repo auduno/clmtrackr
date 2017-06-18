@@ -47,7 +47,7 @@ var emotionClassifier = function() {
 		// store to array of 10 previous parameters
 		previousParameters.splice(0, previousParameters.length == 10 ? 1 : 0);
 		previousParameters.push(parameters.slice(0));
-		
+
 		if (previousParameters.length > 9) {
 			// calculate mean of parameters?
 			var meanParameters = []
@@ -63,10 +63,10 @@ var emotionClassifier = function() {
 				meanParameters[i] /= 10;
 			}
 
-			// calculate logistic regression 
+			// calculate logistic regression
 			return this.predict(meanParameters);
 		} else {
-			return false;	
+			return false;
 		}
 	}
 }

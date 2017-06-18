@@ -6,14 +6,14 @@
 		<link href="./styles/bootstrap.min.css" rel="stylesheet" type="text/css">
 		<style>
 			@import url(https://fonts.googleapis.com/css?family=Lato:300italic,700italic,300,700);
-			
+
 			body {
 				font-family: 'Lato';
 				background-color: #f0f0f0;
 				margin: 0px auto;
 				max-width: 1150px;
 			}
-			
+
 			#overlay {
 				position: absolute;
 				top: 0px;
@@ -38,28 +38,28 @@
 				width : 600px;
 				height : 450px;
 			}
-			
+
 			#container {
 				position : relative;
 				width : 370px;
 				/*margin : 0px auto;*/
 			}
-			
+
 			#content {
 				margin-top : 50px;
 				margin-left : auto;
 				margin-right : auto;
 				max-width: 600px;
 			}
-			
+
 			#sketch, #filter {
 				display: none;
 			}
-			
+
 			h2 {
 				font-weight : 400;
 			}
-			
+
 			.btn {
 				font-family: 'Lato';
 				font-size: 16px;
@@ -158,7 +158,7 @@
 				var vid = document.getElementById('videoel');
 				var overlay = document.getElementById('overlay');
 				var overlayCC = overlay.getContext('2d');
-				
+
 				/********** check and set up video/webcam **********/
 
 				function enablestart() {
@@ -166,7 +166,7 @@
 					startbutton.value = "start";
 					startbutton.disabled = null;
 				}
-				
+
 				/*var insertAltVideo = function(video) {
 					if (supports_video()) {
 						if (supports_ogg_theora_video()) {
@@ -186,7 +186,7 @@
 				// check for camerasupport
 				if (navigator.getUserMedia) {
 					// set up stream
-					
+
 					var videoSelector = {video : true};
 					if (window.navigator.appVersion.match(/Chrome\/(.*?) /)) {
 						var chromeVersion = parseInt(window.navigator.appVersion.match(/Chrome\/(\d+)\./)[1], 10);
@@ -194,7 +194,7 @@
 							videoSelector = "video";
 						}
 					};
-				
+
 					navigator.getUserMedia(videoSelector, function( stream ) {
 						if (vid.mozCaptureStream) {
 							vid.mozSrcObject = stream;
@@ -212,7 +212,7 @@
 				}
 
 				vid.addEventListener('canplay', enablestart, false);
-				
+
 				/*********** setup of emotion detection *************/
 
 				// set eigenvector 9 and 11 to not be regularized. This is to better detect motion of the eyebrows
@@ -230,7 +230,7 @@
 					// start loop to draw face
 					drawLoop();
 				}
-				
+
 				function drawLoop() {
 					requestAnimFrame(drawLoop);
 					overlayCC.clearRect(0, 0, 400, 300);
@@ -239,7 +239,7 @@
 						ctrack.draw(overlay);
 					}
 					var cp = ctrack.getCurrentParameters();
-					
+
 					var er = ec.meanPredict(cp);
 					if (er) {
 						updateData(er);
@@ -252,13 +252,13 @@
 						}
 					}
 				}
-				
+
 				delete emotionModel['disgusted'];
 				delete emotionModel['fear'];
 				var ec = new emotionClassifier();
 				ec.init(emotionModel);
-				var emotionData = ec.getBlank();	
-				
+				var emotionData = ec.getBlank();
+
 				/************ d3 code for barchart *****************/
 
 				var margin = {top : 20, right : 20, bottom : 10, left : 40},
@@ -268,7 +268,7 @@
 				var barWidth = 30;
 
 				var formatPercent = d3.format(".0%");
-				
+
 				var x = d3.scale.linear()
 					.domain([0, ec.getEmotions().length]).range([margin.left, width+margin.left]);
 
@@ -278,7 +278,7 @@
 				var svg = d3.select("#emotion_chart").append("svg")
 					.attr("width", width + margin.left + margin.right)
 					.attr("height", height + margin.top + margin.bottom)
-				
+
 				svg.selectAll("rect").
 				  data(emotionData).
 				  enter().
@@ -301,7 +301,7 @@
 				  text(function(datum) { return datum.value;}).
 				  attr("fill", "white").
 				  attr("class", "labels");
-				
+
 				svg.selectAll("text.yAxis").
 				  data(emotionData).
 				  enter().append("svg:text").
@@ -325,7 +325,7 @@
 						.attr("y", function(datum) { return height - y(datum.value); })
 						.text(function(datum) { return datum.value.toFixed(1);});
 
-					// enter 
+					// enter
 					rects.enter().append("svg:rect");
 					texts.enter().append("svg:text");
 
@@ -345,7 +345,7 @@
 				document.addEventListener('clmtrackrIteration', function(event) {
 					stats.update();
 				}, false);
-				
+
 			</script>
 		</div>
 	</body>

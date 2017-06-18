@@ -12,7 +12,7 @@
 				margin: 0px auto;
 				max-width: 1150px;
 			}
-			
+
 			#overlay, #webgl {
 				position: absolute;
 				top: 0px;
@@ -42,14 +42,14 @@
 				position : relative;
 				width : 370px;
 			}
-			
+
 			#content {
 				margin-top : 50px;
 				margin-left : auto;
 				margin-right : auto;
 				max-width: 600px;
 			}
-			 
+
 			#sketch {
 				display: none;
 			}
@@ -61,7 +61,7 @@
 			.masks {
 				display: none;
 			}
-			
+
 			.btn {
 				font-family: 'Lato';
 				font-size: 16px;
@@ -108,7 +108,7 @@
 		<script src="../js/face_deformer.js"></script>
 		<script src="./js/libs/jquery.min.js"></script>
 		<script src="./js/libs/poisson_new.js"></script>
-		
+
 		<div id="content">
 			<h2>Caricature</h2>
 			<div id="container">
@@ -136,13 +136,13 @@
 
 				var vid = document.getElementById('videoel');
 				var overlay = document.getElementById('overlay');
-				var overlayCC = overlay.getContext('2d');	
-				
+				var overlayCC = overlay.getContext('2d');
+
 				/*********** Setup of video/webcam and checking for webGL support *********/
 
 				var videoReady = false;
 				var imagesReady = false;
-				
+
 				function enablestart() {
 					if (videoReady && imagesReady) {
 						var startbutton = document.getElementById('startbutton');
@@ -155,7 +155,7 @@
     				imagesReady = true;
     				enablestart();
 				});
-				
+
 				var insertAltVideo = function(video) {
 					if (supports_video()) {
 						if (supports_ogg_theora_video()) {
@@ -182,14 +182,14 @@
 				if (webGLContext == null) {
 					alert("Your browser does not seem to support WebGL. Unfortunately this face mask example depends on WebGL, so you'll have to try it in another browser. :(");
 				}
-				
+
 				navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
 				window.URL = window.URL || window.webkitURL || window.msURL || window.mozURL;
-				
+
 				// check for camerasupport
 				if (navigator.getUserMedia) {
 					// set up stream
-					
+
 					// chrome 19 shim
 					var videoSelector = {video : true};
 					if (window.navigator.appVersion.match(/Chrome\/(.*?) /)) {
@@ -198,7 +198,7 @@
 							videoSelector = "video";
 						}
 					};
-					
+
 					navigator.getUserMedia(videoSelector, function( stream ) {
 						if (vid.mozCaptureStream) {
 							vid.mozSrcObject = stream;
@@ -218,7 +218,7 @@
 				vid.addEventListener('canplay', function() {videoReady = true;enablestart();}, false);
 
 				/*********** Code for face substitution *********/
-				
+
 				var animationRequest;
 				var positions;
 				var multiplier = 3;
@@ -345,10 +345,10 @@
 						requestAnimFrame(drawGridLoop);
 					}
 				}
-					
+
 				function drawMaskLoop() {
 					videocanvas.getContext('2d').drawImage(vid,0,0,videocanvas.width,videocanvas.height);
-					
+
 					var pos = ctrack.getCurrentPosition(vid);
 					// create additional points around face
 					var tempPos;
@@ -370,7 +370,7 @@
 
 					// get position of face
 					//positions = ctrack.getCurrentPosition();
-					
+
 					var parameters = ctrack.getCurrentParameters();
 					for (var i = 6;i < parameters.length;i++) {
 						parameters[i] *= multiplier;
@@ -391,7 +391,7 @@
 					}
 					animationRequest = requestAnimFrame(drawMaskLoop);
 				}
-				
+
 				/*********** Code for stats **********/
 
 				stats = new Stats();
