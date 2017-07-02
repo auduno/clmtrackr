@@ -1,6 +1,8 @@
 clmtrackr
 ======
 
+[![npm version](https://img.shields.io/npm/v/clmtrackr.svg)](https://www.npmjs.com/package/clmtrackr)
+
 ![tracked face](https://auduno.github.io/clmtrackr/examples/media/clmtrackr_03.jpg)
 
 **clmtrackr** is a javascript library for fitting facial models to faces in videos or images. It currently is an implementation of *constrained local models* fitted by *regularized landmark mean-shift*, as described in [Jason M. Saragih's paper](http://dl.acm.org/citation.cfm?id=1938021). **clmtrackr** tracks a face and outputs the coordinate positions of the face model as an array, following the numbering of the model below:
