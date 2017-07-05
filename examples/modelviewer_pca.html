@@ -40,8 +40,8 @@
 			}
 			reader.onerror = function() {alert("error reading file")};
 			reader.readAsText(file.target.files[0]);
-	  	}
-	  	document.getElementById('loadjs').addEventListener('change', loadjs, false);
+		}
+		document.getElementById('loadjs').addEventListener('change', loadjs, false);
 
 		function rebuild() {
 			// check how many parameters
@@ -194,7 +194,7 @@
 			}
 
 			cc.restore()
-	  	}
+		}
 		draw(document.getElementById('compare'), similarityTransforms.concat(params))
 		/*
 		var eigenVectors = new goog.math.Matrix(num_points*2, 7);

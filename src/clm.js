@@ -1,5 +1,33 @@
-"use strict";
-//requires: ccv.js, numeric.js
+/**
+ * clmtrackr library (https://www.github.com/auduno/clmtrackr/)
+ *
+ * Copyright (c) 2013, Audun Mathias Øygard
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+import numeric from 'numeric';
+import raf from 'raf';
+import Promise from 'promise-polyfill';
+
+import emitEvent from './utils/events.js'
+import faceDetection from './facedetector/faceDetection.js';
+import svmFilter from './svmfilter/svmfilter_fft.js';
+import webglFilter from './svmfilter/svmfilter_webgl.js';
+import mosseFilterResponses from './mossefilter/mosseFilterResponses.js';
+import pModel from '../models/model_pca_20_svm.js';
+
+//import { drawPatches } from './utils.debugging.js';
+
+var DEFAULT_MODEL = pModel;
+
+// polyfills
+raf.polyfill();
+if (!window.Promise) window.Promise = Promise;
 
 var clm = {
 	tracker : function(params) {
@@ -12,21 +40,15 @@ var clm = {
 		if (params.stopOnConvergence === undefined) params.stopOnConvergence = false;
 		if (params.weightPoints === undefined) params.weightPoints = undefined;
 		if (params.sharpenResponse === undefined) params.sharpenResponse = false;
-
 		if (params.faceDetection === undefined) params.faceDetection = {};
-		if (params.faceDetection.workSize === undefined) params.faceDetection.workSize = 160;
-		if (params.faceDetection.minScale === undefined) params.faceDetection.minScale = 2;
-		if (params.faceDetection.scaleFactor === undefined) params.faceDetection.scaleFactor = 1.15;
-		if (params.faceDetection.useCanny === undefined) params.faceDetection.useCanny = false;
-		if (params.faceDetection.edgesDensity === undefined) params.faceDetection.edgesDensity = 0.13;
-		if (params.faceDetection.equalizeHistogram === undefined) params.faceDetection.equalizeHistogram = true;
-		if (params.useWebWorkers === undefined) params.useWebWorkers = true;
+
+		/** @type {Number} Minimum convergence before firing `clmtrackrConverged` event. */
+		var convergenceThreshold = 0.5;
 
 		var numPatches, patchSize, numParameters, patchType;
 		var gaussianPD;
 		var eigenVectors, eigenValues;
 		var sketchCC, sketchW, sketchH, sketchCanvas;
-		var candidate;
 		var weights, model, biases;
 
 		var sobelInit = false;
@@ -58,13 +80,8 @@ var clm = {
 
 		var first = true;
 		var detectingFace = false;
-		var faceDetectionResult;
 
 		var convergenceLimit = 0.01;
-
-		var learningRate = [];
-		var stepParameter = 1.25;
-		var prevCostFunc = []
 
 		var searchWindow;
 		var modelWidth, modelHeight;
@@ -81,10 +98,9 @@ var clm = {
 
 		var facecheck_count = 0;
 
-		var webglFi, svmFi, mosseCalc, jf;
+		var webglFi, svmFi, mosseCalc;
 
 		var scoringCanvas = document.createElement('canvas');
-		//document.body.appendChild(scoringCanvas);
 		var scoringContext = scoringCanvas.getContext('2d');
 		var msxmin, msymin, msxmax, msymax;
 		var msmodelwidth, msmodelheight;
@@ -92,16 +108,13 @@ var clm = {
 		var scoringHistory = [];
 		var meanscore = 0;
 
-		var mossef_lefteye, mossef_righteye, mossef_nose;
-		var right_eye_position = [0.0,0.0];
-		var left_eye_position = [0.0,0.0];
-		var nose_position = [0.0,0.0];
-		var lep, rep, mep;
 		var runnerTimeout, runnerElement, runnerBox;
 
 		var pointWeights;
 
 		var halfPI = Math.PI/2;
+
+		var faceDetector;
 
 		/*
 		 *	load model data, initialize filters, etc.
@@ -109,6 +122,8 @@ var clm = {
 		 *	@param	<Object>	pdm model object
 		 */
 		this.init = function(pdmmodel) {
+			// default model is pca 20 svm model
+			if (pdmmodel === undefined) pdmmodel = DEFAULT_MODEL;
 
 			model = pdmmodel;
 
@@ -116,7 +131,7 @@ var clm = {
 			patchType = model.patchModel.patchType;
 			numPatches = model.patchModel.numPatches;
 			patchSize = model.patchModel.patchSize[0];
-			if (patchType == "MOSSE") {
+			if (patchType == 'MOSSE') {
 				searchWindow = patchSize;
 			} else {
 				searchWindow = params.searchWindow;
@@ -131,20 +146,6 @@ var clm = {
 
 			sketchW = sketchCanvas.width = modelWidth + (searchWindow-1) + patchSize-1;
 			sketchH = sketchCanvas.height = modelHeight + (searchWindow-1) + patchSize-1;
-
-			if (model.hints && mosseFilter && left_eye_filter && right_eye_filter && nose_filter) {
-				//var mossef_lefteye = new mosseFilter({drawResponse : document.getElementById('overlay2')});
-				mossef_lefteye = new mosseFilter();
-				mossef_lefteye.load(left_eye_filter);
-				//var mossef_righteye = new mosseFilter({drawResponse : document.getElementById('overlay2')});
-				mossef_righteye = new mosseFilter();
-				mossef_righteye.load(right_eye_filter);
-				//var mossef_nose = new mosseFilter({drawResponse : document.getElementById('overlay2')});
-				mossef_nose = new mosseFilter();
-				mossef_nose.load(nose_filter);
-			} else {
-				console.log("MOSSE filters not found, using rough approximation for initialization.");
-			}
 
 			// load eigenvectors
 			eigenVectors = numeric.rep([numPatches*2,numParameters],0.0);
@@ -200,7 +201,7 @@ var clm = {
 				currentParameters[i] = 0;
 			}
 
-			if (patchType == "SVM") {
+			if (patchType == 'SVM') {
 				var webGLContext;
 				var webGLTestCanvas = document.createElement('canvas');
 				if (window.WebGLRenderingContext) {
@@ -210,7 +211,7 @@ var clm = {
 					}
 				}
 
-				if (webGLContext && params.useWebGL && (typeof(webglFilter) !== "undefined")) {
+				if (webGLContext && params.useWebGL && (typeof(webglFilter) !== 'undefined')) {
 					webglFi = new webglFilter();
 					try {
 						webglFi.init(weights, biases, numPatches, searchWindow+patchSize-1, searchWindow+patchSize-1, patchSize, patchSize);
@@ -218,24 +219,25 @@ var clm = {
 						if ('sobel' in weights) sobelInit = true;
 					}
 					catch(err) {
-						alert("There was a problem setting up webGL programs, falling back to slightly slower javascript version. :(");
+						console.error(err);
+						alert('There was a problem setting up webGL programs, falling back to slightly slower javascript version. :(');
 						webglFi = undefined;
 						svmFi = new svmFilter();
 						svmFi.init(weights['raw'], biases['raw'], numPatches, patchSize, searchWindow);
 					}
-				} else if (typeof(svmFilter) !== "undefined") {
+				} else if (typeof(svmFilter) !== 'undefined') {
 					// use fft convolution if no webGL is available
 					svmFi = new svmFilter();
 					svmFi.init(weights['raw'], biases['raw'], numPatches, patchSize, searchWindow);
 				} else {
-					throw "Could not initiate filters, please make sure that svmfilter.js or svmfilter_conv_js.js is loaded."
+					throw new Error('Could not initiate filters, please make sure that svmfilter.js or svmfilter_conv_js.js is loaded.');
 				}
-			} else if (patchType == "MOSSE") {
+			} else if (patchType == 'MOSSE') {
 				mosseCalc = new mosseFilterResponses();
 				mosseCalc.init(weights, numPatches, patchSize, patchSize);
 			}
 
-			if (patchType == "SVM") {
+			if (patchType == 'SVM') {
 				pw = pl = patchSize+searchWindow-1;
 			} else {
 				pw = pl = searchWindow;
@@ -255,11 +257,6 @@ var clm = {
 				}
 			}
 
-			for (var i = 0;i < numPatches;i++) {
-				learningRate[i] = 1.0;
-				prevCostFunc[i] = 0.0;
-			}
-
 			if (params.weightPoints) {
 				// weighting of points
 				pointWeights = [];
@@ -274,6 +271,8 @@ var clm = {
 				}
 				pointWeights = numeric.diag(pointWeights);
 			}
+
+			faceDetector = new faceDetection(model, params.faceDetection);
 		}
 
 		/*
@@ -281,32 +280,38 @@ var clm = {
 		 */
 		this.start = function(element, box) {
 			// check if model is initalized, else return false
-			if (typeof(model) === "undefined") {
-				console.log("tracker needs to be initalized before starting to track.");
+			if (typeof(model) === 'undefined') {
+				console.log('tracker needs to be initalized before starting to track.');
 				return false;
 			}
 			//check if a runnerelement already exists, if not, use passed parameters
-			if (typeof(runnerElement) === "undefined") {
+			if (typeof(runnerElement) === 'undefined') {
 				runnerElement = element;
 				runnerBox = box;
 			}
-			// setup the jsfeat face tracker with the element
-			jf = new jsfeat_face(element, params.faceDetection.workSize, params.useWebWorkers);
+
+			faceDetector.init(element);
+
 			// start named timeout function
-			runnerTimeout = requestAnimFrame(runnerFunction);
+			runnerTimeout = requestAnimationFrame(runnerFunction);
 		}
+
+		var runnerFunction = function() {
+			runnerTimeout = requestAnimationFrame(runnerFunction);
+			// schedule as many iterations as we can during each request
+			var startTime = (new Date()).getTime();
+			while (((new Date()).getTime() - startTime) < 16) {
+				var tracking = this.track(runnerElement, runnerBox);
+				if (!tracking) break;
+			}
+		}.bind(this);
 
 		/*
 		 *	stop the running tracker
 		 */
 		this.stop = function() {
 			// stop the running tracker if any exists
-			cancelRequestAnimFrame(runnerTimeout);
-		}
-
-		var detectionCallback = function(element, box, result) {
-			faceDetectionResult = result;
-			this.track(element, box);
+			cancelAnimationFrame(runnerTimeout);
 		}
 
 		/*
@@ -314,50 +319,42 @@ var clm = {
 		 *  TODO: should be able to take img element as well
 		 */
 		this.track = function(element, box) {
-			var evt = document.createEvent("Event");
-			evt.initEvent("clmtrackrBeforeTrack", true, true);
-			document.dispatchEvent(evt)
+			emitEvent('clmtrackrBeforeTrack');
 
 			var scaling, translateX, translateY, rotation;
-			var croppedPatches = [];
 			var ptch, px, py;
 
 			if (first) {
-				if (params.useWebWorkers) {
-					if (!detectingFace) {
-						detectingFace = true;
-						getInitialPosition(element, box, detectionCallback.bind(this));
-						return;
-					} else {
-						// check if we've received results
-						if (faceDetectionResult !== undefined) {
+				if (!detectingFace) {
+					detectingFace = true;
+
+					// this returns a Promise
+					faceDetector.getInitialPosition(box)
+						.then(function (result) {
+							scaling = result[0];
+							rotation = result[1];
+							translateX = result[2];
+							translateY = result[3];
+
+							currentParameters[0] = (scaling*Math.cos(rotation))-1;
+							currentParameters[1] = (scaling*Math.sin(rotation));
+							currentParameters[2] = translateX;
+							currentParameters[3] = translateY;
+
+							currentPositions = calculatePositions(currentParameters, true);
+
+							first = false;
 							detectingFace = false;
-						} else {
-							// still waiting for results
-							return;
-						}
-					}
-				} else {
-					faceDetectionResult = getInitialPosition(element, box);
+						})
+						.catch(function (error) {
+							// send an event on no face found
+							emitEvent('clmtrackrNotFound');
+
+							detectingFace = false;
+						});
 				}
 
-				if (!faceDetectionResult) {
-					// send an event on no face found
-					var evt = document.createEvent("Event");
-					evt.initEvent("clmtrackrNotFound", true, true);
-					document.dispatchEvent(evt);
-
-					faceDetectionResult = undefined
-					return false;
-				}
-
-				scaling = faceDetectionResult[0];
-				rotation = faceDetectionResult[1];
-				translateX = faceDetectionResult[2];
-				translateY = faceDetectionResult[3];
-				faceDetectionResult = undefined;
-
-				first = false;
+				return false;
 			} else {
 				facecheck_count += 1;
 
@@ -401,17 +398,10 @@ var clm = {
 			if (scoringWeights && (facecheck_count % 10 == 0)) {
 				if (!checkTracking()) {
 					// reset all parameters
-					first = true;
-					scoringHistory = [];
-					for (var i = 0;i < currentParameters.length;i++) {
-						currentParameters[i] = 0;
-						previousParameters = [];
-					}
+					resetParameters();
 
 					// send event to signal that tracking was lost
-					var evt = document.createEvent("Event");
-					evt.initEvent("clmtrackrLost", true, true);
-					document.dispatchEvent(evt);
+					emitEvent('clmtrackrLost');
 
 					return false;
 				}
@@ -433,30 +423,21 @@ var clm = {
 				}
 			}
 
-			/*print weights*/
-			/*sketchCC.clearRect(0, 0, sketchW, sketchH);
-			var nuWeights;
-			for (var i = 0;i < numPatches;i++) {
-				nuWeights = weights[i].map(function(x) {return x*2000+127;});
-				drawData(sketchCC, nuWeights, patchSize, patchSize, false, patchPositions[i][0]-(patchSize/2), patchPositions[i][1]-(patchSize/2));
-			}*/
+			// draw weights for debugging
+			//drawPatches(sketchCC, weights, patchSize, patchPositions, function(x) {return x*2000+127});
 
-			// print patches
-			/*sketchCC.clearRect(0, 0, sketchW, sketchH);
-			for (var i = 0;i < numPatches;i++) {
-				if ([27,32,44,50].indexOf(i) > -1) {
-					drawData(sketchCC, patches[i], pw, pl, false, patchPositions[i][0]-(pw/2), patchPositions[i][1]-(pl/2));
-				}
-			}*/
-			if (patchType == "SVM") {
-				if (typeof(webglFi) !== "undefined") {
+			// draw patches for debugging
+			//drawPatches(sketchCC, patches, pw, patchPositions, false, [27,32,44,50]);
+
+			if (patchType == 'SVM') {
+				if (typeof(webglFi) !== 'undefined') {
 					responses = getWebGLResponses(patches);
-				} else if (typeof(svmFi) !== "undefined"){
+				} else if (typeof(svmFi) !== 'undefined') {
 					responses = svmFi.getResponses(patches);
 				} else {
-					throw "SVM-filters do not seem to be initiated properly."
+					throw new Error('SVM-filters do not seem to be initiated properly.');
 				}
-			} else if (patchType == "MOSSE") {
+			} else if (patchType == 'MOSSE') {
 				responses = mosseCalc.getResponses(patches);
 			}
 
@@ -469,21 +450,8 @@ var clm = {
 				}
 			}
 
-			// print responses
-			/*sketchCC.clearRect(0, 0, sketchW, sketchH);
-			var nuWeights;
-			for (var i = 0;i < numPatches;i++) {
-
-				nuWeights = [];
-				for (var j = 0;j < responses[i].length;j++) {
-					nuWeights.push(responses[i][j]*255);
-				}
-
-				//if ([27,32,44,50].indexOf(i) > -1) {
-				//	drawData(sketchCC, nuWeights, searchWindow, searchWindow, false, patchPositions[i][0]-((searchWindow-1)/2), patchPositions[i][1]-((searchWindow-1)/2));
-				//}
-				drawData(sketchCC, nuWeights, searchWindow, searchWindow, false, patchPositions[i][0]-((searchWindow-1)/2), patchPositions[i][1]-((searchWindow-1)/2));
-			}*/
+			// draw responses for debugging
+			//drawPatches(sketchCC, responses, searchWindow, patchPositions, function(x) {return x*255});
 
 			// iterate until convergence or max 10, 20 iterations?:
 			var originalPositions = currentPositions;
@@ -497,7 +465,6 @@ var clm = {
 
 				// for debugging
 				//var debugMVs = [];
-				//
 
 				var opj0, opj1;
 
@@ -510,40 +477,15 @@ var clm = {
 
 					// calculate meanshift-vector
 					gpopt2(searchWindow, vecpos, updatePosition, vecProbs, vpsum, opj0, opj1, scaling);
-
-					// for debugging
 					//var debugMatrixMV = gpopt2(searchWindow, vecpos, updatePosition, vecProbs, vpsum, opj0, opj1);
 
-					// evaluate here whether to increase/decrease stepSize
-					/*if (vpsum >= prevCostFunc[j]) {
-						learningRate[j] *= stepParameter;
-					} else {
-						learningRate[j] = 1.0;
-					}
-					prevCostFunc[j] = vpsum;*/
-
-					// compute mean shift vectors
-					// extrapolate meanshiftvectors
-					/*var msv = [];
-					msv[0] = learningRate[j]*(vecpos[0] - currentPositions[j][0]);
-					msv[1] = learningRate[j]*(vecpos[1] - currentPositions[j][1]);
-					meanshiftVectors[j] = msv;*/
 					meanshiftVectors[j] = [vecpos[0] - currentPositions[j][0], vecpos[1] - currentPositions[j][1]];
 
-					//if (isNaN(msv[0]) || isNaN(msv[1])) debugger;
-
-					//for debugging
 					//debugMVs[j] = debugMatrixMV;
-					//
 				}
 
-				// draw meanshiftVector
-				/*sketchCC.clearRect(0, 0, sketchW, sketchH);
-				var nuWeights;
-				for (var npidx = 0;npidx < numPatches;npidx++) {
-					nuWeights = debugMVs[npidx].map(function(x) {return x*255*500;});
-					drawData(sketchCC, nuWeights, searchWindow, searchWindow, false, patchPositions[npidx][0]-((searchWindow-1)/2), patchPositions[npidx][1]-((searchWindow-1)/2));
-				}*/
+				// draw meanshiftVector for debugging
+				//drawPatches(sketchCC, debugMVs, searchWindow, patchPositions, function(x) {return x*255*500});
 
 				var meanShiftVector = numeric.rep([numPatches*2, 1],0.0);
 				for (var k = 0;k < numPatches;k++) {
@@ -554,20 +496,22 @@ var clm = {
 				// compute pdm parameter update
 				//var prior = numeric.mul(gaussianPD, PDMVariance);
 				var prior = numeric.mul(gaussianPD, varianceSeq[i]);
+				var jtj;
 				if (params.weightPoints) {
-					var jtj = numeric.dot(numeric.transpose(jac), numeric.dot(pointWeights, jac));
+					jtj = numeric.dot(numeric.transpose(jac), numeric.dot(pointWeights, jac));
 				} else {
-					var jtj = numeric.dot(numeric.transpose(jac), jac);
+					jtj = numeric.dot(numeric.transpose(jac), jac);
 				}
 				var cpMatrix = numeric.rep([numParameters+4, 1],0.0);
 				for (var l = 0;l < (numParameters+4);l++) {
 					cpMatrix[l][0] = currentParameters[l];
 				}
 				var priorP = numeric.dot(prior, cpMatrix);
+				var jtv;
 				if (params.weightPoints) {
-					var jtv = numeric.dot(numeric.transpose(jac), numeric.dot(pointWeights, meanShiftVector));
+					jtv = numeric.dot(numeric.transpose(jac), numeric.dot(pointWeights, meanShiftVector));
 				} else {
-					var jtv = numeric.dot(numeric.transpose(jac), meanShiftVector);
+					jtv = numeric.dot(numeric.transpose(jac), meanShiftVector);
 				}
 				var paramUpdateLeft = numeric.add(prior, jtj);
 				var paramUpdateRight = numeric.sub(priorP, jtv);
@@ -608,7 +552,6 @@ var clm = {
 					pnsq_y = (currentPositions[k][1]-oldPositions[k][1]);
 					positionNorm += ((pnsq_x*pnsq_x) + (pnsq_y*pnsq_y));
 				}
-				//console.log("positionnorm:"+positionNorm);
 
 				// if norm < limit, then break
 				if (positionNorm < convergenceLimit) {
@@ -620,45 +563,47 @@ var clm = {
 			if (params.constantVelocity) {
 				// add current parameter to array of previous parameters
 				previousParameters.push(currentParameters.slice());
-				previousParameters.splice(0, previousParameters.length == 3 ? 1 : 0);
+				if (previousParameters.length == 3) {
+					previousParameters.shift();
+				}
 			}
 
 			// store positions, for checking convergence
-			previousPositions.splice(0, previousPositions.length == 10 ? 1 : 0);
+			if (previousPositions.length == 10) {
+				previousPositions.shift();
+			}
 			previousPositions.push(currentPositions.slice(0));
 
 			// send an event on each iteration
-			var evt = document.createEvent("Event");
-			evt.initEvent("clmtrackrIteration", true, true);
-			document.dispatchEvent(evt)
+			emitEvent('clmtrackrIteration');
 
-			if (this.getConvergence() < 0.5) {
-				// we must get a score before we can say we've converged
-				if (scoringHistory.length >= 5) {
-					if (params.stopOnConvergence) {
-						this.stop();
-					}
-
-					var evt = document.createEvent("Event");
-					evt.initEvent("clmtrackrConverged", true, true);
-					document.dispatchEvent(evt)
+			// we must get a score before we can say we've converged
+			if (scoringHistory.length >= 5 && this.getConvergence() < convergenceThreshold) {
+				if (params.stopOnConvergence) {
+					this.stop();
 				}
+
+				emitEvent('clmtrackrConverged');
 			}
 
 			// return new points
 			return currentPositions;
 		}
 
+		function resetParameters() {
+			first = true;
+			scoringHistory = [];
+			previousParameters = [];
+			for (var i = 0;i < currentParameters.length;i++) {
+				currentParameters[i] = 0;
+			}
+		}
+
 		/*
 		 *	reset tracking, so that track() will start a new detection
 		 */
 		this.reset = function() {
-			first = true;
-			scoringHistory = [];
-			for (var i = 0;i < currentParameters.length;i++) {
-				currentParameters[i] = 0;
-				previousParameters = [];
-			}
+			resetParameters();
 			runnerElement = undefined;
 			runnerBox = undefined;
 		}
@@ -677,8 +622,8 @@ var clm = {
 			}
 
 			var cc = canvas.getContext('2d');
-			cc.fillStyle = "rgb(200,200,200)";
-			cc.strokeStyle = "rgb(130,255,50)";
+			cc.fillStyle = 'rgb(200,200,200)';
+			cc.strokeStyle = 'rgb(130,255,50)';
 			//cc.lineWidth = 1;
 
 			var paths;
@@ -766,7 +711,7 @@ var clm = {
 			var diffX = currX-prevX;
 			var diffY = currY-prevY;
 			var msavg = ((diffX*diffX) + (diffY*diffY));
-			msavg /= previousPositions.length
+			msavg /= previousPositions.length;
 			return msavg;
 		}
 
@@ -777,33 +722,33 @@ var clm = {
 		 */
 		this.setResponseMode = function(mode, list) {
 			// clmtrackr must be initialized with model first
-			if (typeof(model) === "undefined") {
-				console.log("Clmtrackr has not been initialized with a model yet. No changes made.");
+			if (typeof(model) === 'undefined') {
+				console.log('Clmtrackr has not been initialized with a model yet. No changes made.');
 				return;
 			}
 			// must check whether webGL or not
-			if (typeof(webglFi) === "undefined") {
-				console.log("Responsemodes are only allowed when using webGL. In pure JS, only 'raw' mode is available.");
+			if (typeof(webglFi) === 'undefined') {
+				console.log('Responsemodes are only allowed when using webGL. In pure JS, only "raw" mode is available.');
 				return;
 			}
 			if (['single', 'blend', 'cycle'].indexOf(mode) < 0) {
-				console.log("Tried to set an unknown responsemode : '"+mode+"'. No changes made.");
+				console.log('Tried to set an unknown responsemode : "'+mode+'". No changes made.');
 				return;
 			}
 			if (!(list instanceof Array)) {
-				console.log("List in setResponseMode must be an array of strings! No changes made.");
+				console.log('List in setResponseMode must be an array of strings! No changes made.');
 				return;
 			} else {
 				for (var i = 0;i < list.length;i++) {
 					if (['raw', 'sobel', 'lbp'].indexOf(list[i]) < 0) {
-						console.log("Unknown element in responsemode list : '"+list[i]+"'. No changes made.");
+						console.log('Unknown element in responsemode list : "'+list[i]+'". No changes made.');
 					}
 					// check whether filters are initialized
 					if (list[i] == 'sobel' && sobelInit == false) {
-						console.log("The sobel filters have not been initialized! No changes made.");
+						console.log('The sobel filters have not been initialized! No changes made.');
 					}
 					if (list[i] == 'lbp' && lbpInit == false) {
-						console.log("The LBP filters have not been initialized! No changes made.");
+						console.log('The LBP filters have not been initialized! No changes made.');
 					}
 				}
 			}
@@ -813,15 +758,6 @@ var clm = {
 			responseList = list;
 		}
 
-		var runnerFunction = function() {
-			runnerTimeout = requestAnimFrame(runnerFunction);
-			// schedule as many iterations as we can during each request
-			var startTime = (new Date()).getTime();
-			while (((new Date()).getTime() - startTime) < 16) {
-				var tracking = this.track(runnerElement, runnerBox);
-				if (!tracking) break;
-			}
-		}.bind(this);
 
 		var getWebGLResponsesType = function(type, patches) {
 			if (type == 'lbp') {
@@ -848,11 +784,12 @@ var clm = {
 					responses[i] = getWebGLResponsesType(responseList[i], patches);
 				}
 				var blendedResponses = [];
+				var searchWindowSize = searchWindow * searchWindow;
 				for (var i = 0;i < numPatches;i++) {
-					var response = Array(searchWindow*searchWindow);
-					for (var k = 0;k < searchWindow*searchWindow;k++) response[k] = 0;
+					var response = Array(searchWindowSize);
+					for (var k = 0;k < searchWindowSize;k++) response[k] = 0;
 					for (var j = 0;j < responseList.length;j++) {
-						for (var k = 0;k < searchWindow*searchWindow;k++) {
+						for (var k = 0;k < searchWindowSize;k++) {
 							response[k] += (responses[j][i][k]/responseList.length);
 						}
 					}
@@ -928,30 +865,6 @@ var clm = {
 			return positions;
 		}
 
-		// detect position of face on canvas/video element
-		var detectPosition = function(el, callback) {
-			if (callback) {
-				jf.faceDetected = function (e, callback) {
-					candidate = e.data.comp;
-
-					if (candidate) {
-						callback(candidate);
-					} else {
-						callback(false);
-						return false;
-					}
-				}
-				var comp = jf.findFace(params.faceDetection, callback);
-			} else {
-				candidate = jf.findFace(params.faceDetection);
-				if (candidate) {
-					return candidate
-				} else {
-					return false;
-				}
-			}
-		}
-
 		// part one of meanshift calculation
 		var gpopt = function(responseWidth, currentPositionsj, updatePosition, vecProbs, responses, opj0, opj1, j, variance, scaling) {
 			var pos_idx = 0;
@@ -989,7 +902,6 @@ var clm = {
 					updatePosition[0] = opj0+(l*scaling);
 					vecsum = vecProbs[pos_idx]/vpsum;
 
-					//for debugging
 					//vecmatrix[k*responseWidth + l] = vecsum;
 
 					vecpos[0] += vecsum*updatePosition[0];
@@ -997,20 +909,23 @@ var clm = {
 					pos_idx++;
 				}
 			}
-			// for debugging
 			//return vecmatrix;
 		}
 
 		// calculate score of current fit
 		var checkTracking = function() {
-			scoringContext.drawImage(sketchCanvas, Math.round(msxmin+(msmodelwidth/4.5)), Math.round(msymin-(msmodelheight/12)), Math.round(msmodelwidth-(msmodelwidth*2/4.5)), Math.round(msmodelheight-(msmodelheight/12)), 0, 0, 20, 22);
+			var trackingImgW = 20;
+			var trackingImgH = 22;
+
+			scoringContext.drawImage(sketchCanvas, Math.round(msxmin+(msmodelwidth/4.5)), Math.round(msymin-(msmodelheight/12)), Math.round(msmodelwidth-(msmodelwidth*2/4.5)), Math.round(msmodelheight-(msmodelheight/12)), 0, 0, trackingImgW, trackingImgH);
 			// getImageData of canvas
-			var imgData = scoringContext.getImageData(0,0,20,22);
+			var imgData = scoringContext.getImageData(0,0,trackingImgW,trackingImgH);
 			// convert data to grayscale
-			var scoringData = new Array(20*22);
+			var trackingImgSize = trackingImgW * trackingImgH;
+			var scoringData = new Array(trackingImgSize);
 			var scdata = imgData.data;
 			var scmax = 0;
-			for (var i = 0;i < 20*22;i++) {
+			for (var i = 0;i < trackingImgSize;i++) {
 				scoringData[i] = scdata[i*4]*0.3 + scdata[(i*4)+1]*0.59 + scdata[(i*4)+2]*0.11;
 				scoringData[i] = Math.log(scoringData[i]+1);
 				if (scoringData[i] > scmax) scmax = scoringData[i];
@@ -1019,26 +934,28 @@ var clm = {
 			if (scmax > 0) {
 				// normalize & multiply by svmFilter
 				var mean = 0;
-				for (var i = 0;i < 20*22;i++) {
+				for (var i = 0;i < trackingImgSize;i++) {
 					mean += scoringData[i];
 				}
-				mean /= (20*22);
+				mean /= trackingImgSize;
 				var sd = 0;
-				for (var i = 0;i < 20*22;i++) {
+				for (var i = 0;i < trackingImgSize;i++) {
 					sd += (scoringData[i]-mean)*(scoringData[i]-mean);
 				}
-				sd /= (20*22 - 1)
+				sd /= trackingImgSize;
 				sd = Math.sqrt(sd);
 
 				var score = 0;
-				for (var i = 0;i < 20*22;i++) {
+				for (var i = 0;i < trackingImgSize;i++) {
 					scoringData[i] = (scoringData[i]-mean)/sd;
 					score += (scoringData[i])*scoringWeights[i];
 				}
 				score += scoringBias;
 				score = 1/(1+Math.exp(-score));
 
-				scoringHistory.splice(0, scoringHistory.length == 5 ? 1 : 0);
+				if (scoringHistory.length == 5) {
+					scoringHistory.shift();
+				}
 				scoringHistory.push(score);
 
 				if (scoringHistory.length > 4) {
@@ -1053,158 +970,6 @@ var clm = {
 				}
 			}
 			return true;
-		}
-
-		// get initial starting point for model
-		var getInitialPosition = function(element, box, callback, positionResult) {
-
-			var translateX, translateY, scaling, rotation;
-			if (box) {
-				candidate = {x : box[0], y : box[1], width : box[2], height : box[3]};
-			} else {
-				if (callback) {
-					if (!positionResult) {
-						detectPosition(element, function (positionResult) {
-							if (!positionResult) {
-								// if no face found, stop.
-								callback(element, box, false);
-							} else {
-								getInitialPosition(element, box, callback, positionResult);
-							}
-						});
-						return;
-					} else {
-						candidate = positionResult[0];
-					}
-				} else {
-					candidate = detectPosition(element);
-					if (!candidate) return false;
-				}
-			}
-
-			if (model.hints && mosseFilter && left_eye_filter && right_eye_filter && nose_filter) {
-				var noseFilterWidth = candidate.width * 4.5/10;
-				var eyeFilterWidth = candidate.width * 6/10;
-
-				// detect position of eyes and nose via mosse filter
-				//
-				/*element.pause();
-
-				var canvasContext = document.getElementById('overlay2').getContext('2d')
-				canvasContext.clearRect(0,0,500,375);
-				canvasContext.strokeRect(candidate.x, candidate.y, candidate.width, candidate.height);*/
-				//
-
-				var nose_result = mossef_nose.track(element, Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2)), Math.round(candidate.y+candidate.height*(5/8)-(noseFilterWidth/2)), noseFilterWidth, noseFilterWidth, false);
-				var right_result = mossef_righteye.track(element, Math.round(candidate.x+(candidate.width*3/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth, false);
-				var left_result = mossef_lefteye.track(element, Math.round(candidate.x+(candidate.width/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth, false);
-				right_eye_position[0] = Math.round(candidate.x+(candidate.width*3/4)-(eyeFilterWidth/2))+right_result[0];
-				right_eye_position[1] = Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2))+right_result[1];
-				left_eye_position[0] = Math.round(candidate.x+(candidate.width/4)-(eyeFilterWidth/2))+left_result[0];
-				left_eye_position[1] = Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2))+left_result[1];
-				nose_position[0] = Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2))+nose_result[0];
-				nose_position[1] = Math.round(candidate.y+candidate.height*(5/8)-(noseFilterWidth/2))+nose_result[1];
-
-				//
-				/*canvasContext.strokeRect(Math.round(candidate.x+(candidate.width*3/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth);
-				canvasContext.strokeRect(Math.round(candidate.x+(candidate.width/4)-(eyeFilterWidth/2)), Math.round(candidate.y+candidate.height*(2/5)-(eyeFilterWidth/2)), eyeFilterWidth, eyeFilterWidth);
-				//canvasContext.strokeRect(Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2)), Math.round(candidate.y+candidate.height*(3/4)-(noseFilterWidth/2)), noseFilterWidth, noseFilterWidth);
-				canvasContext.strokeRect(Math.round(candidate.x+(candidate.width/2)-(noseFilterWidth/2)), Math.round(candidate.y+candidate.height*(5/8)-(noseFilterWidth/2)), noseFilterWidth, noseFilterWidth);
-
-				canvasContext.fillStyle = "rgb(0,0,250)";
-				canvasContext.beginPath();
-				canvasContext.arc(left_eye_position[0], left_eye_position[1], 3, 0, Math.PI*2, true);
-				canvasContext.closePath();
-				canvasContext.fill();
-
-				canvasContext.beginPath();
-				canvasContext.arc(right_eye_position[0], right_eye_position[1], 3, 0, Math.PI*2, true);
-				canvasContext.closePath();
-				canvasContext.fill();
-
-				canvasContext.beginPath();
-				canvasContext.arc(nose_position[0], nose_position[1], 3, 0, Math.PI*2, true);
-				canvasContext.closePath();
-				canvasContext.fill();
-
-				debugger;
-				element.play()
-				canvasContext.clearRect(0,0,element.width,element.height);*/
-				//
-
-				// get eye and nose positions of model
-				var lep = model.hints.leftEye;
-				var rep = model.hints.rightEye;
-				var mep = model.hints.nose;
-
-				// get scaling, rotation, etc. via procrustes analysis
-				var procrustes_params = procrustes([left_eye_position, right_eye_position, nose_position], [lep, rep, mep]);
-				translateX = procrustes_params[0];
-				translateY = procrustes_params[1];
-				scaling = procrustes_params[2];
-				rotation = procrustes_params[3];
-
-				//element.play();
-
-				//var maxscale = 1.10;
-				//if ((scaling*modelHeight)/candidate.height < maxscale*0.7) scaling = (maxscale*0.7*candidate.height)/modelHeight;
-				//if ((scaling*modelHeight)/candidate.height > maxscale*1.2) scaling = (maxscale*1.2*candidate.height)/modelHeight;
-
-				/*var smean = [0,0];
-				smean[0] += lep[0];
-				smean[1] += lep[1];
-				smean[0] += rep[0];
-				smean[1] += rep[1];
-				smean[0] += mep[0];
-				smean[1] += mep[1];
-				smean[0] /= 3;
-				smean[1] /= 3;
-
-				var nulep = [(lep[0]*scaling*Math.cos(-rotation)+lep[1]*scaling*Math.sin(-rotation))+translateX, (lep[0]*scaling*(-Math.sin(-rotation)) + lep[1]*scaling*Math.cos(-rotation))+translateY];
-				var nurep = [(rep[0]*scaling*Math.cos(-rotation)+rep[1]*scaling*Math.sin(-rotation))+translateX, (rep[0]*scaling*(-Math.sin(-rotation)) + rep[1]*scaling*Math.cos(-rotation))+translateY];
-				var numep = [(mep[0]*scaling*Math.cos(-rotation)+mep[1]*scaling*Math.sin(-rotation))+translateX, (mep[0]*scaling*(-Math.sin(-rotation)) + mep[1]*scaling*Math.cos(-rotation))+translateY];
-
-				canvasContext.fillStyle = "rgb(200,10,100)";
-				canvasContext.beginPath();
-				canvasContext.arc(nulep[0], nulep[1], 3, 0, Math.PI*2, true);
-				canvasContext.closePath();
-				canvasContext.fill();
-
-				canvasContext.beginPath();
-				canvasContext.arc(nurep[0], nurep[1], 3, 0, Math.PI*2, true);
-				canvasContext.closePath();
-				canvasContext.fill();
-
-				canvasContext.beginPath();
-				canvasContext.arc(numep[0], numep[1], 3, 0, Math.PI*2, true);
-				canvasContext.closePath();
-				canvasContext.fill();*/
-
-				currentParameters[0] = (scaling*Math.cos(rotation))-1;
-				currentParameters[1] = (scaling*Math.sin(rotation));
-				currentParameters[2] = translateX;
-				currentParameters[3] = translateY;
-
-				//this.draw(document.getElementById('overlay'), currentParameters);
-
-			} else {
-				scaling = candidate.width/msmodelheight;
-				//var ccc = document.getElementById('overlay').getContext('2d');
-				//ccc.strokeRect(candidate.x,candidate.y,candidate.width,candidate.height);
-				translateX = candidate.x-(msxmin*scaling)+0.1*candidate.width;
-				translateY = candidate.y-(msymin*scaling)+0.25*candidate.height;
-				currentParameters[0] = scaling-1;
-				currentParameters[2] = translateX;
-				currentParameters[3] = translateY;
-			}
-
-			currentPositions = calculatePositions(currentParameters, true);
-
-			if (callback) {
-				callback(element, box, [scaling, rotation, translateX, translateY]);
-			} else {
-				return [scaling, rotation, translateX, translateY];
-			}
 		}
 
 		// draw a parametrized line on a canvas
@@ -1255,131 +1020,8 @@ var clm = {
 			canvasContext.fill();
 		}
 
-		// procrustes analysis
-		function procrustes(template, shape) {
-			// assume template and shape is a vector of x,y-coordinates
-			//i.e. template = [[x1,y1], [x2,y2], [x3,y3]];
-			var templateClone = [];
-			var shapeClone = [];
-			for (var i = 0;i < template.length;i++) {
-				templateClone[i] = [template[i][0], template[i][1]];
-			}
-			for (var i = 0;i < shape.length;i++) {
-				shapeClone[i] = [shape[i][0], shape[i][1]];
-			}
-			shape = shapeClone;
-			template = templateClone;
-
-			// calculate translation
-			var templateMean = [0.0, 0.0];
-			for (var i = 0;i < template.length;i++) {
-				templateMean[0] += template[i][0];
-				templateMean[1] += template[i][1];
-			}
-			templateMean[0] /= template.length;
-			templateMean[1] /= template.length;
-
-			var shapeMean = [0.0, 0.0];
-			for (var i = 0;i < shape.length;i++) {
-				shapeMean[0] += shape[i][0];
-				shapeMean[1] += shape[i][1];
-			}
-			shapeMean[0] /= shape.length;
-			shapeMean[1] /= shape.length;
-
-			var translationX = templateMean[0] - shapeMean[0];
-			var translationY = templateMean[1] - shapeMean[1];
-
-			// centralize
-			for (var i = 0;i < shape.length;i++) {
-				shape[i][0] -= shapeMean[0];
-				shape[i][1] -= shapeMean[1];
-			}
-			for (var i = 0;i < template.length;i++) {
-				template[i][0] -= templateMean[0];
-				template[i][1] -= templateMean[1];
-			}
-
-			// scaling
-
-			var scaleS = 0.0;
-			for (var i = 0;i < shape.length;i++) {
-				scaleS += ((shape[i][0])*(shape[i][0]));
-				scaleS += ((shape[i][1])*(shape[i][1]));
-			}
-			scaleS = Math.sqrt(scaleS/shape.length);
-
-			var scaleT = 0.0;
-			for (var i = 0;i < template.length;i++) {
-				scaleT += ((template[i][0])*(template[i][0]));
-				scaleT += ((template[i][1])*(template[i][1]));
-			}
-			scaleT = Math.sqrt(scaleT/template.length);
-
-			var scaling = scaleT/scaleS;
-
-			for (var i = 0;i < shape.length;i++) {
-				shape[i][0] *= scaling;
-				shape[i][1] *= scaling;
-			}
-
-			// rotation
-
-			var top = 0.0;
-			var bottom = 0.0;
-			for (var i = 0;i < shape.length;i++) {
-				top += (shape[i][0]*template[i][1] - shape[i][1]*template[i][0]);
-				bottom += (shape[i][0]*template[i][0] + shape[i][1]*template[i][1]);
-			}
-			var rotation = Math.atan(top/bottom);
-
-			translationX += (shapeMean[0]-(scaling*Math.cos(-rotation)*shapeMean[0])-(scaling*shapeMean[1]*Math.sin(-rotation)));
-			translationY += (shapeMean[1]+(scaling*Math.sin(-rotation)*shapeMean[0])-(scaling*shapeMean[1]*Math.cos(-rotation)));
-
-			//returns rotation, scaling, transformx and transformx
-			return [translationX, translationY, scaling, rotation];
-		}
-
-		// function to draw pixeldata on some canvas, only used for debugging
-		var drawData = function(canvasContext, data, width, height, transposed, drawX, drawY) {
-			var psci = canvasContext.createImageData(width, height);
-			var pscidata = psci.data;
-			for (var j = 0;j < width*height;j++) {
-				if (!transposed) {
-					var val = data[(j%width)+((j/width) >> 0)*width];
-				} else {
-					var val = data[(j%height)*height+((j/height) >> 0)];
-				}
-				val = val > 255 ? 255 : val;
-				val = val < 0 ? 0 : val;
-				pscidata[j*4] = val;
-				pscidata[(j*4)+1] = val;
-				pscidata[(j*4)+2] = val;
-				pscidata[(j*4)+3] = 255;
-			}
-			canvasContext.putImageData(psci, drawX, drawY);
-		}
-
-		var requestAnimFrame = (function() {
-			return window.requestAnimationFrame ||
-			window.webkitRequestAnimationFrame ||
-			window.mozRequestAnimationFrame ||
-			window.oRequestAnimationFrame ||
-			window.msRequestAnimationFrame ||
-			function(/* function FrameRequestCallback */ callback, /* DOMElement Element */ element) {
-				return window.setTimeout(callback, 1000/60);
-			};
-		})();
-
-		var cancelRequestAnimFrame = (function() {
-			return window.cancelAnimationFrame ||
-				window.webkitCancelRequestAnimationFrame ||
-				window.mozCancelRequestAnimationFrame ||
-				window.oCancelRequestAnimationFrame ||
-				window.msCancelRequestAnimationFrame ||
-				window.clearTimeout;
-		})();
-
 		return true;
 	}
 }
+
+export default clm;

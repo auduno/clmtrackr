@@ -73,8 +73,7 @@
 	<body>
 		<script src="./js/libs/utils.js"></script>
 		<script src="./js/libs/dat.gui.min.js"></script>
-		<script src="../clmtrackr.js"></script>
-		<script src="../models/model_pca_20_svm.js"></script>
+		<script src="../build/clmtrackr.js"></script>
 		<script src="./js/libs/Stats.js"></script>
 
 		<link rel="stylesheet" type="text/css" href="./styles/imgareaselect-default.css" />
@@ -111,7 +110,7 @@
 				img.src = './media/franck_02159.jpg';
 
 				var ctrack = new clm.tracker({stopOnConvergence : true});
-				ctrack.init(pModel);
+				ctrack.init();
 
 				stats = new Stats();
 				stats.domElement.style.position = 'absolute';
