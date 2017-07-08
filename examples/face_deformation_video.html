@@ -156,11 +156,10 @@
 				var insertAltVideo = function(video) {
 					// insert alternate video if getUserMedia not available
 					if (supports_video()) {
-						if (supports_ogg_theora_video()) {
-							video.src = "./media/franck.ogv";
+						if (supports_webm_video()) {
+							video.src = "./media/franck.webm";
 						} else if (supports_h264_baseline_video()) {
-							alert("no mp4 video :(");
-							//video.src = "./media/capture4.mp4";
+							video.src = "./media/franck.mp4";
 						} else {
 							return false;
 						}

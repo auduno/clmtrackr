@@ -158,8 +158,8 @@
 				var insertAltVideo = function(video) {
 					// insert alternate video if getUserMedia not available
 					if (supports_video()) {
-						if (supports_ogg_theora_video()) {
-							video.src = "./media/cap13_edit2.ogv";
+						if (supports_webm_video()) {
+							video.src = "./media/cap13_edit2.webm";
 						} else if (supports_h264_baseline_video()) {
 							video.src = "./media/cap13_edit2.mp4";
 						} else {
