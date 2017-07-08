@@ -36,7 +36,6 @@
 			#container, #webglcontainer {
 				position : relative;
 				width : 370px;
-				height : 346px;
 				/*margin : 0px auto;*/
 			}
 
@@ -141,6 +140,8 @@
 			<p id='gUMMessage'></p>
 			<script>
 				var vid = document.getElementById('videoel');
+				var vid_width = vid.width;
+				var vid_height = vid.height;
 				var overlay = document.getElementById('overlay');
 				var overlayCC = overlay.getContext('2d');
 
@@ -163,7 +164,7 @@
 						} else {
 							return false;
 						}
-						//video.play();
+						fd.init(document.getElementById('webgl'));
 						return true;
 					} else return false;
 				}
@@ -173,7 +174,7 @@
 					var cc = canvas.getContext('2d');
 					var img = new Image();
 					img.onload = function() {
-						cc.drawImage(img, 0, 0, 370, 288);
+						cc.drawImage(img, 0, 0, vid_width, vid_height);
 					};
 					img.src = './media/franck_02221.jpg';
 					vid.className = "hide";
@@ -209,7 +210,16 @@
 					} else {
 						vid.src = (window.URL && window.URL.createObjectURL(stream));
 					}
-					vid.play();
+					vid.onloadedmetadata = function() {
+						// resize overlay and video if proportions are different
+						var proportion = vid.videoWidth/vid.videoHeight;
+						vid_width = Math.round(vid_height * proportion);
+						vid.width = vid_width;
+						overlay.width = vid_width;
+
+						fd.init(document.getElementById('webgl'));
+						vid.play();
+					}
 				}
 
 				function gumFail() {
@@ -254,12 +264,11 @@
 
 				var positions;
 				var fd = new faceDeformer();
-				fd.init(document.getElementById('webgl'));
 
 				function drawLoop() {
 					// track in video
 					positions = ctrack.getCurrentPosition();
-					overlayCC.clearRect(0, 0, 720, 576);
+					overlayCC.clearRect(0, 0, vid_width, vid_height);
 					if (positions) {
 						ctrack.draw(overlay);
 					}
@@ -292,7 +301,7 @@
 				function setupFaceDeformation() {
 					// draw face deformation model
 					positions = ctrack.getCurrentPosition();
-					overlayCC.clearRect(0, 0, 720, 576);
+					overlayCC.clearRect(0, 0, vid_width, vid_height);
 					ctrack.draw(overlay);
 					fd.load(vid, positions, pModel);
 					fd.draw(positions);

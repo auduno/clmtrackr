@@ -138,8 +138,16 @@
 				// when everything is ready, automatically start everything ?
 
 				var vid = document.getElementById('videoel');
+				var vid_width = vid.width;
+				var vid_height = vid.height;
 				var overlay = document.getElementById('overlay');
 				var overlayCC = overlay.getContext('2d');
+				var webgl_overlay = document.getElementById('webgl');
+
+				// canvas for copying videoframes to
+				var videocanvas = document.createElement('CANVAS');
+				videocanvas.width = vid_width;
+				videocanvas.height = vid_height;
 
 				/*********** Setup of video/webcam and checking for webGL support *********/
 
@@ -168,7 +176,7 @@
 						} else {
 							return false;
 						}
-						//video.play();
+						fd.init(webgl_overlay);
 						return true;
 					} else return false;
 				}
@@ -193,7 +201,18 @@
 					} else {
 						vid.src = (window.URL && window.URL.createObjectURL(stream));
 					}
-					vid.play();
+					vid.onloadedmetadata = function() {
+						// resize overlay and video if proportions are different
+						var proportion = vid.videoWidth/vid.videoHeight;
+						vid_width = Math.round(vid_height * proportion);
+						vid.width = vid_width;
+						overlay.width = vid_width;
+						webgl_overlay.width = vid_width;
+						videocanvas.width = vid_width;
+						
+						fd.init(webgl_overlay);
+						vid.play();
+					}
 				}
 
 				function gumFail() {
@@ -235,18 +254,6 @@
 				}
 
 				var fd = new faceDeformer();
-				fd.init(document.getElementById('webgl'));
-				var wc1 = document.getElementById('webgl').getContext('webgl') || document.getElementById('webgl').getContext('experimental-webgl')
-				wc1.clearColor(0,0,0,0);
-
-				// canvas for copying the warped face to
-				var newcanvas = document.createElement('CANVAS');
-				newcanvas.width = vid.width;
-				newcanvas.height = vid.height;
-				// canvas for copying videoframes to
-				var videocanvas = document.createElement('CANVAS');
-				videocanvas.width = vid.width;
-				videocanvas.height = vid.height;
 
 				var mouth_vertices = [
 					[44,45,61,44],
@@ -324,9 +331,9 @@
 
 				function drawGridLoop() {
 					// get position of face
-					positions = ctrack.getCurrentPosition(vid);
+					positions = ctrack.getCurrentPosition();
 
-					overlayCC.clearRect(0, 0, 500, 375);
+					overlayCC.clearRect(0, 0, vid_width, vid_height);
 					if (positions) {
 						// draw current grid
 						ctrack.draw(overlay);
@@ -334,7 +341,6 @@
 					// check whether mask has converged
 					var pn = ctrack.getConvergence();
 					if (pn < 0.4) {
-						//switchMasks(positions);
 						drawMaskLoop();
 					} else {
 						requestAnimFrame(drawGridLoop);
@@ -344,7 +350,7 @@
 				function drawMaskLoop() {
 					videocanvas.getContext('2d').drawImage(vid,0,0,videocanvas.width,videocanvas.height);
 
-					var pos = ctrack.getCurrentPosition(vid);
+					var pos = ctrack.getCurrentPosition();
 
 					if (pos) {
 						// create additional points around face
@@ -365,23 +371,13 @@
 
 						fd.load(videocanvas, newPos, pModel, newVertices);
 
-						// get position of face
-						//positions = ctrack.getCurrentPosition();
-
 						var parameters = ctrack.getCurrentParameters();
 						for (var i = 6;i < parameters.length;i++) {
 							parameters[i] += ph['component '+(i-3)];
-							/*if (i == 23) {
-								parameters[i] += 20;
-							}*/
 						}
 						positions = ctrack.calculatePositions(parameters);
 
-						/*for (var i = 0;i < positions.length;i++) {
-							positions[i][1] += 1;
-						}*/
-
-						overlayCC.clearRect(0, 0, 400, 300);
+						overlayCC.clearRect(0, 0, vid_width, vid_height);
 						if (positions) {
 							// add positions from extended boundary, unmodified
 							newPos = positions.concat(addPos);

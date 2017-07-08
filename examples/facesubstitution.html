@@ -167,8 +167,25 @@
 				// when everything is ready, automatically start everything ?
 
 				var vid = document.getElementById('videoel');
+				var vid_width = vid.width;
+				var vid_height = vid.height;
 				var overlay = document.getElementById('overlay');
 				var overlayCC = overlay.getContext('2d');
+				var webgl_overlay = document.getElementById('webgl');
+				var webgl_overlay2 = document.getElementById('webgl2');
+
+				// canvas for copying the warped face to
+				var newcanvas = document.createElement('CANVAS');
+				newcanvas.width = vid_width;
+				newcanvas.height = vid_height;
+				// canvas for copying videoframes to
+				var videocanvas = document.createElement('CANVAS');
+				videocanvas.width = vid_width;
+				videocanvas.height = vid_height;
+				// canvas for masking
+				var maskcanvas = document.createElement('CANVAS');
+				maskcanvas.width = vid_width;
+				maskcanvas.height = vid_height;
 
 				/*********** Setup of video/webcam and checking for webGL support *********/
 
@@ -196,7 +213,8 @@
 						} else {
 							return false;
 						}
-						//video.play();
+						fd.init(webgl_overlay);
+						fd2.init(webgl_overlay2);
 						return true;
 					} else return false;
 				}
@@ -221,7 +239,22 @@
 					} else {
 						vid.src = (window.URL && window.URL.createObjectURL(stream));
 					}
-					vid.play();
+					vid.onloadedmetadata = function() {
+						// resize overlay and video if proportions are different
+						var proportion = vid.videoWidth/vid.videoHeight;
+						vid_width = Math.round(vid_height * proportion);
+						vid.width = vid_width;
+						overlay.width = vid_width;
+						webgl_overlay.width = vid_width;
+						webgl_overlay2.width = vid_width;
+						newcanvas.width = vid_width;
+						videocanvas.width = vid_width;
+						maskcanvas.width = vid_width;
+
+						fd.init(webgl_overlay);
+						fd2.init(webgl_overlay2);
+						vid.play();
+					}
 				}
 
 				function gumFail() {
@@ -257,7 +290,7 @@
 
 				function updateMask(el) {
 					currentMask = parseInt(el.target.value, 10);
-					var positions = ctrack.getCurrentPosition(vid);
+					var positions = ctrack.getCurrentPosition();
 					if (positions) {
 						switchMasks(positions);
 					}
@@ -273,14 +306,7 @@
 				}
 
 				var fd = new faceDeformer();
-				fd.init(document.getElementById('webgl'));
-				var wc1 = document.getElementById('webgl').getContext('webgl') || document.getElementById('webgl').getContext('experimental-webgl')
-				wc1.clearColor(0,0,0,0);
-
 				var fd2 = new faceDeformer();
-				fd2.init(document.getElementById('webgl2'));
-				var wc2 = document.getElementById('webgl2').getContext('webgl') || document.getElementById('webgl2').getContext('experimental-webgl')
-				wc2.clearColor(0,0,0,0);
 
 				var masks = {
 					"average" : [[26.416248681267973, 69.287261104729708], [24.481184011083002, 109.1589911732479], [29.947934496257105, 148.57677024306452], [40.60811914491601, 185.45355598250219], [58.738097832656997, 216.6373204614957], [81.913770252207783, 237.8126294428132], [109.98606755351314, 257.32753166261085], [146.73017889094805, 264.20702756677571], [176.39901111159972, 257.35535351543069], [205.55603543434725, 238.34973455076488], [230.2355979713912, 210.41080746713624], [246.42195156813636, 177.61588628182037], [256.27933737115922, 136.43585286772219], [257.59862842161016, 101.26962757170907], [254.73574762861881, 63.296736154716768], [231.99351427704215, 39.831219799322724], [211.74886735135794, 29.357561061634286], [185.76946624427666, 32.692120457915841], [164.22794828410485, 39.057255405015212], [46.913242738637145, 44.216922272932521], [67.285057768685547, 32.598869110365555], [94.508786161963428, 34.746232646423401], [114.82786184548833, 39.533999746268229], [65.935953298843103, 69.239210402794683], [84.787589310043472, 58.321913189471772], [107.1385272571674, 69.051184056088701], [84.265668561805413, 74.447322016970119], [86.02844527485162, 66.55652441349649], [215.49276321482714, 66.02198446506911], [194.41225043477402, 56.580567518322354], [173.10349613934835, 67.506651798297085], [193.89655333472706, 70.825843235112714], [194.97190332017632, 64.213669799586413], [140.21544525228168, 50.532541524375866], [115.12210668936649, 112.86816444161286], [106.91733219119472, 128.11159519340237], [116.15332322527513, 140.65598165170533], [143.55679637420633, 142.73810254422773], [167.66884888729888, 137.95626733353842], [177.01070972200523, 125.94118566337217], [167.72534960722709, 111.07005102224311], [141.09391638922847, 89.711267100602939], [125.01121871692496, 134.01776882451776], [158.83114482022663, 132.84441173561655], [98.530013119819074, 181.49830160240677], [114.57531577249451, 172.88988327185314], [130.69321885263625, 168.51487947819879], [140.91575863744487, 170.62230018050224], [150.99524791299294, 168.10359663640762], [166.86355823591094, 171.92886610080987], [186.52748819945225, 179.57395522560827], [172.54811810821857, 193.62104452332397], [161.34374255744575, 203.55652478332667], [143.04951921782722, 206.98995295806665], [122.71362572694508, 202.88542194975037], [109.36831831524565, 194.44995485842813], [121.30529318118789, 187.44959256875671], [141.15688782807084, 190.12567632986739], [161.94486681509784, 187.9983882494468], [161.78346166803792, 178.31913412814549], [141.60005262336557, 178.73596022750081], [121.19014424606702, 179.74550271876572], [142.06000674291235, 125.94776468631429], [74.161858259749053, 61.982126979168953], [99.563603953011338, 61.887044688264439], [97.202478466508737, 72.650836394381287], [74.199064214851546, 73.344884154018885], [204.65317864223729, 59.203268807746532], [180.45823699179422, 60.544222235843449], [183.20168844348697, 70.667846856664895], [204.99820389502713, 70.525790218266522]],
@@ -303,19 +329,6 @@
 				};
 
 				var currentMask = 0;
-
-				// canvas for copying the warped face to
-				var newcanvas = document.createElement('CANVAS');
-				newcanvas.width = vid.width;
-				newcanvas.height = vid.height;
-				// canvas for copying videoframes to
-				var videocanvas = document.createElement('CANVAS');
-				videocanvas.width = vid.width;
-				videocanvas.height = vid.height;
-				// canvas for masking
-				var maskcanvas = document.createElement('CANVAS');
-				maskcanvas.width = vid.width;
-				maskcanvas.height = vid.height;
 
 				// create canvases for all the faces
 				var imageCanvases = {};
@@ -402,9 +415,9 @@
 
 				function drawGridLoop() {
 					// get position of face
-					positions = ctrack.getCurrentPosition(vid);
+					positions = ctrack.getCurrentPosition();
 
-					overlayCC.clearRect(0, 0, 500, 375);
+					overlayCC.clearRect(0, 0, vid_width, vid_height);
 					if (positions) {
 						// draw current grid
 						ctrack.draw(overlay);
@@ -452,11 +465,6 @@
 					tempcoords.push(positions[19]);
 					createMasking(maskcanvas, tempcoords);
 
-					/*document.body.appendChild(newcanvas);
-					document.body.appendChild(videocanvas);
-					document.body.appendChild(maskcanvas);
-					debugger;*/
-
 					// do poisson blending
 					Poisson.load(newcanvas, videocanvas, maskcanvas, function() {
 						var result = Poisson.blend(30, 0, 0);
@@ -474,11 +482,7 @@
 					// get position of face
 					positions = ctrack.getCurrentPosition();
 
-					/*for (var i = 0;i < positions.length;i++) {
-						positions[i][1] += 1;
-					}*/
-
-					overlayCC.clearRect(0, 0, 400, 300);
+					overlayCC.clearRect(0, 0, vid_width, vid_height);
 					if (positions) {
 						// draw mask on top of face
 						fd.draw(positions);
