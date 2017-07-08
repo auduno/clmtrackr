@@ -50,16 +50,8 @@
 				max-width: 600px;
 			}
 
-			#sketch {
-				display: none;
-			}
-
 			h2 {
 				font-weight : 400;
-			}
-
-			.masks {
-				display: none;
 			}
 
 			.btn {
@@ -194,33 +186,30 @@
 					alert("Your browser does not seem to support WebGL. Unfortunately this face mask example depends on WebGL, so you'll have to try it in another browser. :(");
 				}
 
+				function gumSuccess( stream ) {
+					// add camera stream if getUserMedia succeeded
+					if ("srcObject" in vid) {
+						vid.srcObject = stream;
+					} else {
+						vid.src = (window.URL && window.URL.createObjectURL(stream));
+					}
+					vid.play();
+				}
+
+				function gumFail() {
+					// fall back to video if getUserMedia failed
+					insertAltVideo(vid);
+					alert("There was some problem trying to fetch video from your webcam, using a fallback video instead.");
+				}
+
 				navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
 				window.URL = window.URL || window.webkitURL || window.msURL || window.mozURL;
 
 				// check for camerasupport
-				if (navigator.getUserMedia) {
-					// set up stream
-
-					// chrome 19 shim
-					var videoSelector = {video : true};
-					if (window.navigator.appVersion.match(/Chrome\/(.*?) /)) {
-						var chromeVersion = parseInt(window.navigator.appVersion.match(/Chrome\/(\d+)\./)[1], 10);
-						if (chromeVersion < 20) {
-							videoSelector = "video";
-						}
-					};
-
-					navigator.getUserMedia(videoSelector, function( stream ) {
-						if (vid.mozCaptureStream) {
-							vid.mozSrcObject = stream;
-						} else {
-							vid.src = (window.URL && window.URL.createObjectURL(stream)) || stream;
-						}
-						vid.play();
-					}, function() {
-						insertAltVideo(vid);
-						alert("There was some problem trying to fetch video from your webcam, using a fallback video instead.");
-					});
+				if (navigator.mediaDevices) {
+					navigator.mediaDevices.getUserMedia({video : true}).then(gumSuccess).catch(gumFail);
+				} else if (navigator.getUserMedia) {
+					navigator.getUserMedia({video : true}, gumSuccess, gumFail);
 				} else {
 					insertAltVideo(vid);
 					alert("Your browser does not seem to support getUserMedia, using a fallback video instead.");
