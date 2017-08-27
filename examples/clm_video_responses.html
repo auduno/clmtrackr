@@ -46,14 +46,6 @@
 				max-width: 950px;
 			}
 
-			#sketch {
-				display: none;
-			}
-
-			#filter {
-				display: none;
-			}
-
 			h2 {
 				font-weight : 400;
 			}
@@ -105,8 +97,6 @@
 			<h2>Response types example</h2>
 			<div id="container">
 				<video id="videoel" width="400" height="300" preload="auto" loop>
-					<!--<video id="videoel" width="320" height="240" preload="auto">-->
-					<!--<source src="./media/franck.ogv" type="video/ogg"/>-->
 				</video>
 				<canvas id="overlay" width="400" height="300"></canvas>
 			</div>
@@ -129,6 +119,8 @@
 			<a href="https://github.com/auduno/clmtrackr"><img style="position: absolute; top: 0; left: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_left_green_007200.png" alt="Fork me on GitHub"></a>
 			<script>
 				var vid = document.getElementById('videoel');
+				var vid_width = vid.width;
+				var vid_height = vid.height;
 				var overlay = document.getElementById('overlay');
 				var overlayCC = overlay.getContext('2d');
 
@@ -148,45 +140,51 @@
 
 				var insertAltVideo = function(video) {
 					if (supports_video()) {
-						if (supports_ogg_theora_video()) {
-							video.src = "./media/cap12_edit.ogv";
+						if (supports_webm_video()) {
+							video.src = "./media/cap12_edit.webm";
 						} else if (supports_h264_baseline_video()) {
 							video.src = "./media/cap12_edit.mp4";
 						} else {
 							return false;
 						}
-						//video.play();
 						return true;
 					} else return false;
 				}
+
+				function gumSuccess( stream ) {
+					// add camera stream if getUserMedia succeeded
+					if ("srcObject" in vid) {
+						vid.srcObject = stream;
+					} else {
+						vid.src = (window.URL && window.URL.createObjectURL(stream));
+					}
+					vid.onloadedmetadata = function() {
+						// resize overlay and video if proportions are different
+						var proportion = vid.videoWidth/vid.videoHeight;
+						vid_width = Math.round(vid_height * proportion);
+						vid.width = vid_width;
+						overlay.width = vid_width;
+
+						vid.play();
+					}
+				}
+
+				function gumFail() {
+					// fall back to video if getUserMedia failed
+					insertAltVideo(vid);
+					document.getElementById('gum').className = "hide";
+					document.getElementById('nogum').className = "nohide";
+					alert("There was some problem trying to fetch video from your webcam, using a fallback video instead.");
+				}
+
 				navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
 				window.URL = window.URL || window.webkitURL || window.msURL || window.mozURL;
 
 				// check for camerasupport
-				if (navigator.getUserMedia) {
-					// set up stream
-
-					var videoSelector = {video : true};
-					if (window.navigator.appVersion.match(/Chrome\/(.*?) /)) {
-						var chromeVersion = parseInt(window.navigator.appVersion.match(/Chrome\/(\d+)\./)[1], 10);
-						if (chromeVersion < 20) {
-							videoSelector = "video";
-						}
-					};
-
-					navigator.getUserMedia(videoSelector, function( stream ) {
-						if (vid.mozCaptureStream) {
-							vid.mozSrcObject = stream;
-						} else {
-							vid.src = (window.URL && window.URL.createObjectURL(stream)) || stream;
-						}
-						vid.play();
-					}, function() {
-						insertAltVideo(vid);
-						document.getElementById('gum').className = "hide";
-						document.getElementById('nogum').className = "nohide";
-						alert("There was some problem trying to fetch video from your webcam, using a fallback video instead.");
-					});
+				if (navigator.mediaDevices) {
+					navigator.mediaDevices.getUserMedia({video : true}).then(gumSuccess).catch(gumFail);
+				} else if (navigator.getUserMedia) {
+					navigator.getUserMedia({video : true}, gumSuccess, gumFail);
 				} else {
 					insertAltVideo(vid);
 					document.getElementById('gum').className = "hide";
@@ -207,7 +205,7 @@
 
 				function drawLoop() {
 					requestAnimFrame(drawLoop);
-					overlayCC.clearRect(0, 0, 400, 300);
+					overlayCC.clearRect(0, 0, vid_width, vid_height);
 					//psrElement.innerHTML = "score :" + ctrack.getScore().toFixed(4);
 					if (ctrack.getCurrentPosition()) {
 						ctrack.draw(overlay);

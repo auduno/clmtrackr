@@ -36,7 +36,6 @@
 			#container, #webglcontainer {
 				position : relative;
 				width : 370px;
-				height : 346px;
 				/*margin : 0px auto;*/
 			}
 
@@ -45,14 +44,6 @@
 				margin-left : 100px;
 				margin-right : 100px;
 				max-width: 950px;
-			}
-
-			#sketch {
-				display: none;
-			}
-
-			#filter {
-				display: none;
 			}
 
 			h2 {
@@ -149,16 +140,12 @@
 			<p id='gUMMessage'></p>
 			<script>
 				var vid = document.getElementById('videoel');
+				var vid_width = vid.width;
+				var vid_height = vid.height;
 				var overlay = document.getElementById('overlay');
 				var overlayCC = overlay.getContext('2d');
 
-				var ctrack = new clm.tracker();
-				ctrack.init(pModel);
-
-				stats = new Stats();
-				stats.domElement.style.position = 'absolute';
-				stats.domElement.style.top = '0px';
-				document.getElementById('container').appendChild( stats.domElement );
+				/*********** Setup of video/webcam and checking for webGL support *********/
 
 				function enablestart() {
 					var startbutton = document.getElementById('startbutton');
@@ -167,17 +154,16 @@
 				}
 
 				var insertAltVideo = function(video) {
-
+					// insert alternate video if getUserMedia not available
 					if (supports_video()) {
-						if (supports_ogg_theora_video()) {
-							video.src = "./media/franck.ogv";
+						if (supports_webm_video()) {
+							video.src = "./media/franck.webm";
 						} else if (supports_h264_baseline_video()) {
-							alert("no mp4 video :(");
-							//video.src = "./media/capture4.mp4";
+							video.src = "./media/franck.mp4";
 						} else {
 							return false;
 						}
-						//video.play();
+						fd.init(document.getElementById('webgl'));
 						return true;
 					} else return false;
 				}
@@ -187,7 +173,7 @@
 					var cc = canvas.getContext('2d');
 					var img = new Image();
 					img.onload = function() {
-						cc.drawImage(img, 0, 0, 370, 288);
+						cc.drawImage(img, 0, 0, vid_width, vid_height);
 					};
 					img.src = './media/franck_02221.jpg';
 					vid.className = "hide";
@@ -216,34 +202,41 @@
 					alert("Your browser does not seem to support WebGL. Unfortunately this face deformation example depends on WebGL, so you'll have to try it in another browser. :(");
 				}
 
+				function gumSuccess( stream ) {
+					// add camera stream if getUserMedia succeeded
+					if ("srcObject" in vid) {
+						vid.srcObject = stream;
+					} else {
+						vid.src = (window.URL && window.URL.createObjectURL(stream));
+					}
+					vid.onloadedmetadata = function() {
+						// resize overlay and video if proportions are different
+						var proportion = vid.videoWidth/vid.videoHeight;
+						vid_width = Math.round(vid_height * proportion);
+						vid.width = vid_width;
+						overlay.width = vid_width;
+
+						fd.init(document.getElementById('webgl'));
+						vid.play();
+					}
+				}
+
+				function gumFail() {
+					// fall back to video if getUserMedia failed
+					insertAltVideo(vid);
+					document.getElementById('gum').className = "hide";
+					document.getElementById('nogum').className = "nohide";
+					alert("There was some problem trying to fetch video from your webcam, using a static image instead.");
+				}
+
 				navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
 				window.URL = window.URL || window.webkitURL || window.msURL || window.mozURL;
+
 				// check for camerasupport
-				if (navigator.getUserMedia) {
-					// set up stream
-
-					var videoSelector = {video : true};
-					if (window.navigator.appVersion.match(/Chrome\/(.*?) /)) {
-						var chromeVersion = parseInt(window.navigator.appVersion.match(/Chrome\/(\d+)\./)[1], 10);
-						if (chromeVersion < 20) {
-							videoSelector = "video";
-						}
-					};
-
-					navigator.getUserMedia(videoSelector, function( stream ) {
-						if (vid.mozCaptureStream) {
-							vid.mozSrcObject = stream;
-						} else {
-							vid.src = (window.URL && window.URL.createObjectURL(stream)) || stream;
-						}
-						vid.play();
-					}, function() {
-						//insertAltVideo(vid);
-						insertAltImage();
-						document.getElementById('gum').className = "hide";
-						document.getElementById('nogum').className = "nohide";
-						alert("There was some problem trying to fetch video from your webcam, using a static image instead.");
-					});
+				if (navigator.mediaDevices) {
+					navigator.mediaDevices.getUserMedia({video : true}).then(gumSuccess).catch(gumFail);
+				} else if (navigator.getUserMedia) {
+					navigator.getUserMedia({video : true}, gumSuccess, gumFail);
 				} else {
 					insertAltImage();
 					//insertAltVideo(vid);
@@ -253,6 +246,11 @@
 				}
 
 				vid.addEventListener('canplay', enablestart, false);
+
+				/*********** Code for face tracking and face deformation *********/
+
+				var ctrack = new clm.tracker();
+				ctrack.init(pModel);
 
 				function startVideo() {
 					// start video
@@ -265,16 +263,11 @@
 
 				var positions;
 				var fd = new faceDeformer();
-				fd.init(document.getElementById('webgl'));
-
-				document.addEventListener("clmtrackrIteration", function(event) {
-					stats.update();
-				}, false);
 
 				function drawLoop() {
 					// track in video
 					positions = ctrack.getCurrentPosition();
-					overlayCC.clearRect(0, 0, 720, 576);
+					overlayCC.clearRect(0, 0, vid_width, vid_height);
 					if (positions) {
 						ctrack.draw(overlay);
 					}
@@ -307,7 +300,7 @@
 				function setupFaceDeformation() {
 					// draw face deformation model
 					positions = ctrack.getCurrentPosition();
-					overlayCC.clearRect(0, 0, 720, 576);
+					overlayCC.clearRect(0, 0, vid_width, vid_height);
 					ctrack.draw(overlay);
 					fd.load(vid, positions, pModel);
 					fd.draw(positions);
@@ -477,6 +470,18 @@
 					"chum" : [0, 0, 13, 1.2, 0, 2.5, 0, 1, 16.8, -5, 0, 0, 0, 0, 0, 0, 0, 11.6, 0, -7],
 					"disgust" : [-4, -14, 8, 2, 3, -5.6, -2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -10, 0, -5],
 				};
+
+				/*********** Code for stats **********/
+
+				stats = new Stats();
+				stats.domElement.style.position = 'absolute';
+				stats.domElement.style.top = '0px';
+				document.getElementById('container').appendChild( stats.domElement );
+
+				document.addEventListener("clmtrackrIteration", function(event) {
+					stats.update();
+				}, false);
+
 			</script>
 		</div>
 	</body>

@@ -23,8 +23,7 @@
 				-ms-filter : fliph; /*IE*/
 				filter : fliph; /*IE*/
 
-				width : 600px;
-				height : 450px;
+				
 			}
 
 			#videoel {
@@ -34,8 +33,7 @@
 				-ms-filter : fliph; /*IE*/
 				filter : fliph; /*IE*/
 
-				width : 600px;
-				height : 450px;
+				
 			}
 
 			#container {
@@ -50,16 +48,8 @@
 				max-width: 600px;
 			}
 
-			#sketch {
-				display: none;
-			}
-
 			h2 {
 				font-weight : 400;
-			}
-
-			.masks {
-				display: none;
 			}
 
 			.btn {
@@ -133,11 +123,17 @@
 			</div>
 			<a href="https://github.com/auduno/clmtrackr"><img style="position: absolute; top: 0; left: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_left_green_007200.png" alt="Fork me on GitHub"></a>
 			<script>
-				// when everything is ready, automatically start everything ?
-
 				var vid = document.getElementById('videoel');
+				var vid_width = vid.width;
+				var vid_height = vid.height;
 				var overlay = document.getElementById('overlay');
 				var overlayCC = overlay.getContext('2d');
+				var webglOverlay = document.getElementById('webgl');
+
+				// canvas for copying videoframes to
+				var videocanvas = document.createElement('CANVAS');
+				videocanvas.width = vid_width;
+				videocanvas.height = vid_height;
 
 				/*********** Setup of video/webcam and checking for webGL support *********/
 
@@ -158,17 +154,45 @@
 				});
 
 				var insertAltVideo = function(video) {
+					// insert alternate video if getUserMedia not available
 					if (supports_video()) {
-						if (supports_ogg_theora_video()) {
-							video.src = "./media/cap13_edit2.ogv";
+						if (supports_webm_video()) {
+							video.src = "./media/cap13_edit2.webm";
 						} else if (supports_h264_baseline_video()) {
 							video.src = "./media/cap13_edit2.mp4";
 						} else {
 							return false;
 						}
-						//video.play();
+						fd.init(webglOverlay);
 						return true;
 					} else return false;
+				}
+
+				function gumSuccess( stream ) {
+					// add camera stream if getUserMedia succeeded
+					if ("srcObject" in vid) {
+						vid.srcObject = stream;
+					} else {
+						vid.src = (window.URL && window.URL.createObjectURL(stream));
+					}
+					vid.onloadedmetadata = function() {
+						// resize overlay and video if proportions are different
+						var proportion = vid.videoWidth/vid.videoHeight;
+						vid_width = Math.round(vid_height * proportion);
+						vid.width = vid_width;
+						overlay.width = vid_width;
+						videocanvas.width = vid_width;
+						webglOverlay.width = vid_width;
+
+						fd.init(webglOverlay);
+						vid.play();
+					}
+				}
+
+				function gumFail() {
+					// fall back to video if getUserMedia failed
+					insertAltVideo(vid);
+					alert("There was some problem trying to fetch video from your webcam, using a fallback video instead.");
 				}
 
 				// check whether browser supports webGL
@@ -188,29 +212,10 @@
 				window.URL = window.URL || window.webkitURL || window.msURL || window.mozURL;
 
 				// check for camerasupport
-				if (navigator.getUserMedia) {
-					// set up stream
-
-					// chrome 19 shim
-					var videoSelector = {video : true};
-					if (window.navigator.appVersion.match(/Chrome\/(.*?) /)) {
-						var chromeVersion = parseInt(window.navigator.appVersion.match(/Chrome\/(\d+)\./)[1], 10);
-						if (chromeVersion < 20) {
-							videoSelector = "video";
-						}
-					};
-
-					navigator.getUserMedia(videoSelector, function( stream ) {
-						if (vid.mozCaptureStream) {
-							vid.mozSrcObject = stream;
-						} else {
-							vid.src = (window.URL && window.URL.createObjectURL(stream)) || stream;
-						}
-						vid.play();
-					}, function() {
-						insertAltVideo(vid);
-						alert("There was some problem trying to fetch video from your webcam, using a fallback video instead.");
-					});
+				if (navigator.mediaDevices) {
+					navigator.mediaDevices.getUserMedia({video : true}).then(gumSuccess).catch(gumFail);
+				} else if (navigator.getUserMedia) {
+					navigator.getUserMedia({video : true}, gumSuccess, gumFail);
 				} else {
 					insertAltVideo(vid);
 					alert("Your browser does not seem to support getUserMedia, using a fallback video instead.");
@@ -241,18 +246,6 @@
 				}
 
 				var fd = new faceDeformer();
-				fd.init(document.getElementById('webgl'));
-				var wc1 = document.getElementById('webgl').getContext('webgl') || document.getElementById('webgl').getContext('experimental-webgl')
-				wc1.clearColor(0,0,0,0);
-
-				// canvas for copying the warped face to
-				var newcanvas = document.createElement('CANVAS');
-				newcanvas.width = vid.width;
-				newcanvas.height = vid.height;
-				// canvas for copying videoframes to
-				var videocanvas = document.createElement('CANVAS');
-				videocanvas.width = vid.width;
-				videocanvas.height = vid.height;
 
 				var mouth_vertices = [
 					[44,45,61,44],
@@ -330,9 +323,9 @@
 
 				function drawGridLoop() {
 					// get position of face
-					positions = ctrack.getCurrentPosition(vid);
+					positions = ctrack.getCurrentPosition();
 
-					overlayCC.clearRect(0, 0, 500, 375);
+					overlayCC.clearRect(0, 0, vid_width, vid_height);
 					if (positions) {
 						// draw current grid
 						ctrack.draw(overlay);
@@ -350,7 +343,7 @@
 				function drawMaskLoop() {
 					videocanvas.getContext('2d').drawImage(vid,0,0,videocanvas.width,videocanvas.height);
 
-					var pos = ctrack.getCurrentPosition(vid);
+					var pos = ctrack.getCurrentPosition();
 
 					if (pos) {
 						// create additional points around face
@@ -371,21 +364,13 @@
 
 						fd.load(videocanvas, newPos, pModel, newVertices);
 
-						// get position of face
-						//positions = ctrack.getCurrentPosition();
-
 						var parameters = ctrack.getCurrentParameters();
 						for (var i = 6;i < parameters.length;i++) {
 							parameters[i] *= multiplier;
 						}
 						positions = ctrack.calculatePositions(parameters);
 
-
-						/*for (var i = 0;i < positions.length;i++) {
-							positions[i][1] += 1;
-						}*/
-
-						overlayCC.clearRect(0, 0, 400, 300);
+						overlayCC.clearRect(0, 0, vid_width, vid_height);
 						if (positions) {
 							// add positions from extended boundary, unmodified
 							newPos = positions.concat(addPos);
