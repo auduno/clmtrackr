@@ -1,6 +1,6 @@
 {
   "name": "clmtrackr",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Javascript library for precise tracking of facial features via Constrained Local Models",
   "main": "build/clmtrackr.js",
   "module": "build/clmtrackr.module.js",
