@@ -20,6 +20,7 @@ import svmFilter from './svmfilter/svmfilter_fft.js';
 import webglFilter from './svmfilter/svmfilter_webgl.js';
 import mosseFilterResponses from './mossefilter/mosseFilterResponses.js';
 import pModel from '../models/model_pca_20_svm.js';
+import canRenderToFloatTexture from './utils/webgl_tests.js';
 
 //import { drawPatches } from './utils.debugging.js';
 
@@ -208,6 +209,11 @@ var clm = {
 					webGLContext = webGLTestCanvas.getContext('webgl') || webGLTestCanvas.getContext('experimental-webgl');
 					if (!webGLContext || !webGLContext.getExtension('OES_texture_float')) {
 						webGLContext = null;
+					} else {
+						// test whether it's possible to render to float texture
+						if (!canRenderToFloatTexture(webGLContext)) {
+							webGLContext = null;
+						}
 					}
 				}
 
