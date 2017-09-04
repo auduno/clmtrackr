@@ -154,6 +154,15 @@
 					} else return false;
 				}
 
+				function adjustVideoProportions() {
+					// resize overlay and video if proportions of video are not 4:3
+					// keep same height, just change width
+					var proportion = vid.videoWidth/vid.videoHeight;
+					vid_width = Math.round(vid_height * proportion);
+					vid.width = vid_width;
+					overlay.width = vid_width;
+				}
+
 				function gumSuccess( stream ) {
 					// add camera stream if getUserMedia succeeded
 					if ("srcObject" in vid) {
@@ -162,13 +171,16 @@
 						vid.src = (window.URL && window.URL.createObjectURL(stream));
 					}
 					vid.onloadedmetadata = function() {
-						// resize overlay and video if proportions are different
-						var proportion = vid.videoWidth/vid.videoHeight;
-						vid_width = Math.round(vid_height * proportion);
-						vid.width = vid_width;
-						overlay.width = vid_width;
-
+						adjustVideoProportions();
 						vid.play();
+					}
+					vid.onresize = function() {
+						adjustVideoProportions();
+						if (trackingStarted) {
+							ctrack.stop();
+							ctrack.reset();
+							ctrack.start(vid);
+						}
 					}
 				}
 
@@ -199,14 +211,16 @@
 
 				/*********** Code for face tracking *********/
 
-				var ctrack = new clm.tracker({useWebGL : true});
+				var ctrack = new clm.tracker();
 				ctrack.init();
+				var trackingStarted = false;
 
 				function startVideo() {
 					// start video
 					vid.play();
 					// start tracking
 					ctrack.start(vid);
+					trackingStarted = true;
 					// start loop to draw face
 					drawLoop();
 				}
