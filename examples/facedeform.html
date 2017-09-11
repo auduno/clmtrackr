@@ -103,7 +103,7 @@
 		<div id="content">
 			<h2>Face deformation</h2>
 			<div id="container">
-				<video id="videoel" width="400" height="300" preload="auto" loop>
+				<video id="videoel" width="400" height="300" preload="auto" loop playsinline autoplay>
 				</video>
 				<canvas id="overlay" width="400" height="300"></canvas>
 				<canvas id="webgl" width="400" height="300"></canvas>
@@ -179,11 +179,22 @@
 					} else return false;
 				}
 
+				function adjustVideoProportions() {
+					// resize overlay and video if proportions are not 4:3
+					// keep same height, just change width
+					var proportion = vid.videoWidth/vid.videoHeight;
+					vid_width = Math.round(vid_height * proportion);
+					vid.width = vid_width;
+					overlay.width = vid_width;
+					webgl_overlay.width = vid_width;
+					videocanvas.width = vid_width;
+					webGLContext.viewport(0,0,webGLContext.canvas.width,webGLContext.canvas.height);
+				}
+
 				// check whether browser supports webGL
 				var webGLContext;
-				var webGLTestCanvas = document.createElement('canvas');
 				if (window.WebGLRenderingContext) {
-					webGLContext = webGLTestCanvas.getContext('webgl') || webGLTestCanvas.getContext('experimental-webgl');
+					webGLContext = webgl_overlay.getContext('webgl') || webgl_overlay.getContext('experimental-webgl');
 					if (!webGLContext || !webGLContext.getExtension('OES_texture_float')) {
 						webGLContext = null;
 					}
@@ -200,16 +211,18 @@
 						vid.src = (window.URL && window.URL.createObjectURL(stream));
 					}
 					vid.onloadedmetadata = function() {
-						// resize overlay and video if proportions are different
-						var proportion = vid.videoWidth/vid.videoHeight;
-						vid_width = Math.round(vid_height * proportion);
-						vid.width = vid_width;
-						overlay.width = vid_width;
-						webgl_overlay.width = vid_width;
-						videocanvas.width = vid_width;
-						
+						adjustVideoProportions();
 						fd.init(webgl_overlay);
 						vid.play();
+					}
+					vid.onresize = function() {
+						adjustVideoProportions();
+						fd.init(webgl_overlay);
+						if (trackingStarted) {
+							ctrack.stop();
+							ctrack.reset();
+							ctrack.start(vid);
+						}
 					}
 				}
 
@@ -241,12 +254,14 @@
 
 				var ctrack = new clm.tracker();
 				ctrack.init(pModel);
+				var trackingStarted = false;
 
 				function startVideo() {
 					// start video
 					vid.play();
 					// start tracking
 					ctrack.start(vid);
+					trackingStarted = true;
 					// start drawing face grid
 					drawGridLoop();
 				}

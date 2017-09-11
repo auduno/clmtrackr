@@ -103,7 +103,7 @@
 		<div id="content">
 			<h2>Face substitution</h2>
 			<div id="container">
-				<video id="videoel" width="400" height="300" preload="auto">
+				<video id="videoel" width="400" height="300" preload="auto" playsinline autoplay>
 				</video>
 				<canvas id="overlay" width="400" height="300"></canvas>
 				<canvas id="webgl" width="400" height="300"></canvas>
@@ -215,11 +215,28 @@
 					} else return false;
 				}
 
+				function adjustVideoProportions() {
+					// resize overlay and video if proportions are not 4:3
+					// keep same height, just change width
+					var proportion = vid.videoWidth/vid.videoHeight;
+					vid_width = Math.round(vid_height * proportion);
+					vid.width = vid_width;
+					overlay.width = vid_width;
+					webgl_overlay.width = vid_width;
+					webgl_overlay2.width = vid_width;
+					newcanvas.width = vid_width;
+					videocanvas.width = vid_width;
+					maskcanvas.width = vid_width;
+					webGLContext.viewport(0,0,webGLContext.canvas.width,webGLContext.canvas.height);
+					webGLContext2.viewport(0,0,webGLContext2.canvas.width,webGLContext2.canvas.height);
+				}
+
 				// check whether browser supports webGL
 				var webGLContext;
-				var webGLTestCanvas = document.createElement('canvas');
+				var webGLContext2;
 				if (window.WebGLRenderingContext) {
-					webGLContext = webGLTestCanvas.getContext('webgl') || webGLTestCanvas.getContext('experimental-webgl');
+					webGLContext = webgl_overlay.getContext('webgl') || webgl_overlay.getContext('experimental-webgl');
+					webGLContext2 = webgl_overlay2.getContext('webgl') || webgl_overlay2.getContext('experimental-webgl');
 					if (!webGLContext || !webGLContext.getExtension('OES_texture_float')) {
 						webGLContext = null;
 					}
@@ -236,20 +253,24 @@
 						vid.src = (window.URL && window.URL.createObjectURL(stream));
 					}
 					vid.onloadedmetadata = function() {
-						// resize overlay and video if proportions are different
-						var proportion = vid.videoWidth/vid.videoHeight;
-						vid_width = Math.round(vid_height * proportion);
-						vid.width = vid_width;
-						overlay.width = vid_width;
-						webgl_overlay.width = vid_width;
-						webgl_overlay2.width = vid_width;
-						newcanvas.width = vid_width;
-						videocanvas.width = vid_width;
-						maskcanvas.width = vid_width;
-
+						adjustVideoProportions();
 						fd.init(webgl_overlay);
 						fd2.init(webgl_overlay2);
 						vid.play();
+					}
+					vid.onresize = function() {
+						adjustVideoProportions();
+						fd.init(webgl_overlay);
+						fd2.init(webgl_overlay2);
+						if (trackingStarted) {
+							ctrack.stop();
+							ctrack.reset();
+							ctrack.start(vid);
+						}
+						cancelRequestAnimFrame(detectionRequest);
+						cancelRequestAnimFrame(animationRequest);
+						overlayCC.clearRect(0, 0, vid_width, vid_height);
+						drawGridLoop();
 					}
 				}
 
@@ -276,11 +297,12 @@
 
 				/*********** Code for face substitution *********/
 
-				var animationRequest;
+				var animationRequest, detectionRequest;
 				var positions;
 
 				var ctrack = new clm.tracker();
 				ctrack.init(pModel);
+				var trackingStarted = false;
 
 				document.getElementById('selectmask').addEventListener('change', updateMask, false);
 
@@ -297,6 +319,7 @@
 					vid.play();
 					// start tracking
 					ctrack.start(vid);
+					trackingStarted = true;
 					// start drawing face grid
 					drawGridLoop();
 				}
@@ -423,7 +446,7 @@
 					if (pn < 0.4) {
 						switchMasks(positions);
 					} else {
-						requestAnimFrame(drawGridLoop);
+						detectionRequest = requestAnimFrame(drawGridLoop);
 					}
 				}
 
@@ -470,11 +493,12 @@
 
 						var maskname = Object.keys(masks)[currentMask];
 						fd.load(newcanvas, pos, pModel);
-						requestAnimFrame(drawMaskLoop);
+						animationRequest = requestAnimFrame(drawMaskLoop);
 					});
 				}
 
 				function drawMaskLoop() {
+					animationRequest = requestAnimFrame(drawMaskLoop);
 					// get position of face
 					positions = ctrack.getCurrentPosition();
 
@@ -483,7 +507,6 @@
 						// draw mask on top of face
 						fd.draw(positions);
 					}
-					animationRequest = requestAnimFrame(drawMaskLoop);
 				}
 
 				function createMasking(canvas, modelpoints) {

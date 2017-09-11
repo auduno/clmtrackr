@@ -41,16 +41,20 @@ var findFaceWorker = function(e) {
 
 	jsfeat.haar.edgesDensity = params.edgesDensity;
 	var rects = jsfeat.haar.detect_multi_scale(ii_sum, ii_sqsum, ii_tilted, params.useCanny? ii_canny : null, img_u8.cols, img_u8.rows, classifier, params.scaleFactor, params.minScale);
-	rects = jsfeat.haar.group_rectangles(rects, 1);
+	rects = jsfeat.haar.group_rectangles(rects, params.min_neighbors);
+
+	for (var i = rects.length-1;i >= 0;i--) {
+		if (rects[i].confidence < params.confidenceThreshold) {
+			rects.splice(i,1);
+		}
+	}
 
 	var rl = rects.length;
-
 	if (rl == 0) {
 		self.postMessage({
 			faces: []
 		});
 	} else {
-
 		var best = rects[0];
 		for (var i = 1;i < rl;i++) {
 			if (rects[i].neighbors > best.neighbors) {

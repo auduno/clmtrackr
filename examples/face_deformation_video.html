@@ -100,7 +100,7 @@
 		<div id="content">
 			<h2>Face deformation</h2>
 			<div id="container" class="nohide">
-				<video id="videoel" width="370" height="288" preload="auto"></video>
+				<video id="videoel" width="370" height="288" preload="auto" playsinline autoplay></video>
 				<canvas id="canvasel" width="370" height="288" class="hide"></canvas>
 				<canvas id="overlay" width="370" height="288"></canvas>
 			</div>
@@ -189,6 +189,15 @@
 					startbutton.disabled = null;
 				}
 
+				function adjustVideoProportions() {
+					// resize overlay and video if proportions are not 4:3
+					// keep same height, just change width
+					var proportion = vid.videoWidth/vid.videoHeight;
+					vid_width = Math.round(vid_height * proportion);
+					vid.width = vid_width;
+					overlay.width = vid_width;
+				}
+
 				// check whether browser supports webGL
 				var webGLContext;
 				var webGLTestCanvas = document.createElement('canvas');
@@ -210,14 +219,18 @@
 						vid.src = (window.URL && window.URL.createObjectURL(stream));
 					}
 					vid.onloadedmetadata = function() {
-						// resize overlay and video if proportions are different
-						var proportion = vid.videoWidth/vid.videoHeight;
-						vid_width = Math.round(vid_height * proportion);
-						vid.width = vid_width;
-						overlay.width = vid_width;
-
+						adjustVideoProportions();
 						fd.init(document.getElementById('webgl'));
 						vid.play();
+					}
+					vid.onresize = function() {
+						adjustVideoProportions();
+						fd.init(document.getElementById('webgl'));
+						if (trackingStarted) {
+							ctrack.stop();
+							ctrack.reset();
+							ctrack.start(vid);
+						}
 					}
 				}
 
@@ -251,12 +264,14 @@
 
 				var ctrack = new clm.tracker();
 				ctrack.init(pModel);
+				var trackingStarted = false;
 
 				function startVideo() {
 					// start video
 					vid.play();
 					// start tracking
 					ctrack.start(vid);
+					trackingStarted = true;
 					//start drawing faces
 					drawLoop();
 				}

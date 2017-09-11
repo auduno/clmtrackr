@@ -12,12 +12,14 @@ var faceDetection = function(pdmModel, params) {
 	//   optionally uses web workers
 
 	if (params === undefined) params = {};
-	if (params.workSize === undefined) params.workSize = 160;
+	if (params.workSize === undefined) params.workSize = 200;
 	if (params.minScale === undefined) params.minScale = 2;
 	if (params.scaleFactor === undefined) params.scaleFactor = 1.15;
 	if (params.useCanny === undefined) params.useCanny = false;
 	if (params.edgesDensity === undefined) params.edgesDensity = 0.13;
-	if (params.equalizeHistogram === undefined) params.equalizeHistogram = true;
+	if (params.equalizeHistogram === undefined) params.equalizeHistogram = false;
+	if (params.min_neighbors === undefined) params.min_neighbors = 2;
+	if (params.confidenceThreshold === undefined) params.confidenceThreshold = 106.1;
 	if (params.useWebWorkers === undefined) params.useWebWorkers = true;
 
 	// disable web workers if not exists
@@ -318,10 +320,15 @@ var jsfeat_face = function(parameters) {
 
 				jsfeat.haar.edgesDensity = params.edgesDensity;
 				var rects = jsfeat.haar.detect_multi_scale(ii_sum, ii_sqsum, ii_tilted, params.useCanny? ii_canny : null, img_u8.cols, img_u8.rows, classifier, params.scaleFactor, params.minScale);
-				rects = jsfeat.haar.group_rectangles(rects, 1);
+				rects = jsfeat.haar.group_rectangles(rects, params.min_neighbors);
+
+				for (var i = rects.length-1;i >= 0;i--) {
+					if (rects[i].confidence < params.confidenceThreshold) {
+						rects.splice(i,1);
+					}
+				}
 
 				var rl = rects.length;
-
 				if (rl == 0) {
 					reject();
 				} else {

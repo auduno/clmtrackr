@@ -11242,16 +11242,20 @@ var findFaceWorker = function(e) {
 
 	jsfeat.haar.edgesDensity = params.edgesDensity;
 	var rects = jsfeat.haar.detect_multi_scale(ii_sum, ii_sqsum, ii_tilted, params.useCanny? ii_canny : null, img_u8.cols, img_u8.rows, classifier, params.scaleFactor, params.minScale);
-	rects = jsfeat.haar.group_rectangles(rects, 1);
+	rects = jsfeat.haar.group_rectangles(rects, params.min_neighbors);
+
+	for (var i = rects.length-1;i >= 0;i--) {
+		if (rects[i].confidence < params.confidenceThreshold) {
+			rects.splice(i,1);
+		}
+	}
 
 	var rl = rects.length;
-
 	if (rl == 0) {
 		self.postMessage({
 			faces: []
 		});
 	} else {
-
 		var best = rects[0];
 		for (var i = 1;i < rl;i++) {
 			if (rects[i].neighbors > best.neighbors) {
@@ -11283,12 +11287,14 @@ var faceDetection = function(pdmModel, params) {
 	//   optionally uses web workers
 
 	if (params === undefined) params = {};
-	if (params.workSize === undefined) params.workSize = 160;
+	if (params.workSize === undefined) params.workSize = 200;
 	if (params.minScale === undefined) params.minScale = 2;
 	if (params.scaleFactor === undefined) params.scaleFactor = 1.15;
 	if (params.useCanny === undefined) params.useCanny = false;
 	if (params.edgesDensity === undefined) params.edgesDensity = 0.13;
-	if (params.equalizeHistogram === undefined) params.equalizeHistogram = true;
+	if (params.equalizeHistogram === undefined) params.equalizeHistogram = false;
+	if (params.min_neighbors === undefined) params.min_neighbors = 2;
+	if (params.confidenceThreshold === undefined) params.confidenceThreshold = 106.1;
 	if (params.useWebWorkers === undefined) params.useWebWorkers = true;
 
 	// disable web workers if not exists
@@ -11589,10 +11595,15 @@ var jsfeat_face = function(parameters) {
 
 				jsfeat_1.haar.edgesDensity = params.edgesDensity;
 				var rects = jsfeat_1.haar.detect_multi_scale(ii_sum, ii_sqsum, ii_tilted, params.useCanny? ii_canny : null, img_u8.cols, img_u8.rows, classifier, params.scaleFactor, params.minScale);
-				rects = jsfeat_1.haar.group_rectangles(rects, 1);
+				rects = jsfeat_1.haar.group_rectangles(rects, params.min_neighbors);
+
+				for (var i = rects.length-1;i >= 0;i--) {
+					if (rects[i].confidence < params.confidenceThreshold) {
+						rects.splice(i,1);
+					}
+				}
 
 				var rl = rects.length;
-
 				if (rl == 0) {
 					reject();
 				} else {
@@ -14242,6 +14253,45 @@ var model_pca_20_svm = createCommonjsModule(function (module, exports) {
 })(commonjsGlobal);
 });
 
+// webgl setup tests
+
+/*
+ * Test whether we can render to floating point texture
+ */
+var canRenderToFloatTexture = function(webGLContext) {
+    var renderingSupported = false;
+    var gl = webGLContext;
+
+    // setup the texture
+    var texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 2, 2, 0, gl.RGBA, gl.FLOAT, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+
+    // setup the framebuffer
+    var framebuffer = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+    gl.framebufferTexture2D(
+        gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+
+    // check the framebuffer
+    var check = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+    if (check == gl.FRAMEBUFFER_COMPLETE) {
+        renderingSupported = true;
+    }
+
+    // cleanup
+    gl.deleteTexture(texture);
+    gl.deleteFramebuffer(framebuffer);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+    return renderingSupported
+};
+
+var version = "1.1.2";
+
 /**
  * clmtrackr library (https://www.github.com/auduno/clmtrackr/)
  *
@@ -14441,6 +14491,11 @@ var clm = {
 					webGLContext = webGLTestCanvas.getContext('webgl') || webGLTestCanvas.getContext('experimental-webgl');
 					if (!webGLContext || !webGLContext.getExtension('OES_texture_float')) {
 						webGLContext = null;
+					} else {
+						// test whether it's possible to render to float texture
+						if (!canRenderToFloatTexture(webGLContext)) {
+							webGLContext = null;
+						}
 					}
 				}
 
@@ -15256,7 +15311,8 @@ var clm = {
 		}
 
 		return true;
-	}
+	},
+	version : version
 };
 
 return clm;
