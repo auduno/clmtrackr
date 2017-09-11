@@ -22,6 +22,8 @@ import mosseFilterResponses from './mossefilter/mosseFilterResponses.js';
 import pModel from '../models/model_pca_20_svm.js';
 import canRenderToFloatTexture from './utils/webgl_tests.js';
 
+import { version } from '../package.json';
+
 //import { drawPatches } from './utils.debugging.js';
 
 var DEFAULT_MODEL = pModel;
@@ -1029,7 +1031,8 @@ var clm = {
 		}
 
 		return true;
-	}
+	},
+	version : version
 }
 
 export default clm;

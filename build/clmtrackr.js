@@ -14290,6 +14290,8 @@ var canRenderToFloatTexture = function(webGLContext) {
     return renderingSupported
 };
 
+var version = "1.1.2";
+
 /**
  * clmtrackr library (https://www.github.com/auduno/clmtrackr/)
  *
@@ -15309,7 +15311,8 @@ var clm = {
 		}
 
 		return true;
-	}
+	},
+	version : version
 };
 
 return clm;
