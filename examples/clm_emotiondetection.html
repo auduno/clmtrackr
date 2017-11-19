@@ -89,6 +89,12 @@
 				visibility : hidden;
 			}
 
+			.face-detector {
+				position: absolute;
+				top: -1000px;
+				left: -1000px;
+			}
+
 			/* d3 */
 			.bar {
 				fill : steelblue;
@@ -127,12 +133,14 @@
 		<script src="./js/emotion_classifier.js"></script>
 		<script src="./js/emotionmodel.js"></script>
 		<div id="content">
-			<h2>Emotion detection example</h2>
-			<p>This a test of emotion detection based on parameter output from <em>clmtrackr</em>.</p>
+			<h2>Detetor de Emoções</h2>
+			<p>  </p>
 			<div id="container">
-				<video id="videoel" width="400" height="300" preload="auto" loop playsinline autoplay>
-				</video>
-				<canvas id="overlay" width="400" height="300"></canvas>
+				<div class="face-detector">
+					<video id="videoel" width="400" height="300" preload="auto" loop playsinline autoplay>
+					</video>
+					<canvas id="overlay" width="400" height="300"></canvas>
+				</div>
 			</div>
 			<div id="emotion_container">
 				<div id="emotion_icons">
@@ -246,17 +254,18 @@
 							if (er[i].value > 0.4) {
 								document.getElementById('icon'+(i+1)).style.visibility = 'visible';
 							} else {
-								document.getElementById('icon'+(i+1)).style.visibility = 'hidden';
+								//document.getElementById('icon'+(i+1)).style.visibility = 'hidden';
 							}
 						}
 					}
 				}
 
-				delete emotionModel['disgusted'];
-				delete emotionModel['fear'];
+				//delete emotionModel['disgusted'];
+				//delete emotionModel['fear'];
 				var ec = new emotionClassifier();
 				ec.init(emotionModel);
 				var emotionData = ec.getBlank();
+				//console.log(emotionData);
 
 				/************ d3 code for barchart *****************/
 
@@ -332,18 +341,19 @@
 					rects.exit().remove();
 					texts.exit().remove();
 				}
+			
 
-				/******** stats ********/
-
-				stats = new Stats();
-				stats.domElement.style.position = 'absolute';
-				stats.domElement.style.top = '0px';
-				document.getElementById('container').appendChild( stats.domElement );
-
+				
+				var cp = ctrack.getCurrentParameters();
+				var res = ec.predict(cp);
+				console.log(res);
+				var res = ec.predict(cp);
+				console.log(res);
+				
 				// update stats on every iteration
-				document.addEventListener('clmtrackrIteration', function(event) {
+				/*document.addEventListener('clmtrackrIteration', function(event) {
 					stats.update();
-				}, false);
+				}, false);*/
 
 			</script>
 		</div>
