@@ -127,8 +127,8 @@
 		<script src="./js/emotion_classifier.js"></script>
 		<script src="./js/emotionmodel.js"></script>
 		<div id="content">
-			<h2>Emotion detection example</h2>
-			<p>This a test of emotion detection based on parameter output from <em>clmtrackr</em>.</p>
+			<h2>Genki与えるマン</h2>
+			<p>笑顔でいましょうね！！</p>
 			<div id="container">
 				<video id="videoel" width="400" height="300" preload="auto" loop playsinline autoplay>
 				</video>
@@ -136,10 +136,12 @@
 			</div>
 			<div id="emotion_container">
 				<div id="emotion_icons">
-					<img class="emotion_icon" id="icon1" src="./media/icon_angry.png">
-					<img class="emotion_icon" id="icon2" src="./media/icon_sad.png">
-					<img class="emotion_icon" id="icon3" src="./media/icon_surprised.png">
+					<!--<img class="emotion_icon" id="icon1" src="./media/icon_angry.png">-->
+					<!--<img class="emotion_icon" id="icon2" src="./media/icon_sad.png">-->
+					<!--<img class="emotion_icon" id="icon3" src="./media/icon_surprised.png">-->
 					<img class="emotion_icon" id="icon4" src="./media/icon_happy.png">
+					<p id="yes">その調子！！</p>
+					<p id="no">笑えよ！！</p>
 				</div>
 				<div id='emotion_chart'></div>
 			</div>
@@ -243,10 +245,14 @@
 					if (er) {
 						updateData(er);
 						for (var i = 0;i < er.length;i++) {
-							if (er[i].value > 0.4) {
-								document.getElementById('icon'+(i+1)).style.visibility = 'visible';
+							if (er[i].value > 0.8) {
+								document.getElementById('icon4').style.visibility = 'visible';
+								document.getElementById('yes').style.visibility = 'visible';
+								document.getElementById('no').style.visibility = 'hidden';
 							} else {
-								document.getElementById('icon'+(i+1)).style.visibility = 'hidden';
+								document.getElementById('icon4').style.visibility = 'hidden';
+								document.getElementById('yes').style.visibility = 'hidden';
+								document.getElementById('no').style.visibility = 'visible';
 							}
 						}
 					}
@@ -254,6 +260,9 @@
 
 				delete emotionModel['disgusted'];
 				delete emotionModel['fear'];
+				delete emotionModel['angry'];
+				delete emotionModel['sad'];
+				delete emotionModel['surprised'];
 				var ec = new emotionClassifier();
 				ec.init(emotionModel);
 				var emotionData = ec.getBlank();
