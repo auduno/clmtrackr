@@ -29,6 +29,50 @@ For some more information about Constrained Local Models, take a look at Xiaogua
 
 ### Usage ###
 
+## From NPM ###
+Install the package from npm
+```js
+npm i clmtrackr --save
+```
+And use it:
+```js
+import clm from 'clmtrackr';
+import Webcam from 'js-webcam';
+
+class faceTracking {
+  constructor() {
+    const Tracker = clm.tracker;
+    this.tracker = new Tracker();
+    this.tracker.init();
+    this.webcam = new Webcam(320, 240);
+    this.webcam.start();
+    this.canvas = document.createElement('canvas');
+    this.canvas.id = 'webcam';
+    this.canvas.width = 320;
+    this.canvas.height = 240;
+    this.canvasContext = this.canvas.getContext('2d');
+    document.appendChild(result);
+    this.tracker.start(this.webcam.domElement);
+  }
+
+  startAnimationFrame() {
+    this.startFaceTracking();
+    this.frameId = window.requestAnimationFrame(() => this.animationFrame());
+  }
+
+  stopAnimationFrame() {
+    window.cancelAnimationFrame(this.frameId);
+    this.webcam.stop();
+  }
+
+  startFaceTracking() {
+    this.canvasContext.drawImage(this.webcam.domElement, 0, 0, 320, 240);
+    this.tracker.draw(this.canvas);
+  }
+}
+
+## From Vainilla Script ##
+
 Download the minified library [clmtrackr.js](https://github.com/auduno/clmtrackr/raw/dev/build/clmtrackr.js), and include it in your webpage.
 
 ```html
