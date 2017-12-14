@@ -24,16 +24,16 @@
   "license": "MIT",
   "devDependencies": {
     "rollup": "^0.41.6",
-    "rollup-plugin-node-resolve": "^3.0.0",
     "rollup-plugin-commonjs": "^8.0.2",
     "rollup-plugin-json": "^2.3.0",
+    "rollup-plugin-node-resolve": "^3.0.0",
     "uglify-es": "^3.0.17"
   },
   "dependencies": {
-    "jsfeat": "git+https://github.com/inspirit/jsfeat",
-    "numeric": "^1.2.6",
+    "jsfeat": "^0.0.8",
     "mosse": "^0.1.1",
-    "raf": "^3.3.2",
-    "promise-polyfill": "^6.0.2"
+    "numeric": "^1.2.6",
+    "promise-polyfill": "^6.0.2",
+    "raf": "^3.3.2"
   }
 }
