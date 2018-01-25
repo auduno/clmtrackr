@@ -86,6 +86,8 @@ var clm = {
 
 		var convergenceLimit = 0.01;
 
+		var isChrome = navigator.userAgent.indexOf("Chrome") > -1
+
 		var searchWindow;
 		var modelWidth, modelHeight;
 		var halfSearchWindow, vecProbs, responsePixels;
@@ -416,20 +418,37 @@ var clm = {
 			}
 
 
-			var pdata, pmatrix, grayscaleColor;
-			for (var i = 0; i < numPatches; i++) {
-				px = patchPositions[i][0]-(pw/2);
-				py = patchPositions[i][1]-(pl/2);
-				ptch = sketchCC.getImageData(Math.round(px), Math.round(py), pw, pl);
-				pdata = ptch.data;
+            var i, j, pmatrix, grayscaleColor, lineNum, inx, offset, sketchData, sketchpData, pdata;
+            if (isChrome) {
+                sketchData = sketchCC.getImageData(0, 0, sketchCanvas.width, sketchCanvas.height);
+                sketchpData = sketchData.data;
+                for (i = 0; i < numPatches; i++) {
+                    px = Math.round(patchPositions[i][0] - (pw / 2));
+                    py = Math.round(patchPositions[i][1] - (pl / 2));
+                    pmatrix = patches[i];
+                    for (j = 0; j < pdataLength; j++) {
+                        lineNum = parseInt((j + 1) / pw);
+                        inx = j % pw;
+                        offset = (py + lineNum) * sketchCanvas.width * 4 + (px + inx) * 4;
+                        grayscaleColor = sketchpData[offset] * 0.3 + sketchpData[1 + offset] * 0.59 + sketchpData[2 + offset] * 0.11;
+                        pmatrix[j] = grayscaleColor;
+                    }
+                }
+            } else {
+                for (i = 0; i < numPatches; i++) {
+                    px = patchPositions[i][0] - (pw / 2);
+                    py = patchPositions[i][1] - (pl / 2);
+                    ptch = sketchCC.getImageData(Math.round(px), Math.round(py), pw, pl);
+                    pdata = ptch.data;
 
-				// convert to grayscale
-				pmatrix = patches[i];
-				for (var j = 0;j < pdataLength;j++) {
-					grayscaleColor = pdata[j*4]*0.3 + pdata[(j*4)+1]*0.59 + pdata[(j*4)+2]*0.11;
-					pmatrix[j] = grayscaleColor;
-				}
-			}
+                    // convert to grayscale
+                    pmatrix = patches[i];
+                    for (j = 0; j < pdataLength; j++) {
+                        grayscaleColor = pdata[j * 4] * 0.3 + pdata[(j * 4) + 1] * 0.59 + pdata[(j * 4) + 2] * 0.11;
+                        pmatrix[j] = grayscaleColor;
+                    }
+                }
+            }
 
 			// draw weights for debugging
 			//drawPatches(sketchCC, weights, patchSize, patchPositions, function(x) {return x*2000+127});

@@ -4530,7 +4530,7 @@ if(!raf || !caf) {
   };
 }
 
-var index = function(fn) {
+var raf_1 = function(fn) {
   // Wrap in a new function to prevent
   // `cancel` potentially being assigned
   // to the native rAF function
@@ -4539,13 +4539,16 @@ var index = function(fn) {
 var cancel = function() {
   caf.apply(root, arguments);
 };
-var polyfill = function() {
-  root.requestAnimationFrame = raf;
-  root.cancelAnimationFrame = caf;
+var polyfill = function(object) {
+  if (!object) {
+    object = root;
+  }
+  object.requestAnimationFrame = raf;
+  object.cancelAnimationFrame = caf;
 };
 
-index.cancel = cancel;
-index.polyfill = polyfill;
+raf_1.cancel = cancel;
+raf_1.polyfill = polyfill;
 
 var promise = createCommonjsModule(function (module) {
 (function (root) {
@@ -4564,7 +4567,7 @@ var promise = createCommonjsModule(function (module) {
   }
 
   function Promise(fn) {
-    if (typeof this !== 'object') throw new TypeError('Promises must be constructed via new');
+    if (!(this instanceof Promise)) throw new TypeError('Promises must be constructed via new');
     if (typeof fn !== 'function') throw new TypeError('not a function');
     this._state = 0;
     this._handled = false;
@@ -4688,9 +4691,9 @@ var promise = createCommonjsModule(function (module) {
   };
 
   Promise.all = function (arr) {
-    var args = Array.prototype.slice.call(arr);
-
     return new Promise(function (resolve, reject) {
+      if (!arr || typeof arr.length === 'undefined') throw new TypeError('Promise.all accepts an array');
+      var args = Array.prototype.slice.call(arr);
       if (args.length === 0) return resolve([]);
       var remaining = args.length;
 
@@ -14309,7 +14312,7 @@ var version = "1.1.2";
 var DEFAULT_MODEL = model_pca_20_svm;
 
 // polyfills
-index.polyfill();
+raf_1.polyfill();
 if (!window.Promise) window.Promise = promise;
 
 var clm = {
@@ -14365,6 +14368,8 @@ var clm = {
 		var detectingFace = false;
 
 		var convergenceLimit = 0.01;
+
+		var isChrome = navigator.userAgent.indexOf("Chrome") > -1;
 
 		var searchWindow;
 		var modelWidth, modelHeight;
@@ -14696,20 +14701,37 @@ var clm = {
 			}
 
 
-			var pdata, pmatrix, grayscaleColor;
-			for (var i = 0; i < numPatches; i++) {
-				px = patchPositions[i][0]-(pw/2);
-				py = patchPositions[i][1]-(pl/2);
-				ptch = sketchCC.getImageData(Math.round(px), Math.round(py), pw, pl);
-				pdata = ptch.data;
+            var i, j, pmatrix, grayscaleColor, lineNum, inx, offset, sketchData, sketchpData, pdata;
+            if (isChrome) {
+                sketchData = sketchCC.getImageData(0, 0, sketchCanvas.width, sketchCanvas.height);
+                sketchpData = sketchData.data;
+                for (i = 0; i < numPatches; i++) {
+                    px = Math.round(patchPositions[i][0] - (pw / 2));
+                    py = Math.round(patchPositions[i][1] - (pl / 2));
+                    pmatrix = patches[i];
+                    for (j = 0; j < pdataLength; j++) {
+                        lineNum = parseInt((j + 1) / pw);
+                        inx = j % pw;
+                        offset = (py + lineNum) * sketchCanvas.width * 4 + (px + inx) * 4;
+                        grayscaleColor = sketchpData[offset] * 0.3 + sketchpData[1 + offset] * 0.59 + sketchpData[2 + offset] * 0.11;
+                        pmatrix[j] = grayscaleColor;
+                    }
+                }
+            } else {
+                for (i = 0; i < numPatches; i++) {
+                    px = patchPositions[i][0] - (pw / 2);
+                    py = patchPositions[i][1] - (pl / 2);
+                    ptch = sketchCC.getImageData(Math.round(px), Math.round(py), pw, pl);
+                    pdata = ptch.data;
 
-				// convert to grayscale
-				pmatrix = patches[i];
-				for (var j = 0;j < pdataLength;j++) {
-					grayscaleColor = pdata[j*4]*0.3 + pdata[(j*4)+1]*0.59 + pdata[(j*4)+2]*0.11;
-					pmatrix[j] = grayscaleColor;
-				}
-			}
+                    // convert to grayscale
+                    pmatrix = patches[i];
+                    for (j = 0; j < pdataLength; j++) {
+                        grayscaleColor = pdata[j * 4] * 0.3 + pdata[(j * 4) + 1] * 0.59 + pdata[(j * 4) + 2] * 0.11;
+                        pmatrix[j] = grayscaleColor;
+                    }
+                }
+            }
 
 			// draw weights for debugging
 			//drawPatches(sketchCC, weights, patchSize, patchPositions, function(x) {return x*2000+127});
