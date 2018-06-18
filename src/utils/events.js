@@ -14,9 +14,9 @@
 	window.CustomEvent = CustomEvent;
 })();
 
-function emitEvent(eventName) {
+function emitEvent(eventName, dispatcher=document) {
 	var evt = new CustomEvent(eventName, {'bubbles': true, 'cancelable': true});
-	document.dispatchEvent(evt);
+	dispatcher.dispatchEvent(evt);
 }
 
 export default emitEvent;

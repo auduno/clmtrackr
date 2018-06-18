@@ -44,6 +44,7 @@ var clm = {
 		if (params.weightPoints === undefined) params.weightPoints = undefined;
 		if (params.sharpenResponse === undefined) params.sharpenResponse = false;
 		if (params.faceDetection === undefined) params.faceDetection = {};
+		if (params.eventDispatcher === undefined) params.eventDispatcher = document;
 
 		/** @type {Number} Minimum convergence before firing `clmtrackrConverged` event. */
 		var convergenceThreshold = 0.5;
@@ -327,7 +328,7 @@ var clm = {
 		 *  TODO: should be able to take img element as well
 		 */
 		this.track = function(element, box) {
-			emitEvent('clmtrackrBeforeTrack');
+			emitEvent('clmtrackrBeforeTrack', params.eventDispatcher);
 
 			var scaling, translateX, translateY, rotation;
 			var ptch, px, py;
@@ -356,7 +357,7 @@ var clm = {
 						})
 						.catch(function (error) {
 							// send an event on no face found
-							emitEvent('clmtrackrNotFound');
+							emitEvent('clmtrackrNotFound', params.eventDispatcher);
 
 							detectingFace = false;
 						});
@@ -409,7 +410,7 @@ var clm = {
 					resetParameters();
 
 					// send event to signal that tracking was lost
-					emitEvent('clmtrackrLost');
+					emitEvent('clmtrackrLost', params.eventDispatcher);
 
 					return false;
 				}
@@ -583,7 +584,7 @@ var clm = {
 			previousPositions.push(currentPositions.slice(0));
 
 			// send an event on each iteration
-			emitEvent('clmtrackrIteration');
+			emitEvent('clmtrackrIteration', params.eventDispatcher);
 
 			// we must get a score before we can say we've converged
 			if (scoringHistory.length >= 5 && this.getConvergence() < convergenceThreshold) {
@@ -591,7 +592,7 @@ var clm = {
 					this.stop();
 				}
 
-				emitEvent('clmtrackrConverged');
+				emitEvent('clmtrackrConverged', params.eventDispatcher);
 			}
 
 			// return new points
