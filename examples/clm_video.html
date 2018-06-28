@@ -6,14 +6,14 @@
 		<link href="./styles/bootstrap.min.css" rel="stylesheet" type="text/css">
 		<style>
 			@import url(https://fonts.googleapis.com/css?family=Lato:300italic,700italic,300,700);
-			
+
 			body {
 				font-family: 'Lato';
 				background-color: #f0f0f0;
 				margin: 0px auto;
 				max-width: 1150px;
 			}
-			
+
 			#overlay {
 				position: absolute;
 				top: 0px;
@@ -32,28 +32,20 @@
 				-ms-filter : fliph; /*IE*/
 				filter : fliph; /*IE*/
 			}
-			
+
 			#container {
 				position : relative;
 				width : 370px;
 				/*margin : 0px auto;*/
 			}
-			
+
 			#content {
 				margin-top : 70px;
 				margin-left : 100px;
 				margin-right : 100px;
 				max-width: 950px;
 			}
-			
-			#sketch {
-				display: block;
-			}
-			
-			#filter {
-				display: none;
-			}
-			
+
 			h2 {
 				font-weight : 400;
 			}
@@ -61,7 +53,7 @@
 			.nogum {
 				display : none;
 			}
-			
+
 			.btn {
 				font-family: 'Lato';
 				font-size: 16px;
@@ -75,6 +67,14 @@
 				display : block;
 			}
 		</style>
+		<script>
+			// getUserMedia only works over https in Chrome 47+, so we redirect to https. Also notify user if running from file.
+			if (window.location.protocol == "file:") {
+				alert("You seem to be running this example directly from a file. Note that these examples only work when served from a server or localhost due to canvas cross-domain restrictions.");
+			} else if (window.location.hostname !== "localhost" && window.location.protocol !== "https:"){
+				window.location.protocol = "https";
+			}
+		</script>
 		<script type="text/javascript">
 
 			var _gaq = _gaq || [];
@@ -90,30 +90,15 @@
 		</script>
 	</head>
 	<body>
-		<script src="./ext_js/utils.js"></script>
-		<script src="./ext_js/jsfeat-min.js"></script>
-		<script src="./ext_js/frontalface.js"></script>
-		<script src="./ext_js/jsfeat_detect.js"></script>
-		<script src="./ext_js/numeric-1.2.6.min.js"></script>
-		<script src="./ext_js/mosse.js"></script>
-		<script src="./ext_js/left_eye_filter.js"></script>
-		<script src="./ext_js/right_eye_filter.js"></script>
-		<script src="./ext_js/nose_filter.js"></script>
-		<script src="../models/model_pca_20_svm.js"></script>
-		<script src="../js/clm.js"></script>
-		<script src="../js/svmfilter_webgl.js"></script>
-		<script src="../js/svmfilter_fft.js"></script>
-		<script src="../js/mossefilter.js"></script>
-		<script src="./ext_js/Stats.js"></script>
+		<script src="./js/libs/utils.js"></script>
+		<script src="../build/clmtrackr.js"></script>
+		<script src="./js/libs/Stats.js"></script>
 		<div id="content">
 			<h2>Facetracking example</h2>
 			<div id="container">
-				<video id="videoel" width="400" height="300" preload="auto" loop>
-					<!--<video id="videoel" width="320" height="240" preload="auto">-->
-					<!--<source src="./media/franck.ogv" type="video/ogg"/>-->
+				<video id="videoel" width="400" height="300" preload="auto" loop playsinline autoplay>
 				</video>
 				<canvas id="overlay" width="400" height="300"></canvas>
-				<!--<canvas id="sketch" width="400" height="300"></canvas>-->
 			</div>
 			<br/>
 			<input class="btn" type="button" value="wait, loading video" disabled="disabled" onclick="startVideo()" id="startbutton"></input>
@@ -142,64 +127,79 @@
 			<a href="https://github.com/auduno/clmtrackr"><img style="position: absolute; top: 0; left: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_left_green_007200.png" alt="Fork me on GitHub"></a>
 			<script>
 				var vid = document.getElementById('videoel');
+				var vid_width = vid.width;
+				var vid_height = vid.height;
 				var overlay = document.getElementById('overlay');
 				var overlayCC = overlay.getContext('2d');
-				
-				var ctrack = new clm.tracker({useWebGL : true});
-				ctrack.init(pModel);
-				
-				stats = new Stats();
-				stats.domElement.style.position = 'absolute';
-				stats.domElement.style.top = '0px';
-				document.getElementById('container').appendChild( stats.domElement );
-				
+
+				/*********** Setup of video/webcam and checking for webGL support *********/
+
 				function enablestart() {
 					var startbutton = document.getElementById('startbutton');
 					startbutton.value = "start";
 					startbutton.disabled = null;
 				}
-				
+
 				var insertAltVideo = function(video) {
+					// insert alternate video if getUserMedia not available
 					if (supports_video()) {
-						if (supports_ogg_theora_video()) {
-							video.src = "./media/cap12_edit.ogv";
+						if (supports_webm_video()) {
+							video.src = "./media/cap12_edit.webm";
 						} else if (supports_h264_baseline_video()) {
 							video.src = "./media/cap12_edit.mp4";
 						} else {
 							return false;
 						}
-						//video.play();
 						return true;
 					} else return false;
 				}
+
+				function adjustVideoProportions() {
+					// resize overlay and video if proportions of video are not 4:3
+					// keep same height, just change width
+					var proportion = vid.videoWidth/vid.videoHeight;
+					vid_width = Math.round(vid_height * proportion);
+					vid.width = vid_width;
+					overlay.width = vid_width;
+				}
+
+				function gumSuccess( stream ) {
+					// add camera stream if getUserMedia succeeded
+					if ("srcObject" in vid) {
+						vid.srcObject = stream;
+					} else {
+						vid.src = (window.URL && window.URL.createObjectURL(stream));
+					}
+					vid.onloadedmetadata = function() {
+						adjustVideoProportions();
+						vid.play();
+					}
+					vid.onresize = function() {
+						adjustVideoProportions();
+						if (trackingStarted) {
+							ctrack.stop();
+							ctrack.reset();
+							ctrack.start(vid);
+						}
+					}
+				}
+
+				function gumFail() {
+					// fall back to video if getUserMedia failed
+					insertAltVideo(vid);
+					document.getElementById('gum').className = "hide";
+					document.getElementById('nogum').className = "nohide";
+					alert("There was some problem trying to fetch video from your webcam, using a fallback video instead.");
+				}
+
 				navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
 				window.URL = window.URL || window.webkitURL || window.msURL || window.mozURL;
 
-				// check for camerasupport
-				if (navigator.getUserMedia) {
-					// set up stream
-					
-					var videoSelector = {video : true};
-					if (window.navigator.appVersion.match(/Chrome\/(.*?) /)) {
-						var chromeVersion = parseInt(window.navigator.appVersion.match(/Chrome\/(\d+)\./)[1], 10);
-						if (chromeVersion < 20) {
-							videoSelector = "video";
-						}
-					};
-				
-					navigator.getUserMedia(videoSelector, function( stream ) {
-						if (vid.mozCaptureStream) {
-							vid.mozSrcObject = stream;
-						} else {
-							vid.src = (window.URL && window.URL.createObjectURL(stream)) || stream;
-						}
-						vid.play();
-					}, function() {
-						insertAltVideo(vid);
-						document.getElementById('gum').className = "hide";
-						document.getElementById('nogum').className = "nohide";
-						alert("There was some problem trying to fetch video from your webcam, using a fallback video instead.");
-					});
+				// set up video
+				if (navigator.mediaDevices) {
+					navigator.mediaDevices.getUserMedia({video : true}).then(gumSuccess).catch(gumFail);
+				} else if (navigator.getUserMedia) {
+					navigator.getUserMedia({video : true}, gumSuccess, gumFail);
 				} else {
 					insertAltVideo(vid);
 					document.getElementById('gum').className = "hide";
@@ -208,30 +208,44 @@
 				}
 
 				vid.addEventListener('canplay', enablestart, false);
-				
+
+				/*********** Code for face tracking *********/
+
+				var ctrack = new clm.tracker();
+				ctrack.init();
+				var trackingStarted = false;
+
 				function startVideo() {
 					// start video
 					vid.play();
 					// start tracking
 					ctrack.start(vid);
+					trackingStarted = true;
 					// start loop to draw face
 					drawLoop();
 				}
-				
+
 				function drawLoop() {
 					requestAnimFrame(drawLoop);
-					overlayCC.clearRect(0, 0, 400, 300);
+					overlayCC.clearRect(0, 0, vid_width, vid_height);
 					//psrElement.innerHTML = "score :" + ctrack.getScore().toFixed(4);
 					if (ctrack.getCurrentPosition()) {
 						ctrack.draw(overlay);
 					}
 				}
-				
+
+				/*********** Code for stats **********/
+
+				stats = new Stats();
+				stats.domElement.style.position = 'absolute';
+				stats.domElement.style.top = '0px';
+				document.getElementById('container').appendChild( stats.domElement );
+
 				// update stats on every iteration
 				document.addEventListener('clmtrackrIteration', function(event) {
 					stats.update();
 				}, false);
-				
+
 			</script>
 		</div>
 	</body>

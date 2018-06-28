@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<title>Caricature</title>
+		<meta charset="utf-8">
+		<style>
+			@import url(https://fonts.googleapis.com/css?family=Lato:300italic,700italic,300,700);
+
+			body {
+				font-family: 'Lato';
+				background-color: #f0f0f0;
+				margin: 0px auto;
+				max-width: 1150px;
+			}
+
+			#overlay, #webgl {
+				position: absolute;
+				top: 0px;
+				left: 0px;
+				-o-transform : scaleX(-1);
+				-webkit-transform : scaleX(-1);
+				transform : scaleX(-1);
+				-ms-filter : fliph; /*IE*/
+				filter : fliph; /*IE*/
+
+				
+			}
+
+			#videoel {
+				-o-transform : scaleX(-1);
+				-webkit-transform : scaleX(-1);
+				transform : scaleX(-1);
+				-ms-filter : fliph; /*IE*/
+				filter : fliph; /*IE*/
+
+				
+			}
+
+			#container {
+				position : relative;
+				width : 370px;
+			}
+
+			#content {
+				margin-top : 50px;
+				margin-left : auto;
+				margin-right : auto;
+				max-width: 600px;
+			}
+
+			h2 {
+				font-weight : 400;
+			}
+
+			.btn {
+				font-family: 'Lato';
+				font-size: 16px;
+			}
+
+			#controls {
+				text-align : center;
+			}
+
+			.sublabel {
+				text-align : center;
+				font-size: 10px;
+				margin-top : 0px;
+			}
+		</style>
+		<script>
+			// getUserMedia only works over https in Chrome 47+, so we redirect to https. Also notify user if running from file.
+			if (window.location.protocol == "file:") {
+				alert("You seem to be running this example directly from a file. Note that these examples only work when served from a server or localhost due to canvas cross-domain restrictions.");
+			} else if (window.location.hostname !== "localhost" && window.location.protocol !== "https:"){
+				window.location.protocol = "https";
+			}
+		</script>
+		<script type="text/javascript">
+
+			var _gaq = _gaq || [];
+			_gaq.push(['_setAccount', 'UA-32642923-1']);
+			_gaq.push(['_trackPageview']);
+
+			(function() {
+				var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+				ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+				var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+			})();
+
+		</script>
+	</head>
+	<body>
+		<script src="./js/libs/dat.gui.min.js"></script>
+		<script src="./js/libs/utils.js"></script>
+		<script src="./js/libs/webgl-utils.js"></script>
+		<script src="../build/clmtrackr.js"></script>
+		<script src="../models/model_pca_20_svm.js"></script>
+		<script src="./js/libs/Stats.js"></script>
+		<script src="./js/face_deformer.js"></script>
+		<script src="./js/libs/jquery.min.js"></script>
+		<script src="./js/libs/poisson_new.js"></script>
+
+		<div id="content">
+			<h2>Caricature</h2>
+			<div id="container">
+				<video id="videoel" width="400" height="300" preload="auto" playsinline autoplay>
+				</video>
+				<canvas id="overlay" width="400" height="300"></canvas>
+				<canvas id="webgl" width="400" height="300"></canvas>
+			</div>
+			<br/>
+			<div id="controls">
+				<div>
+					<input type="range" name="param2" min="1.0" max="7.0" value="3.0" oninput="rangeInput(this.value)" onchange="rangeInput(this.value)">
+					<p class="sublabel">Caricature strength</p>
+				</div>
+				<input class="btn" type="button" value="wait, loading video & images" disabled="disabled" onclick="startVideo()" id="startbutton"></input>
+			</div>
+			<div id="text">
+				<p>This is a demo of <em>automatic caricature</em> using the javascript library <a href="https://github.com/auduno/clmtrackr"><em>clmtrackr</em></a>. Click start and keep your face still until the facemodel has fitted! Try adjusting the slider to control exaggeration of features.</p>
+				<p>Note that the demo works best with good, even lighting. The demo also needs support for WebGL, and works best in Google Chrome.</p>
+				<p>If you liked this demo, you should <a href="http://www.twitter.com/matsiyatzy">follow me on twitter!</a>
+			</div>
+			<a href="https://github.com/auduno/clmtrackr"><img style="position: absolute; top: 0; left: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_left_green_007200.png" alt="Fork me on GitHub"></a>
+			<script>
+				var vid = document.getElementById('videoel');
+				var vid_width = vid.width;
+				var vid_height = vid.height;
+				var overlay = document.getElementById('overlay');
+				var overlayCC = overlay.getContext('2d');
+				var webglOverlay = document.getElementById('webgl');
+
+				// canvas for copying videoframes to
+				var videocanvas = document.createElement('CANVAS');
+				videocanvas.width = vid_width;
+				videocanvas.height = vid_height;
+
+				/*********** Setup of video/webcam and checking for webGL support *********/
+
+				var videoReady = false;
+				var imagesReady = false;
+
+				function enablestart() {
+					if (videoReady && imagesReady) {
+						var startbutton = document.getElementById('startbutton');
+						startbutton.value = "start";
+						startbutton.disabled = null;
+					}
+				}
+
+				$(window).load(function() {
+    				imagesReady = true;
+    				enablestart();
+				});
+
+				var insertAltVideo = function(video) {
+					// insert alternate video if getUserMedia not available
+					if (supports_video()) {
+						if (supports_webm_video()) {
+							video.src = "./media/cap13_edit2.webm";
+						} else if (supports_h264_baseline_video()) {
+							video.src = "./media/cap13_edit2.mp4";
+						} else {
+							return false;
+						}
+						fd.init(webglOverlay);
+						return true;
+					} else return false;
+				}
+
+				function adjustVideoProportions() {
+					// resize overlay and video if proportions are not 4:3
+					// keep same height, just change width
+					var proportion = vid.videoWidth/vid.videoHeight;
+					vid_width = Math.round(vid_height * proportion);
+					vid.width = vid_width;
+					overlay.width = vid_width;
+					videocanvas.width = vid_width;
+					webglOverlay.width = vid_width;
+					webGLContext.viewport(0,0,webGLContext.canvas.width,webGLContext.canvas.height);
+				}
+
+				function gumSuccess( stream ) {
+					// add camera stream if getUserMedia succeeded
+					if ("srcObject" in vid) {
+						vid.srcObject = stream;
+					} else {
+						vid.src = (window.URL && window.URL.createObjectURL(stream));
+					}
+					vid.onloadedmetadata = function() {
+						adjustVideoProportions();
+						fd.init(webglOverlay);
+						vid.play();
+					}
+					vid.onresize = function() {
+						adjustVideoProportions();
+						fd.init(webglOverlay);
+						if (trackingStarted) {
+							ctrack.stop();
+							ctrack.reset();
+							ctrack.start(vid);
+						}
+					}
+				}
+
+				function gumFail() {
+					// fall back to video if getUserMedia failed
+					insertAltVideo(vid);
+					alert("There was some problem trying to fetch video from your webcam, using a fallback video instead.");
+				}
+
+				// check whether browser supports webGL
+				var webGLContext;
+				if (window.WebGLRenderingContext) {
+					webGLContext = webglOverlay.getContext('webgl') || webglOverlay.getContext('experimental-webgl');
+					if (!webGLContext || !webGLContext.getExtension('OES_texture_float')) {
+						webGLContext = null;
+					}
+				}
+				if (webGLContext == null) {
+					alert("Your browser does not seem to support WebGL. Unfortunately this face mask example depends on WebGL, so you'll have to try it in another browser. :(");
+				}
+
+				navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
+				window.URL = window.URL || window.webkitURL || window.msURL || window.mozURL;
+
+				// check for camerasupport
+				if (navigator.mediaDevices) {
+					navigator.mediaDevices.getUserMedia({video : true}).then(gumSuccess).catch(gumFail);
+				} else if (navigator.getUserMedia) {
+					navigator.getUserMedia({video : true}, gumSuccess, gumFail);
+				} else {
+					insertAltVideo(vid);
+					alert("Your browser does not seem to support getUserMedia, using a fallback video instead.");
+				}
+
+				vid.addEventListener('canplay', function() {videoReady = true;enablestart();}, false);
+
+				/*********** Code for face substitution *********/
+
+				var animationRequest;
+				var positions;
+				var multiplier = 3;
+
+				var ctrack = new clm.tracker();
+				ctrack.init(pModel);
+				var trackingStarted = false;
+
+				function startVideo() {
+					// start video
+					vid.play();
+					// start tracking
+					ctrack.start(vid);
+					trackingStarted = true;
+					// start drawing face grid
+					drawGridLoop();
+				}
+
+				function rangeInput(val) {
+					multiplier = val;
+				}
+
+				var fd = new faceDeformer();
+
+				var mouth_vertices = [
+					[44,45,61,44],
+					[45,46,61,45],
+					[46,60,61,46],
+					[46,47,60,46],
+					[47,48,60,47],
+					[48,59,60,48],
+					[48,49,59,48],
+					[49,50,59,49],
+					[50,51,58,50],
+					[51,52,58,51],
+					[52,57,58,52],
+					[52,53,57,52],
+					[53,54,57,53],
+					[54,56,57,54],
+					[54,55,56,54],
+					[55,44,56,55],
+					[44,61,56,44],
+					[61,60,56,61],
+					[56,57,60,56],
+					[57,59,60,57],
+					[57,58,59,57],
+					[50,58,59,50],
+				];
+
+				var extendVertices = [
+					[0,71,72,0],
+					[0,72,1,0],
+					[1,72,73,1],
+					[1,73,2,1],
+					[2,73,74,2],
+					[2,74,3,2],
+					[3,74,75,3],
+					[3,75,4,3],
+					[4,75,76,4],
+					[4,76,5,4],
+					[5,76,77,5],
+					[5,77,6,5],
+					[6,77,78,6],
+					[6,78,7,6],
+					[7,78,79,7],
+					[7,79,8,7],
+					[8,79,80,8],
+					[8,80,9,8],
+					[9,80,81,9],
+					[9,81,10,9],
+					[10,81,82,10],
+					[10,82,11,10],
+					[11,82,83,11],
+					[11,83,12,11],
+					[12,83,84,12],
+					[12,84,13,12],
+					[13,84,85,13],
+					[13,85,14,13],
+					[14,85,86,14],
+					[14,86,15,14],
+					[15,86,87,15],
+					[15,87,16,15],
+					[16,87,88,16],
+					[16,88,17,16],
+					[17,88,89,17],
+					[17,89,18,17],
+					[18,89,93,18],
+					[18,93,22,18],
+					[22,93,21,22],
+					[93,92,21,93],
+					[21,92,20,21],
+					[92,91,20,92],
+					[20,91,19,20],
+					[91,90,19,91],
+					[19,90,71,19],
+					[19,71,0,19]
+				]
+
+				function drawGridLoop() {
+					// get position of face
+					positions = ctrack.getCurrentPosition();
+
+					overlayCC.clearRect(0, 0, vid_width, vid_height);
+					if (positions) {
+						// draw current grid
+						ctrack.draw(overlay);
+					}
+					// check whether mask has converged
+					var pn = ctrack.getConvergence();
+					if (pn < 0.4) {
+						//switchMasks(positions);
+						drawMaskLoop();
+					} else {
+						requestAnimFrame(drawGridLoop);
+					}
+				}
+
+				function drawMaskLoop() {
+					videocanvas.getContext('2d').drawImage(vid,0,0,videocanvas.width,videocanvas.height);
+
+					var pos = ctrack.getCurrentPosition();
+
+					if (pos) {
+						// create additional points around face
+						var tempPos;
+						var addPos = [];
+						for (var i = 0;i < 23;i++) {
+							tempPos = [];
+							tempPos[0] = (pos[i][0] - pos[62][0])*1.3 + pos[62][0];
+							tempPos[1] = (pos[i][1] - pos[62][1])*1.3 + pos[62][1];
+							addPos.push(tempPos);
+						}
+						// merge with pos
+						var newPos = pos.concat(addPos);
+
+						var newVertices = pModel.path.vertices.concat(mouth_vertices);
+						// merge with newVertices
+						newVertices = newVertices.concat(extendVertices);
+
+						fd.load(videocanvas, newPos, pModel, newVertices);
+
+						var parameters = ctrack.getCurrentParameters();
+						for (var i = 6;i < parameters.length;i++) {
+							parameters[i] *= multiplier;
+						}
+						positions = ctrack.calculatePositions(parameters);
+
+						overlayCC.clearRect(0, 0, vid_width, vid_height);
+						if (positions) {
+							// add positions from extended boundary, unmodified
+							newPos = positions.concat(addPos);
+							// draw mask on top of face
+							fd.draw(newPos);
+						}
+					}
+					animationRequest = requestAnimFrame(drawMaskLoop);
+				}
+
+				/*********** Code for stats **********/
+
+				stats = new Stats();
+				stats.domElement.style.position = 'absolute';
+				stats.domElement.style.top = '0px';
+				document.getElementById('container').appendChild( stats.domElement );
+
+				document.addEventListener("clmtrackrIteration", function(event) {
+					stats.update();
+				}, false);
+
+			</script>
+		</div>
+	</body>
+</html>

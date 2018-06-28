@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<title>Constrained Local Models</title>
+		<meta charset="utf-8">
+    <link href="https://fonts.googleapis.com/css?family=ABeeZee" rel="stylesheet" type="text/css">
+		<style>
+			body {
+				font-family: Monospace;
+				background-color: #ffffff;
+				overflow: hidden;
+        text-align : center;
+			}
+
+      #content {
+        margin: 0px auto;
+        width: 500px;
+      }
+
+      input {
+        position : relative;
+        top : -3em;
+        width : 6em;
+        display : inline-block;
+      }
+
+      label {
+        display : inline-block;
+        width : 8em;
+        padding-top : 1.5em;
+        color : #7a7a7a;
+        font-family : 'ABeeZee', 'Helvetica Neue', Helvetica;
+        font-weight : 300;
+        font-size : 11px;
+      }
+		</style>
+	</head>
+	<body>
+		<script src="./model_pca_20_svm.js"></script>
+		<div id="content">
+      <canvas id="compare" width="350" height="250"></canvas>
+      <br/>
+      <label>Component 1<input type="range" name="param1" min="-30" max="30" oninput="rangeInput(this.value, 0)" onchange="rangeInput(this.value, 0)"></label>
+      <label>Component 2<input type="range" name="param2" min="-30" max="30" oninput="rangeInput(this.value, 0)" onchange="rangeInput(this.value, 1)"></label>
+      <label>Component 3<input type="range" name="param3" min="-20" max="20" oninput="rangeInput(this.value, 0)" onchange="rangeInput(this.value, 2)"></label>
+		</div>
+		<script src="./main.js"></script>
+
+	</body>
+</html>

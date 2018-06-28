@@ -13,7 +13,7 @@
 				margin: 0px auto;
 				max-width: 1150px;
 			}
-			
+
 			#overlay, #canvasel {
 				position: absolute;
 				top: 0px;
@@ -36,33 +36,24 @@
 			#container, #webglcontainer {
 				position : relative;
 				width : 370px;
-				height : 346px;
 				/*margin : 0px auto;*/
 			}
-			
+
 			#content {
 				margin-top : 70px;
 				margin-left : 100px;
 				margin-right : 100px;
 				max-width: 950px;
 			}
-			
-			#sketch {
-				display: none;
-			}
-			
-			#filter {
-				display: none;
-			}
 
 			h2 {
 				font-weight : 400;
 			}
-			
+
 			.nogum {
 				display : none;
 			}
-			
+
 			.btn {
 				font-family: 'Lato';
 				font-size: 16px;
@@ -76,6 +67,14 @@
 				display : block;
 			}
 		</style>
+		<script>
+			// getUserMedia only works over https in Chrome 47+, so we redirect to https. Also notify user if running from file.
+			if (window.location.protocol == "file:") {
+				alert("You seem to be running this example directly from a file. Note that these examples only work when served from a server or localhost due to canvas cross-domain restrictions.");
+			} else if (window.location.hostname !== "localhost" && window.location.protocol !== "https:"){
+				window.location.protocol = "https";
+			}
+		</script>
 		<script type="text/javascript">
 
 			var _gaq = _gaq || [];
@@ -89,29 +88,19 @@
 			})();
 
 		</script>
-	</head>	
+	</head>
 	<body>
-		<script src="./ext_js/dat.gui.min.js"></script>
-		<script src="./ext_js/utils.js"></script>
-		<script src="./ext_js/jsfeat-min.js"></script>
-		<script src="./ext_js/frontalface.js"></script>
-		<script src="./ext_js/jsfeat_detect.js"></script>
-		<script src="./ext_js/numeric-1.2.6.min.js"></script>
-		<script src="./ext_js/mosse.js"></script>
-		<script src="./ext_js/left_eye_filter.js"></script>
-		<script src="./ext_js/right_eye_filter.js"></script>
-		<script src="./ext_js/nose_filter.js"></script>
+		<script src="./js/libs/dat.gui.min.js"></script>
+		<script src="./js/libs/utils.js"></script>
+		<script src="./js/libs/webgl-utils.js"></script>
+		<script src="../build/clmtrackr.js"></script>
 		<script src="../models/model_pca_20_svm.js"></script>
-		<script src="../js/clm.js"></script>
-		<script src="../js/svmfilter_webgl.js"></script>
-		<script src="../js/svmfilter_fft.js"></script>
-		<script src="../js/mossefilter.js"></script>
-		<script src="./ext_js/Stats.js"></script>
-		<script src="../js/face_deformer.js"></script>
+		<script src="./js/libs/Stats.js"></script>
+		<script src="./js/face_deformer.js"></script>
 		<div id="content">
 			<h2>Face deformation</h2>
 			<div id="container" class="nohide">
-				<video id="videoel" width="370" height="288" preload="auto"></video>
+				<video id="videoel" width="370" height="288" preload="auto" playsinline autoplay></video>
 				<canvas id="canvasel" width="370" height="288" class="hide"></canvas>
 				<canvas id="overlay" width="370" height="288"></canvas>
 			</div>
@@ -151,17 +140,13 @@
 			<p id='gUMMessage'></p>
 			<script>
 				var vid = document.getElementById('videoel');
+				var vid_width = vid.width;
+				var vid_height = vid.height;
 				var overlay = document.getElementById('overlay');
 				var overlayCC = overlay.getContext('2d');
-				
-				var ctrack = new clm.tracker();
-				ctrack.init(pModel);
-				
-				stats = new Stats();
-				stats.domElement.style.position = 'absolute';
-				stats.domElement.style.top = '0px';
-				document.getElementById('container').appendChild( stats.domElement );
-				
+
+				/*********** Setup of video/webcam and checking for webGL support *********/
+
 				function enablestart() {
 					var startbutton = document.getElementById('startbutton');
 					startbutton.value = "start";
@@ -169,33 +154,32 @@
 				}
 
 				var insertAltVideo = function(video) {
-					
+					// insert alternate video if getUserMedia not available
 					if (supports_video()) {
-						if (supports_ogg_theora_video()) {
-							video.src = "./media/franck.ogv";
+						if (supports_webm_video()) {
+							video.src = "./media/franck.webm";
 						} else if (supports_h264_baseline_video()) {
-							alert("no mp4 video :(");
-							//video.src = "./media/capture4.mp4";
+							video.src = "./media/franck.mp4";
 						} else {
 							return false;
 						}
-						//video.play();
+						fd.init(document.getElementById('webgl'));
 						return true;
 					} else return false;
 				}
-				
+
 				var insertAltImage = function() {
 					var canvas = document.getElementById('canvasel');
 					var cc = canvas.getContext('2d');
 					var img = new Image();
 					img.onload = function() {
-						cc.drawImage(img, 0, 0, 370, 288);
+						cc.drawImage(img, 0, 0, vid_width, vid_height);
 					};
-					img.src = './media/franck_02221.jpg';  
+					img.src = './media/franck_02221.jpg';
 					vid.className = "hide";
 					vid = canvas;
 					canvas.className = "nohide";
-					
+
 					var startbutton = document.getElementById('startbutton');
 					startbutton.onclick = function() {
 						ctrack.start(vid);
@@ -204,7 +188,16 @@
 					startbutton.value = "start";
 					startbutton.disabled = null;
 				}
-				
+
+				function adjustVideoProportions() {
+					// resize overlay and video if proportions are not 4:3
+					// keep same height, just change width
+					var proportion = vid.videoWidth/vid.videoHeight;
+					vid_width = Math.round(vid_height * proportion);
+					vid.width = vid_width;
+					overlay.width = vid_width;
+				}
+
 				// check whether browser supports webGL
 				var webGLContext;
 				var webGLTestCanvas = document.createElement('canvas');
@@ -217,35 +210,46 @@
 				if (webGLContext == null) {
 					alert("Your browser does not seem to support WebGL. Unfortunately this face deformation example depends on WebGL, so you'll have to try it in another browser. :(");
 				}
-				
+
+				function gumSuccess( stream ) {
+					// add camera stream if getUserMedia succeeded
+					if ("srcObject" in vid) {
+						vid.srcObject = stream;
+					} else {
+						vid.src = (window.URL && window.URL.createObjectURL(stream));
+					}
+					vid.onloadedmetadata = function() {
+						adjustVideoProportions();
+						fd.init(document.getElementById('webgl'));
+						vid.play();
+					}
+					vid.onresize = function() {
+						adjustVideoProportions();
+						fd.init(document.getElementById('webgl'));
+						if (trackingStarted) {
+							ctrack.stop();
+							ctrack.reset();
+							ctrack.start(vid);
+						}
+					}
+				}
+
+				function gumFail() {
+					// fall back to video if getUserMedia failed
+					insertAltVideo(vid);
+					document.getElementById('gum').className = "hide";
+					document.getElementById('nogum').className = "nohide";
+					alert("There was some problem trying to fetch video from your webcam, using a static image instead.");
+				}
+
 				navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
 				window.URL = window.URL || window.webkitURL || window.msURL || window.mozURL;
+
 				// check for camerasupport
-				if (navigator.getUserMedia) {
-					// set up stream
-					
-					var videoSelector = {video : true};
-					if (window.navigator.appVersion.match(/Chrome\/(.*?) /)) {
-						var chromeVersion = parseInt(window.navigator.appVersion.match(/Chrome\/(\d+)\./)[1], 10);
-						if (chromeVersion < 20) {
-							videoSelector = "video";
-						}
-					};
-				
-					navigator.getUserMedia(videoSelector, function( stream ) {
-						if (vid.mozCaptureStream) {
-							vid.mozSrcObject = stream;
-						} else {
-							vid.src = (window.URL && window.URL.createObjectURL(stream)) || stream;
-						}
-						vid.play();
-					}, function() {
-						//insertAltVideo(vid);
-						insertAltImage();
-						document.getElementById('gum').className = "hide";
-						document.getElementById('nogum').className = "nohide";
-						alert("There was some problem trying to fetch video from your webcam, using a static image instead.");
-					});
+				if (navigator.mediaDevices) {
+					navigator.mediaDevices.getUserMedia({video : true}).then(gumSuccess).catch(gumFail);
+				} else if (navigator.getUserMedia) {
+					navigator.getUserMedia({video : true}, gumSuccess, gumFail);
 				} else {
 					insertAltImage();
 					//insertAltVideo(vid);
@@ -253,41 +257,43 @@
 					document.getElementById('nogum').className = "nohide";
 					alert("Your browser does not seem to support getUserMedia, using a static image instead.");
 				}
-				
+
 				vid.addEventListener('canplay', enablestart, false);
+
+				/*********** Code for face tracking and face deformation *********/
+
+				var ctrack = new clm.tracker();
+				ctrack.init(pModel);
+				var trackingStarted = false;
 
 				function startVideo() {
 					// start video
 					vid.play();
 					// start tracking
 					ctrack.start(vid);
+					trackingStarted = true;
 					//start drawing faces
 					drawLoop();
 				}
 
 				var positions;
 				var fd = new faceDeformer();
-				fd.init(document.getElementById('webgl'));
-				
-				document.addEventListener("clmtrackrIteration", function(event) {
-					stats.update();
-				}, false);
-				
+
 				function drawLoop() {
 					// track in video
 					positions = ctrack.getCurrentPosition();
-					overlayCC.clearRect(0, 0, 720, 576);
+					overlayCC.clearRect(0, 0, vid_width, vid_height);
 					if (positions) {
 						ctrack.draw(overlay);
 					}
-					
+
 					// hide buttons
 					elem = document.getElementById('buttons');
 					elem.setAttribute('class', 'hide');
 					// show message
 					var scoreel = document.getElementById('score');
 					scoreel.innerHTML = "Please keep head still while model fits";
-					
+
 					var pn = ctrack.getConvergence();
 					if (pn < 1.8) {
 						requestAnimFrame(setupFaceDeformation);
@@ -299,7 +305,7 @@
 						requestAnimFrame(drawLoop);
 					}
 				}
-				
+
 				var ph, gui;
 				var rotation = 0;
 				var scale = 3;
@@ -309,11 +315,11 @@
 				function setupFaceDeformation() {
 					// draw face deformation model
 					positions = ctrack.getCurrentPosition();
-					overlayCC.clearRect(0, 0, 720, 576);
+					overlayCC.clearRect(0, 0, vid_width, vid_height);
 					ctrack.draw(overlay);
 					fd.load(vid, positions, pModel);
 					fd.draw(positions);
-					
+
 					// hide video
 					var elem = document.getElementById('container');
 					elem.setAttribute('class', 'hide');
@@ -349,7 +355,7 @@
 					var gui20 = gui.add(ph, 'param20', -20, 20).listen();
 					var guiGrid = gui.add(ph, 'draw_grid', false);
 					var guiFace = gui.add(ph, 'draw_face', true);
-					
+
 					gui1.onChange(drawDeformedFace);
 					gui2.onChange(drawDeformedFace);
 					gui3.onChange(drawDeformedFace);
@@ -479,6 +485,18 @@
 					"chum" : [0, 0, 13, 1.2, 0, 2.5, 0, 1, 16.8, -5, 0, 0, 0, 0, 0, 0, 0, 11.6, 0, -7],
 					"disgust" : [-4, -14, 8, 2, 3, -5.6, -2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -10, 0, -5],
 				};
+
+				/*********** Code for stats **********/
+
+				stats = new Stats();
+				stats.domElement.style.position = 'absolute';
+				stats.domElement.style.top = '0px';
+				document.getElementById('container').appendChild( stats.domElement );
+
+				document.addEventListener("clmtrackrIteration", function(event) {
+					stats.update();
+				}, false);
+
 			</script>
 		</div>
 	</body>

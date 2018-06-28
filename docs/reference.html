@@ -1,0 +1,227 @@
+<!doctype html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>Reference</title>
+	<link rel="stylesheet" href="./styles/styles.css">
+	<link rel="stylesheet" href="./styles/coderay.css">
+	<script src="./javascripts/scale.fix.js"></script>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
+	<script src="./javascripts/slimbox2.js"></script>
+	<link rel="stylesheet" href="./styles/slimbox2.css" type="text/css" media="screen" />
+	<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+	<meta http-equiv="X-UA-Compatible" content="chrome=1">
+	<!--[if lt IE 9]>
+	<script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+	<![endif]-->
+</head>
+<body>
+	<div class="wrapper">
+	<header>
+	<h1>
+	<a href="http://github.com/auduno/clmtrackr/">clmtrackr.js</a></h1>
+	<p>Javascript library for fitting facial models to faces in images and video</p>
+	<p class="view">
+	<a href="https://github.com/auduno/clmtrackr">View the Project on GitHub <small>auduno/clmtrackr</small></a></p>
+	<ul>
+	<li><a href="https://github.com/auduno/clmtrackr/zipball/dev">Download <strong>ZIP File</strong></a></li>
+	<li><a href="https://github.com/auduno/clmtrackr/tarball/dev">Download <strong>TAR Ball</strong></a></li>
+	<li><a href="https://github.com/auduno/clmtrackr">Fork On <strong>GitHub</strong></a></li>
+	</ul>
+	</header>
+	<section>
+	<h1>Library Reference</h1>
+
+	<p><em>clmtrackr</em> is a javascript library for fitting facial models to faces in images and video, and can be used for getting precise positions of facial features in an image, or precisely tracking faces in video. </p>
+
+	<p>Watch this example of <em>clmtrackr</em> tracking a face in the <a href="http://www-prima.inrialpes.fr/FGnet/data/01-TalkingFace/talking_face.html">talking face</a> video:</p>
+
+	<p style="text-align:center;"><iframe src="https://player.vimeo.com/video/75659453" width="360" height="281" frameborder="0" webkitAllowFullScreen mozallowfullscreen allowFullScreen></iframe></p>
+
+	<p>The facial models included in the library follow this annotation:</p>
+
+	<p style="text-align:center"><a href="./media/facemodel_numbering_new.png" rel="lightbox" title="Facemodel numbering"><img src="./media/facemodel_numbering_new_small.png" width="300px" height="310px"></img></a></p>
+
+	<p>Once started, <em>clmtrackr</em> will try to detect a face on the given element. If a face is found, <em>clmtrackr</em> will start to fit the facial model, and the positions can be returned via <code>getCurrentPosition()</code>.</p>
+
+	<p>The fitting algorithm is based on <a href="http://www.ri.cmu.edu/pub_files/2009/9/CameraReady-6.pdf">a paper</a> by Jason Saragih &amp; Simon Lucey. The models are trained on annotated data from <a href="http://www.milbo.org/muct/">the MUCT database</a> plus some self-annotated images.</p>
+
+	<h2 id="process">Basic usage</h2>
+
+	<p>Initialization:</p>
+
+	<pre><code>var ctracker = new clm.tracker();
+ctracker.init();</code></pre>
+
+	<p>Starting tracking:</p>
+
+	<pre><code>ctracker.start(videoElement);</code></pre>
+
+	<p>Getting the points of the currently fitted model:</p>
+
+	<pre><code>var positions = ctracker.getCurrentPosition();</code></pre>
+
+	<p>Drawing the currently fitted model on a given canvas:</p>
+
+	<pre><code>var drawCanvas = document.getElementsById('somecanvas');
+ctracker.draw(drawCanvas);</code></pre>
+
+	<h2 id="events">Functions</h2>
+
+	<p>These are the functions that the <code>clm.tracker</code> object exposes:</p>
+
+	<ul>
+		<li><strong><em>init</em></strong>( <em>model</em> ) : initialize clmtrackr.</li>
+			<ul>
+				<li><em>model</em> : (optional) a model to use for tracking. If no model is specified, the built-in model from 'model_pca_20_svm.js' will be used.</li>
+			</ul>
+		<li><strong><em>start</em></strong>( <em>element</em>, <em>box</em> ) : start the fitting/tracker. Returns <code>false</code> if the tracker hasn't been initalized with a model.</li>
+			<ul>
+				<li><em>element</em> : a <em>canvas</em> or <em>video</em> element</li>
+				<li><em>box</em> : (optional) the bounding box of where the face is, as an array <code>[x, y, width, height]</code> where <code>x</code> and <code>y</code> refer to the coordinates of the top left corner of the bounding box. If no bounding box is given, <em>clmtrackr</em> tries to detect the position of the face itself.</li>
+			</ul>
+		<li><strong><em>stop</em></strong>( ) : stop the running tracker.</li>
+		<li><strong><em>track</em></strong>( <em>element</em>, <em>box</em> ) : do a single iteration of model fitting. Returns the current positions of the fitted model as an array of positions <code>[[x<sub>0</sub>, y<sub>0</sub>], ... , [x<sub>n</sub>, y<sub>n</sub>]]</code> if tracking iteration succeeds. Returns <code>false</code> when the model is currently not tracking a face, e.g. during inital face detection or if tracking has been lost.</li>
+			<ul>
+				<li><em>element</em> : a <em>canvas</em> or <em>video</em> element</li>
+				<li><em>box</em> : (optional) the bounding box of where the face is, as an array <code>[x, y, width, height]</code> where <code>x</code> and <code>y</code> refer to to the coordinates of the top left corner of the bounding box. If no bounding box is given, <em>clmtrackr</em> uses the last known position, or tries to detect the position of the face.</li>
+			</ul>
+		<li><strong><em>reset</em></strong>( ) : reset the tracking. This will re-initialize detection and initial fitting.</li>
+		<li><strong><em>draw</em></strong>( <em>canvas</em>, <em>pv</em>, <em>path</em> ) : draw the currently fitted facial model</li>
+			<ul>
+				<li><em>canvas</em> : the <em>canvas</em> element to draw the model on</li>
+				<li><em>pv</em> : (optional) the model parameters as an array. (default is to use the current parameter values)</li>
+				<li><em>path</em> : (optional) type of path to draw, either "normal" or "vertices" (default : normal)</li>
+			</ul>
+		<li><strong><em>getScore</em></strong>( ) : Get the current score of the model fitting. The score is based on a SVM classifier which detects how strongly the image precisely under the fitted model resembles a face. Returned values range from 0 (no fit) to 1 (perfect fit). The default threshold for assuming we've lost track of the face is anything below 0.50.</li>
+		<!--<li><strong><em>calculatePositions</em></strong>( parameters ) : Calculate the model points from the given parameters. Returns the positions as an array <code>[[x<sub>0</sub>, y<sub>0</sub>], ... , [x<sub>n</sub>, y<sub>n</sub>]]</code>.</li>
+			<ul>
+				<li><em>parameters</em> : The model parameters as an array</li>
+			</ul>-->
+		<li><strong><em>getCurrentPosition</em></strong>( ) : Get the current positions of the fitted facial model. Returns the positions as an array <code>[[x<sub>0</sub>, y<sub>0</sub>], ... , [x<sub>n</sub>, y<sub>n</sub>]]</code>.</li>
+		<li><strong><em>getCurrentParameters</em></strong>( ) : Get the current parameters for the fitted facial model. Returns the model parameters as an array <code>[p<sub>0</sub>, p<sub>1</sub>, ... , p<sub>n</sub>]</code></li>
+		<li><strong><em>getConvergence</em></strong>( ) : Get the mean model movements (summed over all points) over the last 10 iterations. A number below 0.5 signifies the model probably has converged.</li>
+		<li><strong><em>setResponseMode</em></strong>( <em>type</em>, <em>list</em> ) : Set how the responses are calculated (see below).</li>
+			<ul>
+				<li><em>type</em> : the method of response calculations, either "single", "cycle" or "blend"</li>
+				<li><em>list</em> : an array of response filter strings, either "raw", "sobel" or "lbp", for instance ["raw", "lbp"]. When type is "single" clmtrackr will only use the first element in the array. When type is "cycle", clmtrackr will cycle through the array, using one of the types for each iteration. When type is "blend", clmtrackr will blend all the different types of responses in the array.</li>
+			</ul>
+	</ul>
+
+	<h2 id="responses">Responses</h2>
+
+	<p>When trying to fit the model, we calculate the likelihood of where the true points are in a region around each point. These likelihoods are called the <em>responses</em>. Clmtrackr includes three different types of responses: "raw", which is based on SVM regression of the grayscale patches, "sobel", which is based on SVM regression of the <a href="http://en.wikipedia.org/wiki/Sobel_operator">sobel gradients</a> of the patches, which means it's more sensitive to edges, and "lbp", which is based on SVM regression of <a href="http://en.wikipedia.org/wiki/Local_binary_patterns">local binary patterns</a> calculated from the patches. The type "raw" is the fastest way to calculate responses, since it doesn't do any preprocessing of the patches, but may be slightly less precise than "lbp" or "sobel". By default, clmtrackr only uses the "raw" type of response, but it is possible to change to the other types of responses to increase precision, by the function <em>setResponseMode</em> above.</p>
+
+	<p>Additionally, there are also methods to try to combine the different types of responses. By default, clmtrackr only uses one type of response, but you can try to improve tracking by either <em>blending</em> or <em>cycling</em> different types of responses. When <em>blending</em> different types of responses, clmtrackr will calculate all the given types of responses in the array <em>list</em>, and average these responses. Since we're then calculating multiple responses per iteration, this will lead to slower tracking. If you're <em>cycling</em> different types of responses, clmtrackr will cycle through the list of responses in the array "list", but only calculate one type for each iteration. This means tracking will not be much slower than using single responses, but you may experience that the fitted model "jitters" due to disagreement between the different types of responses.</p>
+
+	<p>Try out the different response modes in <a href="http://auduno.github.io/clmtrackr/examples/clm_video_responses.html">this example</a></p>
+
+	<h2 id="parameters">Parameters</h2>
+
+	<p>When initializing the object <em>clm.tracker</em>, you can optionally specify some object parameters, for instance:</p>
+
+	<pre><code>var ctracker = new clm.tracker({searchWindow : 15, stopOnConvergence : true});</code></pre>
+
+	<p>The optional object parameters that can be passed along to <code>clm.tracker()</code> are :</p>
+
+	<ul>
+	<li><strong>constantVelocity</strong> {<em>boolean</em>} : whether to use constant velocity model when fitting (default is true)</li>
+	<li><strong>searchWindow</strong> {<em>number</em>} : the size of the searchwindow around each point (default is 11)</li>
+	<li><strong>useWebGL</strong> {<em>boolean</em>} : whether to use webGL if it is available (default is true)</li>
+	<li><strong>scoreThreshold</strong> {<em>number</em>} : threshold for when to assume we've lost tracking (default is 0.50)</li>
+	<li><strong>stopOnConvergence</strong> {<em>boolean</em>} : whether to stop tracking when the fitting has converged (default is false)</li>
+	<!--<li><strong>weightPoints</strong> {<em>array of numbers</em>} : weights for points, for optionally weighting down or up some points in the model</li>
+	<li><strong>sharpenResponse</strong> {<em>boolean</em>} : Whether to sharpen response, leading to "harder" fitting (default is false)</li>-->
+	<li><strong>faceDetection</strong> {<em>object</em>} : object with parameters for facedetection : </li>
+	<ul>
+		<li><strong>useWebWorkers</strong> {<em>boolean</em>} : whether to use web workers for face detection (default is true)</li>
+	</ul>
+	</ul>
+
+	<h2>Models</h2>
+
+	<p>There are several pre-built models included. The models will be loaded with the variable name <code>pModel</code>, so initialization of the tracker with any of the models can be called this way:</p>
+
+	<pre><code>ctracker.init(pModel);</code></pre>
+
+	<p>All of the models are trained on the same dataset, and follow the same annotation as above. The difference between them is in type of classifier, number of components in the facial model, and how the components were extracted (Sparse PCA or PCA). If no model is specified on initialization, clmtrackr will use the built-in model from <em>model_pca_20_svm.js</em> as a default choice. </p>
+
+	<p>A model with fewer components will be slightly faster, with some loss of precision. The MOSSE filter classifiers will run faster than SVM kernels on computers without support for webGL, but has slightly poorer fitting. </p>
+
+	<ul>
+	<li><strong>model_pca_20_svm.js</strong> : SVM kernel for classifiers, 20 components PCA (the default model included in <em>clmtrackr.js</em>) </li>
+	<li><strong>model_pca_10_svm.js</strong> : SVM kernel for classifiers, 10 components PCA</li>
+	<li><strong>model_spca_20_svm.js</strong> : SVM kernel for classifiers, 20 components Sparse PCA</li>
+	<li><strong>model_spca_10_svm.js</strong> : SVM kernel for classifiers, 10 components Sparse PCA</li>
+	<li><strong>model_pca_20_mosse.js</strong> : MOSSE filter for classifiers, 20 components PCA</li>
+	<li><strong>model_pca_10_mosse.js</strong> : MOSSE filter for classifiers, 10 components PCA</li>
+	</ul>
+
+	<h2>Files</h2>
+
+	<ul>
+	<li><strong>js/clm.js</strong> : main library</li>
+	<li><strong>js/svmfilter/svmfilter_webgl.js</strong> : classifier library for SVM, webGL version</li>
+	<li><strong>js/svmfilter/svmfilter_fft.js</strong> : classifier library for SVM, non-webGL version</li>
+	<li><strong>js/mossefilter/mosseFilterResponses.js</strong> : classifier library for MOSSE correlation filters</li>
+	<li><strong>js/facedetector/faceDetection.js</strong> : facedetection library for initial detection, wrapping <a href="https://github.com/inspirit/jsfeat"><em>jsfeat</em></a> and <a href="https://github.com/auduno/mosse"><em>mosse</em></a>.</li>
+	<li><strong>js/facedetector/faceDetection_worker.js</strong> : web worker wrapper for facedetection.</li>
+	</ul>
+
+	<ul>
+	<li><strong>build/clmtrackr.js</strong> : packaged version of the above files plus dependencies</li>
+	<li><strong>build/clmtrackr.min.js</strong> : packaged and minified version</li>
+	<li><strong>build/clmtrackr.module.js</strong> : packaged version, as an ES6 module</li>
+	</ul>
+
+	<h2>Utility libraries</h2>
+
+	<p><em>face_deformer.js</em> is a small library for deforming a face from an image or video, and output it on a webgl canvas. This is used in some of the examples. </p>
+	<p>Example usage:</p>
+
+	<pre><code>var fd = new faceDeformer();
+// initialize the facedeformer with the webgl canvas to draw on
+fd.init(webGLCanvas);
+// load the image element where the face should be copied from
+// along with the position of the face
+fd.load(imageElement, points, model);
+// draw the deformed face on the webgl canvas
+fd.draw(points);</code></pre>
+
+	<p>These are the functions that the <code>faceDeformer</code> object exposes:</p>
+
+	<ul>
+		<li><strong><em>init</em></strong>( <em>canvas</em> ) : initialize the face deformer with a webGL canvas.</li>
+			<ul>
+				<li><em>canvas</em> : a webgl canvas element</li>
+			</ul>
+		<li><strong><em>load</em></strong>( <em>element</em>, <em>points</em>, <em>model</em> ) : load the face to deform from an image, video or canvas element.</li>
+			<ul>
+				<li><em>element</em> : a <em>canvas</em>, <em>image</em> or <em>video</em> element</li>
+				<li><em>points</em> : the position of the face on the element, according to the face model above, as an array of positions <code>[[x<sub>0</sub>, y<sub>0</sub>], ... , [x<sub>n</sub>, y<sub>n</sub>]]</code>.</li>
+			</ul>
+		<li><strong><em>draw</em></strong>( <em>points</em> ) : draw the deformed face on the webgl canvas.</li>
+			<ul>
+				<li><em>points</em> : the new points to deform the face to, as an array of positions <code>[[x<sub>0</sub>, y<sub>0</sub>], ... , [x<sub>n</sub>, y<sub>n</sub>]]</code>.</li>
+			</ul>
+		<li><strong><em>drawGrid</em></strong>( <em>points</em> ) : draw the grid of the vertices which are used to deform the face on the webgl canvas.</li>
+			<ul>
+				<li><em>points</em> : the new points to deform the face to, as an array of positions <code>[[x<sub>0</sub>, y<sub>0</sub>], ... , [x<sub>n</sub>, y<sub>n</sub>]]</code>.</li>
+			</ul>
+		<li><strong><em>clear</em></strong>( ) : clear the webgl canvas.</li>
+	</ul>
+
+	<h2>License</h2>
+
+	<p><em>clmtrackr</em> is distributed under the <a href="http://www.opensource.org/licenses/MIT">MIT license</a></p>
+
+	<!--<h3><a href="/">&lsaquo;&nbsp;&nbsp;back&nbsp;</a></h3>-->
+	</section>
+	<footer>
+	<p>This project is maintained by <a href="https://github.com/auduno">auduno</a></p>
+	<p><small>Theme originated from <a href="https://github.com/orderedlist">orderedlist</a></small></p>
+	</footer>
+	</div>
+	<!--[if !IE]><script>fixScale(document);</script><!--<![endif]-->
+</body>
+</html>
