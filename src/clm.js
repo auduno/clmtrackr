@@ -45,6 +45,7 @@ var clm = {
 		if (params.sharpenResponse === undefined) params.sharpenResponse = false;
 		if (params.faceDetection === undefined) params.faceDetection = {};
 		if (params.eventDispatcher === undefined) params.eventDispatcher = document;
+		if (params.maxIterationsPerAnimFrame === undefined) params.maxIterationsPerAnimFrame = 3;
 
 		/** @type {Number} Minimum convergence before firing `clmtrackrConverged` event. */
 		var convergenceThreshold = 0.5;
@@ -309,9 +310,13 @@ var clm = {
 			runnerTimeout = requestAnimationFrame(runnerFunction);
 			// schedule as many iterations as we can during each request
 			var startTime = (new Date()).getTime();
-			while (((new Date()).getTime() - startTime) < 16) {
+			var run_counter = 0;
+
+			while ((((new Date()).getTime() - startTime) < 16)
+					&& run_counter < params.maxIterationsPerAnimFrame) {
 				var tracking = this.track(runnerElement, runnerBox);
 				if (!tracking) break;
+				run_counter++;
 			}
 		}.bind(this);
 
