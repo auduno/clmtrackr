@@ -251,7 +251,7 @@ var jsfeat_face = function(parameters) {
 	if (useWebWorkers) {
 		Worker.createURL = function(func_or_string) {
 			var str = (typeof func_or_string === 'function')?func_or_string.toString():func_or_string;
-			str = str.replace("'FRONTALFACE_PLACEHOLDER'", JSON.stringify(jsfeat.haar.frontalface));
+			str = str.replace(/([`'"])FRONTALFACE_PLACEHOLDER\1/, JSON.stringify(jsfeat.haar.frontalface));
 			var blob = new Blob(['\'use strict\';\nself.onmessage ='+str], { type: 'text/javascript' });
 			return window.URL.createObjectURL(blob);
 		};
